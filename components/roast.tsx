@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   computeBacklogStats,
   loadLibrary,
   SAMPLE_LIBRARY,
+  type BacklogStats,
   type StoredGame,
 } from "@/lib/library";
-import { getRoast } from "@/app/roast/actions";
-import type { BacklogStats, Roast } from "@/lib/ai";
+import { roastBacklog, type Roast } from "@/lib/roast";
+
+/** The jokes are instant; the pause is what sells "sharpening". */
+const SHARPEN_MS = 450;
 
 export function BacklogRoast() {
   const [library, setLibrary] = useState<StoredGame[]>([]);
@@ -18,7 +21,15 @@ export function BacklogRoast() {
 
   const [roast, setRoast] = useState<Roast | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const lib = loadLibrary();
@@ -31,11 +42,14 @@ export function BacklogRoast() {
   function run() {
     if (!stats) return;
     setError(null);
-    startTransition(async () => {
-      const res = await getRoast(stats);
+    setPending(true);
+    const res = roastBacklog(stats);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setPending(false);
       if (res.ok) setRoast(res.roast);
       else setError(res.error);
-    });
+    }, SHARPEN_MS);
   }
 
   if (!stats) return null;
@@ -51,8 +65,8 @@ export function BacklogRoast() {
           Roast my backlog
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Brace yourself. The AI is about to judge your{" "}
-          {isSample ? "(sample) " : ""}library.
+          Brace yourself. Your {isSample ? "(sample) " : ""}numbers are about to
+          say the quiet part out loud.
         </p>
         <p className="mt-2 font-mono text-xs text-subtle">
           {isSample ? (
