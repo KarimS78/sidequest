@@ -20,6 +20,11 @@ const geistMono = Geist_Mono({
 const bigShoulders = Big_Shoulders({
   variable: "--font-big-shoulders",
   subsets: ["latin"],
+  // Next has no metric overrides for this family, so it can't synthesise a
+  // matching fallback. Name a condensed one ourselves and opt out, rather than
+  // let it swap from a wide default and shove the layout around.
+  adjustFontFallback: false,
+  fallback: ["Arial Narrow", "Helvetica Neue Condensed", "sans-serif"],
 });
 
 export const metadata: Metadata = {

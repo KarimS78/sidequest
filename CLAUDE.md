@@ -19,16 +19,22 @@ Companion gaming — "Never forget where you left off." Répond à « je joue à
 - **Tags** : SteamSpy (tags communautaires), fallback genres + catégories du store Steam. Endpoints publics sans clé, throttlés à 250ms, appelés par lots depuis `components/tag-enricher.tsx`.
 - Déploiement : Vercel + Supabase (plans gratuits).
 
-## Design system
-Dark-first. Fond `#0a0a0b`, surfaces `#141416`, bordures `#232326`, accent violet `#7c5cff`. Typo Geist Sans + Geist Mono. Style Linear (densité/typo) + Steam (covers). Tokens dans `app/globals.css`.
+## Design system — « l'étagère »
+Le backlog est une **collection d'objets physiques**, et l'UI en est une : coques moulées, étiquettes sérigraphiées, tranches sur une étagère. Tirer un jeu sort une cartouche du rang (le trou reste visible) et l'encliquette dans le lecteur.
+
+- **Palette** : fond `#191412` (brun-charbon chaud, jamais un noir bureautique), plateau `#241c18`, plastique `#b9b0a0` / crème `#e0d4bc`, étiquette `#f2ede1`, encre `#211c19`, contacts dorés `#c9a227`. Une couleur par humeur, imprimée sur le bandeau de l'étiquette et sur les tranches : story `#2f6fb3`, chill `#3e8e8a`, challenge `#c8432e`, quick `#d9a441`.
+- **Typo** : Big Shoulders (étiquettes, titres, condensé industriel) + Geist (corps) + Geist Mono (données, petites capitales).
+- **Mouvement — la règle qui tient la direction** : rien ne rebondit. Pas de ressort, pas de confetti. `--ease` pour les déplacements, `--seat` (`cubic-bezier(.85,0,.9,1)`) pour ce qui s'encliquette. Le pull fait quatre temps : éjection → défilement 2500ms → assise 180ms → lecture 420ms, puis l'étiquette s'imprime par balayage (`.print`), jamais par fondu.
+- **Layout** : mobile-first, une colonne `max-w-md` centrée même sur desktop (`.column`), bottom nav fixe à 4 onglets, `.has-nav` pour dégager la hauteur de la nav + safe area.
+- Tokens et matières (`.cart`, `.spine`, `.deck-slot`) dans `app/globals.css`.
 
 ## Structure actuelle
-- `app/page.tsx` — landing
-- `app/play/` — le picker (temps + humeur → un jeu)
-- `app/dashboard/` — Library
-- `app/history/` — historique des recommandations
-- `app/roast/` — roast du backlog
-- `app/profile/` — stats, genres favoris, jeux masqués
+- `app/page.tsx` — redirige vers `/play` : le Spin **est** l'écran d'accueil, il n'y a pas de landing
+- `app/play/` — le deck (session + humeur → une cartouche)
+- `app/dashboard/` — Shelf (grille de cartouches)
+- `app/history/` — Saves (les pulls + les notes de session)
+- `app/profile/` — Collector : stats, roast (étiquette d'avertissement), goûts, jeux bannis
+- `app/roast/` — conservé comme lien direct ; le roast s'affiche surtout dans le profil
 - `app/connect/` — import Steam (+ `actions.ts` : import, recherche store, enrichissement des tags)
 - `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view, history-list, profile-editor, nav
 - `lib/` — `recommend.ts` (moteur), `roast.ts` (punchlines), `ai.ts` + `ai-guard.ts` (couche IA et ses plafonds), `steam.ts` (API Steam + tags), `library.ts` + `history.ts` (persistance localStorage), `device.ts` (id navigateur pour répartir le quota)
@@ -37,7 +43,7 @@ Dark-first. Fond `#0a0a0b`, surfaces `#141416`, bordures `#232326`, accent viole
 ## Dette connue
 - Les compteurs de quota de `lib/ai-guard.ts` vivent en mémoire du module : sur un hébergeur serverless chaque instance a son propre compte et un déploiement les remet à zéro. C'est un frein, pas une comptabilité. À basculer sur Supabase quand la base arrive (un seul fichier à changer).
 - `desktop/` (overlay Electron) a son propre appel Gemini dans `desktop/ai.js`, sans ces garde-fous, et partage la même `GEMINI_API_KEY`. À aligner sur `lib/ai-guard.ts` ou à débrancher.
-- Refonte UI mobile en cours sur `feat/mobile-ui` : maquette de référence dans `public/design-preview.html`, à supprimer une fois la refonte livrée.
+- Le `<title>` et le manifeste disent encore « SideQuest AI » par endroits alors que le produit s'appelle SideQuest — à harmoniser.
 
 ## Conventions
 - Français casual avec Karim. App en anglais.

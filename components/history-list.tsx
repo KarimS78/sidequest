@@ -67,7 +67,8 @@ export function HistoryList() {
             Saves
           </h1>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {entries.length} pulls · {playedCount} played
+            {entries.length} {entries.length === 1 ? "pull" : "pulls"} ·{" "}
+            {playedCount} played
           </p>
         </div>
         <button

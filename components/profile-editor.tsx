@@ -10,6 +10,7 @@ import {
   loadLibrary,
   loadProfile,
   removeFromBlacklist,
+  SAMPLE_LIBRARY,
   saveProfile,
   type StoredGame,
 } from "@/lib/library";
@@ -19,11 +20,16 @@ export function ProfileEditor() {
   const [genres, setGenres] = useState<string[]>([]);
   const [library, setLibrary] = useState<StoredGame[] | null>(null);
   const [blacklist, setBlacklist] = useState<number[]>([]);
+  const [isSample, setIsSample] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
 
   useEffect(() => {
+    const lib = loadLibrary();
     setGenres(loadProfile().favoriteGenres);
-    setLibrary(loadLibrary() ?? []);
+    // Same fallback as the deck and the shelf: without it a first-time visitor
+    // sees zeroed stats here while every other screen shows the sample shelf.
+    setLibrary(lib ?? SAMPLE_LIBRARY);
+    setIsSample(!lib);
     setBlacklist(loadBlacklist());
   }, []);
 
@@ -58,7 +64,7 @@ export function ProfileEditor() {
             Karim
           </b>
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {library.length ? `${library.length} carts` : "No shelf yet"}
+            {isSample ? "Sample shelf" : `${library.length} carts`}
           </span>
         </div>
       </div>
@@ -70,13 +76,12 @@ export function ProfileEditor() {
         <Stat value={`${sealed}%`} label="Sealed" warn />
       </div>
 
-      {library.length === 0 && (
-        <p className="mt-4 text-sm text-ink-soft">
-          No shelf yet —{" "}
-          <Link href="/connect" className="text-label underline">
+      {isSample && (
+        <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+          These are sample numbers ·{" "}
+          <Link href="/connect" className="text-ink-soft hover:text-label">
             connect your Steam
-          </Link>{" "}
-          to get real picks.
+          </Link>
         </p>
       )}
 
