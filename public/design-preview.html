@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SideQuest — design preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS — the contract. app/globals.css must mirror this block.
+   ============================================================ */
+:root {
+  --bg:        #0a0a0b;
+  --surface:   #141416;
+  --border:    #232326;
+  --accent:    #7c5cff;
+  --text:      #f4f4f5;
+  --text-2:    #a1a1aa;
+
+  --glow:      0 0 24px rgba(124, 92, 255, .35);
+
+  --fast:      150ms;
+  --slow:      300ms;
+  --ease:      cubic-bezier(0.16, 1, 0.3, 1);
+
+  --r-card:    12px;
+  --r-chip:    8px;
+
+  --font:      "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono:      "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  /* reel mechanics — copied verbatim into the implementation */
+  --spin-ms:   2500ms;
+  --settle-ms: 300ms;
+}
+
+/* --- preview chrome only. NOT app tokens. ------------------- */
+.page-bg { background: #050506; }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: #050506;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+img { display: block; max-width: 100%; }
+
+/* ============================================================
+   PREVIEW LAYOUT
+   ============================================================ */
+.sheet { max-width: 1400px; margin: 0 auto; padding: 48px 24px 96px; }
+
+.sheet-head { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 40px; }
+.sheet-head h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
+.sheet-head p { color: var(--text-2); margin-top: 8px; max-width: 62ch; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+.legend span {
+  font-family: var(--mono); font-size: 11px; color: var(--text-2);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px;
+}
+.legend i { font-style: normal; display: inline-block; width: 8px; height: 8px;
+  border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.rack { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
+
+.slot { width: 390px; flex: 0 0 auto; }
+.slot > figcaption {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-2); margin-bottom: 10px;
+}
+.slot > figcaption b { color: var(--text); font-weight: 500; letter-spacing: 0; text-transform: none; font-family: var(--font); font-size: 13px; }
+.live { color: var(--accent); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 1px 7px; font-size: 10px; letter-spacing: .08em; }
+
+/* the phone: exactly the app viewport, no device chrome */
+.phone {
+  position: relative; width: 390px; height: 780px; overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
+}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.screen {
+  position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+  /* bottom nav is 64px + safe area; content must clear it */
+  padding: 0 20px calc(64px + 24px);
+  scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 22px 0 14px; background: linear-gradient(var(--bg) 72%, transparent);
+}
+.topbar h2 { font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+.topbar .count { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+.topbar-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: var(--r-chip);
+  color: var(--text-2); transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.icon-btn:hover { color: var(--text); border-color: #33333a; }
+
+.eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-2); margin-bottom: 8px;
+}
+
+/* --- bottom nav --------------------------------------------- */
+.bottom-nav {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav a {
+  min-height: 44px; height: 64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  color: var(--text-2); text-decoration: none;
+  font-size: 10px; letter-spacing: .02em;
+  transition: color var(--fast) var(--ease);
+}
+.bottom-nav a[aria-current="page"] { color: var(--accent); }
+.bottom-nav svg { width: 22px; height: 22px; }
+
+/* ============================================================
+   SPIN — the one theatrical screen
+   ============================================================ */
+.chip-row {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  /* bleed to the screen edges so the row reads as scrollable */
+  margin: 0 -20px; padding: 2px 20px 2px;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 16px; border: 1px solid var(--border); border-radius: var(--r-chip);
+  background: var(--surface); color: var(--text-2);
+  font-size: 14px; white-space: nowrap;
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.chip:hover { color: var(--text); }
+.chip[aria-pressed="true"] {
+  color: var(--text); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.chip .k { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+
+.mood-input {
+  width: 100%; margin-top: 10px; min-height: 40px;
+  background: none; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font: inherit; font-size: 13px; padding: 6px 2px;
+  transition: border-color var(--fast) var(--ease);
+}
+.mood-input::placeholder { color: #6b6b73; }
+.mood-input:focus { outline: none; border-bottom-color: var(--accent); }
+
+/* --- the reel ------------------------------------------------ */
+.reel-stage { display: grid; place-items: center; padding: 26px 0 20px; }
+.reel {
+  position: relative; width: 260px; aspect-ratio: 3 / 4; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--r-card);
+  background: var(--surface);
+  transition: box-shadow var(--slow) var(--ease);
+}
+.reel.is-spinning { box-shadow: var(--glow); }
+.reel.is-landed { animation: land var(--slow) var(--ease); box-shadow: var(--glow); }
+@keyframes land {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.reel-strip { will-change: transform; }
+.reel-cell { position: relative; width: 100%; aspect-ratio: 3 / 4; background: var(--surface); }
+.reel-cell img { width: 100%; height: 100%; object-fit: cover; }
+/* onerror fallback: surface + game name */
+.reel-cell .fallback {
+  position: absolute; inset: 0; display: none; align-items: flex-end;
+  padding: 14px; background: var(--surface); border-radius: inherit;
+  font-size: 15px; font-weight: 500; line-height: 1.25; color: var(--text-2);
+}
+.reel-cell.no-art .fallback { display: flex; }
+.reel-cell.no-art img { visibility: hidden; }
+
+.reel-idle {
+  position: absolute; inset: 0; display: grid; place-items: center; gap: 6px;
+  align-content: center; text-align: center; padding: 24px; color: var(--text-2);
+}
+.reel-idle .glyph { font-size: 30px; opacity: .5; }
+.reel-idle p { font-size: 13px; max-width: 20ch; }
+
+/* --- continue row -------------------------------------------- */
+.continue { margin-top: 4px; }
+.continue-row {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -20px; padding: 0 20px;
+}
+.continue-row::-webkit-scrollbar { display: none; }
+.mini {
+  flex: 0 0 auto; width: 52px; aspect-ratio: 3 / 4; overflow: hidden;
+  border-radius: var(--r-chip); border: 1px solid var(--border); background: var(--surface);
+  transition: border-color var(--fast) var(--ease);
+}
+.mini:hover { border-color: var(--accent); }
+.mini img { width: 100%; height: 100%; object-fit: cover; }
+
+/* --- primary action ------------------------------------------ */
+.spin-btn {
+  width: 100%; height: 56px; margin-top: 18px;
+  border-radius: var(--r-card); background: var(--accent); color: #fff;
+  font-size: 15px; font-weight: 600; letter-spacing: .08em;
+  box-shadow: var(--glow);
+  transition: transform var(--fast) var(--ease), opacity var(--fast) var(--ease);
+}
+.spin-btn:active { transform: scale(.985); }
+.spin-btn[disabled] { opacity: .55; box-shadow: none; }
+
+.secondary-link {
+  display: block; width: 100%; margin-top: 12px; padding: 8px;
+  text-align: center; font-size: 13px; color: var(--text-2);
+  transition: color var(--fast) var(--ease);
+}
+.secondary-link:hover { color: var(--text); }
+
+/* --- result card --------------------------------------------- */
+.result { padding-top: 4px; }
+.result h3 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin-top: 18px; }
+.result .meta { font-family: var(--mono); font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+.last-time {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card);
+}
+.last-time .eyebrow { margin-bottom: 4px; }
+.last-time p { font-size: 14px; line-height: 1.45; }
+
+.reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.reason {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); border-radius: var(--r-chip);
+  padding: 5px 10px; font-size: 12px; color: var(--text-2);
+}
+
+.actions { display: flex; gap: 8px; margin-top: 18px; }
+.btn-primary {
+  flex: 1; height: 48px; border-radius: var(--r-card);
+  background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
+  box-shadow: var(--glow);
+  transition: transform var(--fast) var(--ease);
+}
+.btn-primary:active { transform: scale(.985); }
+.btn-ghost {
+  flex: 0 0 auto; height: 48px; padding: 0 20px; border-radius: var(--r-card);
+  border: 1px solid var(--border); color: var(--text-2); font-size: 15px;
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.btn-ghost:hover { color: var(--text); border-color: #33333a; }
+
+.never {
+  display: block; width: 100%; margin-top: 14px; padding: 6px;
+  text-align: center; font-size: 12px; color: #6b6b73;
+  transition: color var(--fast) var(--ease);
+}
+.never:hover { color: var(--text-2); }
+
+/* ============================================================
+   LIBRARY
+   ============================================================ */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile {
+  position: relative; aspect-ratio: 3 / 4; overflow: hidden;
+  border-radius: var(--r-card); background: var(--surface); border: 1px solid var(--border);
+}
+.tile img { width: 100%; height: 100%; object-fit: cover; }
+.tile .veil {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 10px;
+  /* strong enough to carry white text over any cover */
+  background: linear-gradient(to top, rgba(10,10,11,.94) 0%, rgba(10,10,11,.72) 28%, transparent 62%);
+}
+.tile .veil b { font-size: 13px; font-weight: 500; line-height: 1.2; }
+.tile .veil span { font-family: var(--mono); font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+.skeleton { position: relative; overflow: hidden; background: var(--surface); }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.045), transparent);
+  animation: sweep 1.4s infinite;
+}
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+.rows { margin-top: 4px; }
+.row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: 0; }
+.row .thumb {
+  flex: 0 0 auto; width: 48px; aspect-ratio: 3 / 4; overflow: hidden;
+  border-radius: var(--r-chip); background: var(--surface); border: 1px solid var(--border);
+}
+.row .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.row .body { min-width: 0; flex: 1; }
+.row .body b { display: block; font-size: 14px; font-weight: 500; }
+.row .body .sub { font-family: var(--mono); font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.row .body .note { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.4; }
+.row .when { flex: 0 0 auto; font-family: var(--mono); font-size: 11px; color: #6b6b73; }
+.played { color: var(--accent); }
+
+/* ============================================================
+   PROFILE
+   ============================================================ */
+.who { display: flex; align-items: center; gap: 12px; padding: 4px 0 18px; }
+.avatar {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 18px;
+}
+.who b { display: block; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.who span { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card);
+  padding: 14px 12px;
+}
+.stat b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+.stat span { display: block; font-size: 11px; color: var(--text-2); margin-top: 4px; line-height: 1.3; }
+.stat.hot b { color: var(--accent); }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card);
+  padding: 16px; margin-top: 20px;
+}
+.card h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.roast-lines { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.roast-lines li { display: flex; gap: 9px; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.roast-lines li::before { content: "🔥"; flex: 0 0 auto; }
+.verdict { font-size: 14px; line-height: 1.45; margin-top: 10px; }
+
+.taste { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.taste button {
+  border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
+  font-size: 13px; color: var(--text-2); min-height: 34px;
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.taste button[aria-pressed="true"] {
+  color: var(--text); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty {
+  display: grid; place-content: center; justify-items: center; gap: 10px;
+  text-align: center; height: 100%; padding: 0 32px 80px;
+}
+.empty .glyph { font-size: 34px; opacity: .45; }
+.empty b { font-size: 17px; font-weight: 600; }
+.empty p { font-size: 13px; color: var(--text-2); max-width: 26ch; }
+.empty .cta {
+  margin-top: 6px; height: 48px; padding: 0 22px; display: inline-flex; align-items: center;
+  border-radius: var(--r-card); background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
+  box-shadow: var(--glow); text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <header class="sheet-head">
+    <h1>SideQuest — design preview</h1>
+    <p>
+      Reference for the mobile-first rebuild. Two registers on one palette: Linear-grade density for
+      the data screens, arcade theatricality reserved entirely for the Spin. Every frame below is the
+      real 390px viewport — no device chrome. The Spin frame is live: tap SPIN to see the reel
+      mechanic the implementation should copy.
+    </p>
+    <div class="legend">
+      <span><i style="background:#0a0a0b;border:1px solid #232326"></i>bg #0a0a0b</span>
+      <span><i style="background:#141416"></i>surface #141416</span>
+      <span><i style="background:#232326"></i>border #232326</span>
+      <span><i style="background:#7c5cff"></i>accent #7c5cff</span>
+      <span><i style="background:#f4f4f5"></i>text #f4f4f5</span>
+      <span><i style="background:#a1a1aa"></i>text-2 #a1a1aa</span>
+      <span>radius 12 / 8</span>
+      <span>fast 150ms · slow 300ms</span>
+      <span>cubic-bezier(.16,1,.3,1)</span>
+      <span>reel 2500ms + 300ms settle</span>
+    </div>
+  </header>
+
+  <div class="rack">
+
+    <!-- ========================= SPIN (live) ========================= -->
+    <figure class="slot" style="margin:0">
+      <figcaption><b>Spin</b> · / → /play <span class="live">live</span></figcaption>
+      <div class="phone">
+        <div class="screen" id="spinScreen">
+          <div class="topbar">
+            <h2>Spin</h2>
+            <span class="count" id="poolCount">10 games</span>
+          </div>
+
+          <div id="setup">
+            <p class="eyebrow">How much time</p>
+            <div class="chip-row" role="group" aria-label="Time">
+              <button class="chip" aria-pressed="false" data-time="short">~30 min</button>
+              <button class="chip" aria-pressed="true"  data-time="medium">1–2 hours</button>
+              <button class="chip" aria-pressed="false" data-time="long">All evening</button>
+            </div>
+
+            <p class="eyebrow" style="margin-top:18px">What's the mood</p>
+            <div class="chip-row" role="group" aria-label="Mood">
+              <button class="chip" aria-pressed="false" data-mood="chill">🌙 Chill</button>
+              <button class="chip" aria-pressed="true"  data-mood="story">📖 Story</button>
+              <button class="chip" aria-pressed="false" data-mood="challenge">⚔️ Challenge</button>
+              <button class="chip" aria-pressed="false" data-mood="quick">⚡ Quick fun</button>
+            </div>
+            <input class="mood-input" placeholder="…or describe it — “cozy but a little tense”">
+          </div>
+
+          <div class="reel-stage">
+            <div class="reel" id="reel">
+              <div class="reel-strip" id="strip"></div>
+              <div class="reel-idle" id="reelIdle">
+                <span class="glyph">🎲</span>
+                <p>Your library, one answer.</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="result" hidden class="result">
+            <h3 id="resName">Baldur's Gate 3</h3>
+            <p class="meta" id="resMeta">103h played · 9h in the last 2 weeks</p>
+
+            <div class="last-time" id="lastTime">
+              <p class="eyebrow">Last time</p>
+              <p id="lastTimeNote">Left off in Act 2, heading into Moonrise Towers. Shadowheart still waiting on an answer about the artefact.</p>
+            </div>
+
+            <div class="reasons" id="reasons">
+              <span class="reason">📖 Story Rich — your mood</span>
+              <span class="reason">🕐 Rewards a long sitting — fits a full evening</span>
+              <span class="reason">🔥 9h in the last 2 weeks — you're mid-run</span>
+            </div>
+
+            <div class="actions">
+              <button class="btn-primary">Let's play</button>
+              <button class="btn-ghost" id="respin">Respin</button>
+            </div>
+            <button class="never">Never suggest this again</button>
+          </div>
+
+          <div id="preSpin">
+            <div class="continue">
+              <p class="eyebrow">Jump back in</p>
+              <div class="continue-row" id="continueRow"></div>
+            </div>
+            <button class="spin-btn" id="spinBtn">SPIN</button>
+            <button class="secondary-link">Decide for me →</button>
+          </div>
+        </div>
+
+        <nav class="bottom-nav">
+          <a href="#" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Spin
+          </a>
+          <a href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Library
+          </a>
+          <a href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>
+            History
+          </a>
+          <a href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+            Profile
+          </a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- ========================= LIBRARY ========================= -->
+    <figure class="slot" style="margin:0">
+      <figcaption><b>Library</b> · /dashboard</figcaption>
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div>
+              <h2>Library</h2>
+              <span class="count">47 games · 12 untagged</span>
+            </div>
+            <div class="topbar-actions">
+              <button class="icon-btn" title="Re-sync and fetch tags" aria-label="Re-sync">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
+              </button>
+              <button class="icon-btn" title="Add a game by name" aria-label="Add a game">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="grid" id="libGrid"></div>
+        </div>
+        <nav class="bottom-nav">
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Spin</a>
+          <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>History</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- ========================= HISTORY ========================= -->
+    <figure class="slot" style="margin:0">
+      <figcaption><b>History</b> · /history</figcaption>
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div>
+              <h2>History</h2>
+              <span class="count">28 spins · 11 played</span>
+            </div>
+          </div>
+          <div class="rows" id="histRows"></div>
+        </div>
+        <nav class="bottom-nav">
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Spin</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</a>
+          <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>History</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- ========================= PROFILE ========================= -->
+    <figure class="slot" style="margin:0">
+      <figcaption><b>Profile</b> · /profile</figcaption>
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar"><h2>Profile</h2></div>
+
+          <div class="who">
+            <div class="avatar">K</div>
+            <div>
+              <b>Karim</b>
+              <span>Steam connected · 47 games</span>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><b>47</b><span>Games</span></div>
+            <div class="stat"><b>312h</b><span>Played</span></div>
+            <div class="stat hot"><b>62%</b><span>Never launched</span></div>
+          </div>
+
+          <div class="card">
+            <h4>Roast my backlog 🔥</h4>
+            <p class="verdict">“You own 47 games and have played 18. This is a museum, not a game room.”</p>
+            <ul class="roast-lines">
+              <li>62% of your library has never been launched. Bold purchase strategy.</li>
+              <li>103h in Baldur's Gate 3. That's not a hobby, that's a part-time job you pay for.</li>
+              <li>9 of your games are tagged “Open World”. You don't have taste, you have a type.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h4>Your taste</h4>
+            <div class="taste">
+              <button aria-pressed="true">RPG</button>
+              <button aria-pressed="true">Story-rich</button>
+              <button aria-pressed="false">Roguelike</button>
+              <button aria-pressed="true">Soulslike</button>
+              <button aria-pressed="false">Cozy</button>
+              <button aria-pressed="false">Strategy</button>
+            </div>
+          </div>
+        </div>
+        <nav class="bottom-nav">
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Spin</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>History</a>
+          <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- ========================= LOADING + EMPTY ========================= -->
+    <figure class="slot" style="margin:0">
+      <figcaption><b>Library</b> · loading skeletons</figcaption>
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div><h2>Library</h2><span class="count">loading…</span></div>
+          </div>
+          <div class="grid" id="skelGrid"></div>
+        </div>
+        <nav class="bottom-nav">
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Spin</a>
+          <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>History</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+        </nav>
+      </div>
+    </figure>
+
+    <figure class="slot" style="margin:0">
+      <figcaption><b>Spin</b> · empty library</figcaption>
+      <div class="phone">
+        <div class="screen" style="padding-bottom:0">
+          <div class="empty">
+            <span class="glyph">🎲</span>
+            <b>Nothing to spin yet</b>
+            <p>Connect Steam and SideQuest picks from your real backlog.</p>
+            <a class="cta" href="#">Connect Steam</a>
+          </div>
+        </div>
+        <nav class="bottom-nav">
+          <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Spin</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="8" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/></svg>History</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+        </nav>
+      </div>
+    </figure>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Sample data — the SAMPLE_LIBRARY appids, so covers are real.
+   ============================================================ */
+const GAMES = [
+  { appid: 1086940, name: "Baldur's Gate 3",          hours: 103, recent: 9 },
+  { appid: 1245620, name: "Elden Ring",                hours: 79,  recent: 4 },
+  { appid: 367520,  name: "Hollow Knight",             hours: 25 },
+  { appid: 1091500, name: "Cyberpunk 2077",            hours: 5 },
+  { appid: 1174180, name: "Red Dead Redemption 2",     hours: 48 },
+  { appid: 105600,  name: "Terraria",                  hours: 16 },
+  { appid: 292030,  name: "The Witcher 3: Wild Hunt",  hours: 87 },
+  { appid: 1145360, name: "Hades",                     hours: 19 },
+  { appid: 271590,  name: "Grand Theft Auto V",        hours: 13 },
+  { appid: 413150,  name: "Stardew Valley",            hours: 34 },
+];
+
+/* Portrait art. `onerror` swaps in the surface + name fallback the brief asks for. */
+const art = (appid) =>
+  `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_600x900.jpg`;
+
+function coverCell(game, cls = "reel-cell") {
+  const el = document.createElement("div");
+  el.className = cls;
+  el.innerHTML =
+    `<img alt="${game.name}" src="${art(game.appid)}" loading="lazy">` +
+    `<div class="fallback">${game.name}</div>`;
+  el.querySelector("img").addEventListener("error", () => el.classList.add("no-art"));
+  return el;
+}
+
+/* ---------- Library grid ---------- */
+const libGrid = document.getElementById("libGrid");
+GAMES.forEach((g) => {
+  const tile = coverCell(g, "tile");
+  const veil = document.createElement("div");
+  veil.className = "veil";
+  veil.innerHTML = `<b>${g.name}</b><span>${g.hours}h</span>`;
+  tile.appendChild(veil);
+  libGrid.appendChild(tile);
+});
+
+/* ---------- Skeletons ---------- */
+const skelGrid = document.getElementById("skelGrid");
+for (let i = 0; i < 8; i++) {
+  const s = document.createElement("div");
+  s.className = "tile skeleton";
+  skelGrid.appendChild(s);
+}
+
+/* ---------- Continue row ---------- */
+const continueRow = document.getElementById("continueRow");
+GAMES.filter((g) => g.recent).concat(GAMES.slice(2, 6)).forEach((g) => {
+  const m = coverCell(g, "mini");
+  continueRow.appendChild(m);
+});
+
+/* ---------- History ---------- */
+const HISTORY = [
+  { g: GAMES[7], dur: "45m", note: "Cleared Asphodel on run 14. Finally got the Adamant Rail to click.", when: "2h ago", played: true },
+  { g: GAMES[0], dur: "3h",  note: "Act 2, heading into Moonrise Towers.", when: "yesterday", played: true },
+  { g: GAMES[9], dur: null,  note: null, when: "2d ago", played: false },
+  { g: GAMES[1], dur: "1h20", note: "Died to Malenia. Twelve times. Stopping there.", when: "4d ago", played: true },
+  { g: GAMES[3], dur: null,  note: null, when: "6d ago", played: false },
+];
+const histRows = document.getElementById("histRows");
+HISTORY.forEach((h) => {
+  const row = document.createElement("div");
+  row.className = "row";
+  const thumb = coverCell(h.g, "thumb");
+  const body = document.createElement("div");
+  body.className = "body";
+  const sub = [h.dur, h.played ? "played" : "skipped"].filter(Boolean).join(" · ");
+  body.innerHTML =
+    `<b>${h.g.name}</b>` +
+    `<div class="sub${h.played ? " played" : ""}">${sub}</div>` +
+    (h.note ? `<p class="note">${h.note}</p>` : "");
+  const when = document.createElement("span");
+  when.className = "when";
+  when.textContent = h.when;
+  row.append(thumb, body, when);
+  histRows.appendChild(row);
+});
+
+/* ============================================================
+   THE REEL — this mechanic is the spec.
+
+   Phase A  2500ms  cubic-bezier(.16,1,.3,1)  → target + OVERSHOOT
+   Phase B   300ms  cubic-bezier(.16,1,.3,1)  → target, scale pop + glow
+   Haptics: pulses that space out through phase A, one firm hit on landing.
+   The pick is computed at tap; the reveal waits for the reel, never the reverse.
+   ============================================================ */
+const SPIN_MS = 2500;
+const SETTLE_MS = 300;
+const OVERSHOOT = 26;   // px past the landing frame, pulled back in phase B
+const RUNWAY = 14;      // decoy covers before the winner
+
+const reel = document.getElementById("reel");
+const strip = document.getElementById("strip");
+const reelIdle = document.getElementById("reelIdle");
+const spinBtn = document.getElementById("spinBtn");
+const preSpin = document.getElementById("preSpin");
+const setup = document.getElementById("setup");
+const result = document.getElementById("result");
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function buzz(ms) {
+  try { navigator.vibrate?.(ms); } catch { /* unsupported, never fatal */ }
+}
+
+/** Pulses that space out as the reel slows — 110ms apart up to ~330ms. */
+function hapticRamp() {
+  let t = 0, gap = 110;
+  while (t < SPIN_MS - 150) {
+    setTimeout(() => buzz(12), t);
+    t += gap;
+    gap += 20;
+  }
+}
+
+let spinning = false;
+
+function spin() {
+  if (spinning) return;
+  spinning = true;
+  spinBtn.disabled = true;
+  result.hidden = true;
+  reelIdle.style.display = "none";
+
+  // The engine answers now; the animation is what takes time.
+  const winner = GAMES[Math.floor(Math.random() * GAMES.length)];
+
+  strip.innerHTML = "";
+  for (let i = 0; i < RUNWAY; i++) {
+    strip.appendChild(coverCell(GAMES[Math.floor(Math.random() * GAMES.length)]));
+  }
+  strip.appendChild(coverCell(winner));
+
+  const cellH = reel.clientHeight;
+  const target = RUNWAY * cellH;
+
+  if (reduceMotion) {
+    strip.style.transition = "none";
+    strip.style.transform = `translateY(-${target}px)`;
+    return land(winner);
+  }
+
+  strip.style.transition = "none";
+  strip.style.transform = "translateY(0)";
+  void strip.offsetHeight;                       // flush, so the transition takes
+
+  reel.classList.add("is-spinning");
+  strip.style.transition = `transform ${SPIN_MS}ms var(--ease)`;
+  strip.style.transform = `translateY(-${target + OVERSHOOT}px)`;
+  hapticRamp();
+
+  setTimeout(() => {
+    strip.style.transition = `transform ${SETTLE_MS}ms var(--ease)`;
+    strip.style.transform = `translateY(-${target}px)`;
+    setTimeout(() => land(winner), SETTLE_MS);
+  }, SPIN_MS);
+}
+
+function land(winner) {
+  reel.classList.remove("is-spinning");
+  reel.classList.add("is-landed");
+  buzz(40);
+
+  document.getElementById("resName").textContent = winner.name;
+  document.getElementById("resMeta").textContent =
+    `${winner.hours}h played` + (winner.recent ? ` · ${winner.recent}h in the last 2 weeks` : "");
+
+  const past = HISTORY.find((h) => h.g.appid === winner.appid && h.note);
+  document.getElementById("lastTime").hidden = !past;
+  if (past) document.getElementById("lastTimeNote").textContent = past.note;
+
+  setup.hidden = true;
+  preSpin.hidden = true;
+  result.hidden = false;
+  spinning = false;
+  spinBtn.disabled = false;
+  reel.scrollIntoView({ block: "nearest" });
+}
+
+spinBtn.addEventListener("click", spin);
+
+document.getElementById("respin").addEventListener("click", () => {
+  reel.classList.remove("is-landed");
+  result.hidden = true;
+  setup.hidden = false;
+  preSpin.hidden = false;
+  spin();
+});
+
+/* Chips are single-select within their row. */
+document.querySelectorAll(".chip-row").forEach((row) => {
+  row.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    row.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    chip.setAttribute("aria-pressed", "true");
+  });
+});
+
+document.querySelectorAll(".taste button").forEach((b) => {
+  b.addEventListener("click", () =>
+    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true")
+  );
+});
+</script>
+</body>
+</html>
