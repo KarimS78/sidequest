@@ -59,7 +59,7 @@ public/       Static assets
 
 ## Status
 
-V1, work in progress — built by [Karim](https://github.com/karim-ops78).
+V1, work in progress — built by [Karim](https://github.com/KarimS78).
 Web-first, with the desktop overlay rolling out next.
 
 ## License
