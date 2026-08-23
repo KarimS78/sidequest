@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   computeBacklogStats,
   loadLibrary,
   SAMPLE_LIBRARY,
   type BacklogStats,
-  type StoredGame,
 } from "@/lib/library";
 import { roastBacklog, type Roast } from "@/lib/roast";
 import { getAiRoast } from "@/app/roast/actions";
@@ -16,15 +14,27 @@ import { deviceId } from "@/lib/device";
 /** The templates are instant; the pause is what sells "sharpening". */
 const SHARPEN_MS = 450;
 
-export function BacklogRoast() {
-  const [library, setLibrary] = useState<StoredGame[]>([]);
-  const [isSample, setIsSample] = useState(true);
-  const [stats, setStats] = useState<BacklogStats | null>(null);
-
+/**
+ * Rendered as the warning label moulded onto the back of a shell — the one
+ * surface in the app that is printed dark-on-light, which is why it stings.
+ *
+ * `stats` is passed in when embedded in the profile; without it the component
+ * reads the library itself, so /roast still works as a direct link.
+ */
+export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
+  const [stats, setStats] = useState<BacklogStats | null>(given ?? null);
   const [roast, setRoast] = useState<Roast | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (given) {
+      setStats(given);
+      return;
+    }
+    setStats(computeBacklogStats(loadLibrary() ?? SAMPLE_LIBRARY));
+  }, [given]);
 
   useEffect(
     () => () => {
@@ -32,14 +42,6 @@ export function BacklogRoast() {
     },
     []
   );
-
-  useEffect(() => {
-    const lib = loadLibrary();
-    const resolved = lib ?? SAMPLE_LIBRARY;
-    setLibrary(resolved);
-    setIsSample(!lib);
-    setStats(computeBacklogStats(resolved));
-  }, []);
 
   function run() {
     if (!stats) return;
@@ -68,104 +70,52 @@ export function BacklogRoast() {
 
   if (!stats) return null;
 
-  const pctUnplayed = stats.total
-    ? Math.round((stats.neverPlayed / stats.total) * 100)
-    : 0;
-
   return (
-    <div className="space-y-6">
-      <div className="card p-6">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Roast my backlog
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Brace yourself. Your {isSample ? "(sample) " : ""}numbers are about to
-          say the quiet part out loud.
-        </p>
-        <p className="mt-2 font-mono text-xs text-subtle">
-          {isSample ? (
-            <>
-              Using a sample library ·{" "}
-              <Link href="/connect" className="text-accent-soft hover:underline">
-                roast your real one
-              </Link>
-            </>
-          ) : (
-            <>Analysing your {stats.total} games</>
-          )}
-        </p>
-
-        <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat value={String(stats.total)} label="Games owned" />
-          <Stat value={String(stats.played)} label="Actually played" />
-          <Stat value={`${pctUnplayed}%`} label="Never launched" accent />
-          <Stat value={`${stats.totalHours}h`} label="Total hours" />
-        </section>
-
+    <div className="mt-5 rounded-[2px] bg-label p-3.5 text-ink shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)]">
+      <div className="flex items-baseline justify-between gap-3 border-b-2 border-ink pb-1.5">
+        <h2 className="font-display text-[20px] font-extrabold uppercase tracking-[0.03em]">
+          Warning
+        </h2>
         <button
           onClick={run}
           disabled={pending}
-          className="mt-6 w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+          className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-[#5d5348] transition-colors hover:text-ink disabled:opacity-50"
         >
-          {pending ? "Sharpening jokes…" : roast ? "Roast me again 🔥" : "Roast me 🔥"}
+          {pending ? "Sharpening…" : roast ? "Again" : "Read it"}
         </button>
       </div>
 
-      {error && (
-        <div className="card border-amber/30 bg-amber/5 p-4 text-sm text-amber">
-          {error}
-        </div>
+      {error && <p className="mt-3 text-[13px] text-challenge">{error}</p>}
+
+      {!roast && !error && (
+        <p className="mt-3 text-[13px] leading-relaxed text-[#4a4139]">
+          This shell carries a moulded warning about its owner. Read it at your
+          own risk.
+        </p>
       )}
 
       {roast && (
-        <div className="card glow-border space-y-4 p-6">
-          <p className="text-lg font-semibold leading-snug">
-            “{roast.verdict}”
+        <>
+          <p className="mt-3 font-display text-[19px] font-bold uppercase leading-[1.05]">
+            {roast.verdict}
           </p>
-          <ul className="space-y-2.5">
+          <ul className="mt-3 grid gap-2">
             {roast.lines.map((line, i) => (
-              <li key={i} className="flex gap-2.5 text-sm leading-6 text-muted">
-                <span className="text-accent-soft">🔥</span>
+              <li key={i} className="flex gap-2 text-[13px] leading-snug text-[#4a4139]">
+                <span className="font-display font-extrabold text-challenge" aria-hidden>
+                  !
+                </span>
                 <span>{line}</span>
               </li>
             ))}
           </ul>
-          <p className="border-t border-border pt-4 text-sm italic text-subtle">
-            {roast.redemption}
-          </p>
-          <div className="flex justify-end">
-            <Link
-              href="/play"
-              className="text-xs text-accent-soft hover:underline"
-            >
-              Okay okay — just tell me what to play →
-            </Link>
-          </div>
-        </div>
+          {roast.redemption && (
+            <p className="mt-3 border-t border-ink/20 pt-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.06em] text-[#5d5348]">
+              {roast.redemption}
+            </p>
+          )}
+        </>
       )}
-    </div>
-  );
-}
-
-function Stat({
-  value,
-  label,
-  accent = false,
-}: {
-  value: string;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-4">
-      <p
-        className={`font-mono text-2xl font-semibold tracking-tight ${
-          accent ? "text-accent-soft" : ""
-        }`}
-      >
-        {value}
-      </p>
-      <p className="mt-1 text-xs text-subtle">{label}</p>
     </div>
   );
 }

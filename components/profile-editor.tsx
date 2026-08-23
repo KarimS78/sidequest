@@ -2,33 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CoverArt } from "@/components/cover-art";
 import {
+  computeBacklogStats,
   GENRE_OPTIONS,
+  loadBlacklist,
   loadLibrary,
   loadProfile,
-  saveProfile,
-  loadBlacklist,
   removeFromBlacklist,
+  saveProfile,
   type StoredGame,
 } from "@/lib/library";
+import { BacklogRoast } from "@/components/roast";
 
 export function ProfileEditor() {
   const [genres, setGenres] = useState<string[]>([]);
-  const [library, setLibrary] = useState<StoredGame[]>([]);
+  const [library, setLibrary] = useState<StoredGame[] | null>(null);
   const [blacklist, setBlacklist] = useState<number[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
   useEffect(() => {
     setGenres(loadProfile().favoriteGenres);
     setLibrary(loadLibrary() ?? []);
     setBlacklist(loadBlacklist());
-    setLoaded(true);
   }, []);
-
-  function unhide(appid: number) {
-    setBlacklist(removeFromBlacklist(appid));
-  }
 
   function persist(next: string[]) {
     setGenres(next);
@@ -37,116 +34,148 @@ export function ProfileEditor() {
     window.setTimeout(() => setSavedFlash(false), 1200);
   }
 
-  function toggle(genre: string) {
-    persist(
-      genres.includes(genre)
-        ? genres.filter((g) => g !== genre)
-        : [...genres, genre]
-    );
-  }
+  if (library === null) return <ProfileSkeleton />;
 
-  if (!loaded) return null;
-
-  const totalHours = Math.round(
-    library.reduce((s, g) => s + g.playtimeMin, 0) / 60
-  );
-  const addedCount = library.filter((g) => g.added).length;
+  const stats = computeBacklogStats(library);
+  const sealed = stats.total ? Math.round((stats.neverPlayed / stats.total) * 100) : 0;
   const blacklistSet = new Set(blacklist);
-  const hiddenGames = library.filter((g) => blacklistSet.has(g.appid));
+  const hidden = library.filter((g) => blacklistSet.has(g.appid));
 
   return (
-    <div className="space-y-6">
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Stat label="Games in library" value={String(library.length)} />
-        <Stat label="Hours played" value={`${totalHours}h`} />
-        <Stat label="Added by you" value={String(addedCount)} />
-      </section>
+    <>
+      <header className="sticky top-0 z-10 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
+        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+          Collector
+        </h1>
+      </header>
 
-      <section className="card p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Your taste</h2>
-            <p className="mt-1 text-sm text-muted">
-              Pick the genres you enjoy — SideQuest weighs them when choosing what
-              to play.
-            </p>
-          </div>
-          <span
-            className={`text-xs text-green transition-opacity ${
-              savedFlash ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            Saved ✓
+      <div className="flex items-center gap-3 pb-1">
+        <span className="grid h-[52px] w-[52px] place-items-center rounded-[3px] bg-gradient-to-br from-shell to-shell-dark font-display text-[26px] font-extrabold text-ink">
+          K
+        </span>
+        <div>
+          <b className="block font-display text-[26px] font-extrabold uppercase leading-none">
+            Karim
+          </b>
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+            {library.length ? `${library.length} carts` : "No shelf yet"}
           </span>
         </div>
+      </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          {GENRE_OPTIONS.map((g) => {
-            const active = genres.includes(g);
-            return (
-              <button
-                key={g}
-                onClick={() => toggle(g)}
-                className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                  active
-                    ? "border-accent bg-accent-dim text-accent-soft"
-                    : "border-border bg-elevated text-muted hover:border-border-strong"
-                }`}
-              >
-                {g}
-              </button>
-            );
-          })}
-        </div>
+      <p className="rule">The numbers</p>
+      <div className="grid grid-cols-3 border border-line">
+        <Stat value={String(stats.total)} label="Carts" />
+        <Stat value={`${stats.totalHours}h`} label="Played" />
+        <Stat value={`${sealed}%`} label="Sealed" warn />
+      </div>
 
-        {library.length === 0 && (
-          <p className="mt-5 text-sm text-subtle">
-            No library yet —{" "}
-            <Link href="/connect" className="text-accent-soft hover:underline">
-              connect your Steam
-            </Link>{" "}
-            to get personalised picks.
-          </p>
-        )}
-      </section>
+      {library.length === 0 && (
+        <p className="mt-4 text-sm text-ink-soft">
+          No shelf yet —{" "}
+          <Link href="/connect" className="text-label underline">
+            connect your Steam
+          </Link>{" "}
+          to get real picks.
+        </p>
+      )}
 
-      {hiddenGames.length > 0 && (
-        <section className="card p-6">
-          <h2 className="text-base font-semibold">Hidden games</h2>
-          <p className="mt-1 text-sm text-muted">
-            These never show up in the picker. Un-hide one to let it back in.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {hiddenGames.map((g) => (
-              <button
+      {stats.total > 0 && <BacklogRoast stats={stats} />}
+
+      <div className="mt-6 flex items-baseline justify-between">
+        <p className="rule mb-0 flex-1">Your taste</p>
+        <span
+          className={`ml-3 font-mono text-[9px] uppercase tracking-[0.1em] text-contacts transition-opacity ${
+            savedFlash ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          Saved
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {GENRE_OPTIONS.map((g) => {
+          const active = genres.includes(g);
+          return (
+            <button
+              key={g}
+              aria-pressed={active}
+              onClick={() =>
+                persist(active ? genres.filter((x) => x !== g) : [...genres, g])
+              }
+              className={`min-h-9 rounded-[2px] border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors duration-[var(--fast)] ${
+                active
+                  ? "border-label bg-label text-ink"
+                  : "border-line text-ink-soft hover:border-[#4d3f36] hover:text-label"
+              }`}
+            >
+              {g}
+            </button>
+          );
+        })}
+      </div>
+
+      {hidden.length > 0 && (
+        <>
+          <p className="rule mt-6">Never suggest</p>
+          <div className="grid gap-2">
+            {hidden.map((g) => (
+              <div
                 key={g.appid}
-                onClick={() => unhide(g.appid)}
-                className="group flex items-center gap-2 rounded-full border border-border bg-elevated py-1 pl-1 pr-3 text-sm text-muted transition-colors hover:border-border-strong hover:text-foreground"
+                className="flex items-center gap-3 border border-line-soft p-2"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={g.coverUrl}
-                  alt=""
-                  className="h-6 w-11 rounded object-cover"
-                />
-                <span className="max-w-[12rem] truncate">{g.name}</span>
-                <span className="text-xs text-subtle group-hover:text-accent-soft">
-                  Un-hide
+                <div className="relative aspect-[3/4] w-8 shrink-0 overflow-hidden rounded-[2px] bg-[#2a221d]">
+                  <CoverArt appid={g.appid} name={g.name} sizes="32px" />
+                </div>
+                <span className="min-w-0 flex-1 truncate font-display text-[16px] font-bold uppercase leading-none">
+                  {g.name}
                 </span>
-              </button>
+                <button
+                  onClick={() => setBlacklist(removeFromBlacklist(g.appid))}
+                  className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-label"
+                >
+                  Put back
+                </button>
+              </div>
             ))}
           </div>
-        </section>
+        </>
       )}
+    </>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  warn = false,
+}: {
+  value: string;
+  label: string;
+  warn?: boolean;
+}) {
+  return (
+    <div className="border-r border-line px-3 py-3.5 last:border-r-0">
+      <b
+        className={`block font-display text-[30px] font-extrabold leading-[0.9] ${
+          warn ? "text-challenge" : ""
+        }`}
+      >
+        {value}
+      </b>
+      <span className="mt-1.5 block font-mono text-[8px] uppercase tracking-[0.12em] text-ink-soft">
+        {label}
+      </span>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function ProfileSkeleton() {
   return (
-    <div className="card p-5">
-      <p className="font-mono text-2xl font-semibold tracking-tight">{value}</p>
-      <p className="mt-1 text-xs text-subtle">{label}</p>
+    <div className="pt-[18px]">
+      <div className="sweep h-8 w-40 bg-plank" />
+      <div className="sweep mt-5 h-[52px] w-full bg-plank" />
+      <div className="sweep mt-5 h-20 w-full bg-plank" />
+      <div className="sweep mt-5 h-40 w-full bg-plank" />
     </div>
   );
 }
