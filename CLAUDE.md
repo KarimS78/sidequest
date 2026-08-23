@@ -7,7 +7,7 @@ Companion gaming — "Never forget where you left off." Répond à « je joue à
 ## Décisions produit (V1)
 - **Périmètre** : web d'abord, agent desktop léger prévu en étape ultérieure.
 - **Steam** : import via SteamID64 manuel (pas d'OAuth), fetch library + playtime via Steam Web API côté serveur.
-- **Pas d'IA dans l'app web** : les recommandations et le roast tournent sur un moteur de scoring local et explicable. Aucune clé de provider IA dans le projet web (seul `STEAM_API_KEY` subsiste, et il est optionnel).
+- **IA optionnelle, et bornée** : le moteur local reste la base et le repli. L'IA (Gemini, clé de Karim) vient par-dessus sur trois points — choix du pick dans la shortlist, phrase de justification, roast, et résumé des notes de session. Sans `GEMINI_API_KEY`, tout fonctionne en local. **Toute dépense passe par `lib/ai-guard.ts`** : jamais plus de 12 candidats dans un prompt, texte libre tronqué, plafond de tokens en sortie par type d'appel, quotas jour par appareil et global, budget de tokens compté sur l'`usageMetadata` réel du provider, cache de réponses. Un garde-fou qui saute ne produit jamais d'erreur visible : ça dégrade vers le local.
 - **Langue de l'app** : anglais (cible recruteurs remote).
 - **Accès** : démo publique (SAMPLE_LIBRARY, aucun compte requis) + auth Supabase optionnelle.
 
@@ -31,11 +31,13 @@ Dark-first. Fond `#0a0a0b`, surfaces `#141416`, bordures `#232326`, accent viole
 - `app/profile/` — stats, genres favoris, jeux masqués
 - `app/connect/` — import Steam (+ `actions.ts` : import, recherche store, enrichissement des tags)
 - `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view, history-list, profile-editor, nav
-- `lib/` — `recommend.ts` (moteur), `roast.ts` (punchlines), `steam.ts` (API Steam + tags), `library.ts` + `history.ts` (persistance localStorage)
+- `lib/` — `recommend.ts` (moteur), `roast.ts` (punchlines), `ai.ts` + `ai-guard.ts` (couche IA et ses plafonds), `steam.ts` (API Steam + tags), `library.ts` + `history.ts` (persistance localStorage), `device.ts` (id navigateur pour répartir le quota)
 - **PWA** : `app/manifest.ts` (manifest), `public/sw.js` (service worker écrit à la main — pas de next-pwa/workbox), `components/sw-register.tsx` (enregistrement en prod uniquement), `components/install-prompt.tsx`, `app/offline/page.tsx`, icônes générées par `scripts/generate-icons.mjs`.
 
 ## Dette connue
-- `desktop/` (overlay Electron) appelle encore Gemini via `desktop/ai.js` et lit `GEMINI_API_KEY` depuis `../.env.local`. Hors périmètre du passage au moteur local — à trancher séparément.
+- Les compteurs de quota de `lib/ai-guard.ts` vivent en mémoire du module : sur un hébergeur serverless chaque instance a son propre compte et un déploiement les remet à zéro. C'est un frein, pas une comptabilité. À basculer sur Supabase quand la base arrive (un seul fichier à changer).
+- `desktop/` (overlay Electron) a son propre appel Gemini dans `desktop/ai.js`, sans ces garde-fous, et partage la même `GEMINI_API_KEY`. À aligner sur `lib/ai-guard.ts` ou à débrancher.
+- Refonte UI mobile en cours sur `feat/mobile-ui` : maquette de référence dans `public/design-preview.html`, à supprimer une fois la refonte livrée.
 
 ## Conventions
 - Français casual avec Karim. App en anglais.
