@@ -472,6 +472,31 @@ export function recommendGame(input: RecommendInput): RecommendResult {
 }
 
 /**
+ * The top candidates, each flattened to one short signal line.
+ *
+ * This is what the AI layer is allowed to see: never the library, only the
+ * games worth arguing about plus the reasons they scored. Prompt size is a
+ * function of `limit` and nothing else.
+ */
+export function shortlist(
+  input: RecommendInput,
+  limit = SHORTLIST
+): { appid: number; name: string; signals: string }[] {
+  return explain(input)
+    .slice(0, limit)
+    .map((s) => ({
+      appid: s.game.appid,
+      name: s.game.name,
+      signals:
+        s.components
+          .filter((c) => c.points > 0 && c.reason)
+          .sort((a, b) => b.points - a.points)
+          .map((c) => c.reason!.label.split(" — ")[0])
+          .join("; ") || "no strong signal",
+    }));
+}
+
+/**
  * Scores without drawing — the shortlist with its full breakdown. Used to
  * inspect and tune the engine.
  */

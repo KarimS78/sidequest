@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { recommendGame } from "@/lib/recommend";
+import { explain, recommendGame, shortlist } from "@/lib/recommend";
+import { getAiPick } from "@/app/play/actions";
+import { deviceId } from "@/lib/device";
 import {
   loadLibrary,
   loadProfile,
@@ -17,7 +19,53 @@ import type {
   PickerMood,
   Reason,
   Recommendation,
+  RecommendInput,
 } from "@/lib/recommend";
+
+/**
+ * Swap in the game the model chose, keeping the engine's badges for THAT game.
+ *
+ * The sentence is the model's; the badges stay derived from the score, so the
+ * justification on screen can never drift from the maths. If the model somehow
+ * names a game the engine didn't score, the local pick stands.
+ */
+function applyAiPick(
+  local: Recommendation,
+  ai: { appid: number; reason: string },
+  input: RecommendInput
+): Recommendation {
+  if (ai.appid === local.pick.appid) {
+    return { ...local, pick: { ...local.pick, reason: ai.reason } };
+  }
+
+  const board = explain(input);
+  const chosen = board.find((s) => s.game.appid === ai.appid);
+  if (!chosen) return local;
+
+  const earned = (s: (typeof board)[number]) =>
+    s.components
+      .filter((c) => c.points > 0 && c.reason)
+      .sort((a, b) => b.points - a.points);
+
+  return {
+    pick: {
+      appid: chosen.game.appid,
+      name: chosen.game.name,
+      reason: ai.reason,
+      reasons: earned(chosen)
+        .slice(0, 4)
+        .map((c) => c.reason as Reason),
+    },
+    alternatives: board
+      .filter((s) => s.game.appid !== ai.appid)
+      .slice(0, 2)
+      .map((s) => ({
+        appid: s.game.appid,
+        name: s.game.name,
+        reason: earned(s)[0]?.reason?.label ?? "Another solid fit.",
+      })),
+  };
+}
 
 /**
  * The engine answers in under a millisecond, but the reel *is* the feature —
@@ -134,7 +182,7 @@ export function Picker() {
     setError(null);
     setPending(true);
 
-    const res = recommendGame({
+    const engineInput = {
       library: pool.map((g) => ({
         appid: g.appid,
         name: g.name,
@@ -148,26 +196,50 @@ export function Picker() {
       customMood: custom || undefined,
       excludeAppids: opts.exclude,
       recentAppids,
+    };
+
+    const res = recommendGame(engineInput);
+    const moodLabel =
+      custom || MOOD.find((m) => m.key === opts.mood)?.label || opts.mood || "";
+
+    // The AI only ever sees the engine's shortlist. It runs alongside the reel,
+    // and anything short of a clean answer leaves the local pick standing.
+    const aiPromise: Promise<{ appid: number; reason: string } | null> = res.ok
+      ? getAiPick({
+          deviceId: deviceId(),
+          candidates: shortlist(engineInput),
+          time: TIME.find((t) => t.key === opts.time)?.label ?? opts.time,
+          mood: moodLabel,
+        })
+          .then((r) => (r.ok ? { appid: r.appid, reason: r.reason } : null))
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    const spun = new Promise<void>((resolve) => {
+      if (spinTimer.current) clearTimeout(spinTimer.current);
+      spinTimer.current = setTimeout(resolve, SPIN_MS);
     });
 
-    if (spinTimer.current) clearTimeout(spinTimer.current);
-    spinTimer.current = setTimeout(() => {
+    // Reveal once the reel has run AND the model has had its say — whichever
+    // finishes last. The reel never waits on a spinner.
+    Promise.all([spun, aiPromise]).then(([, ai]) => {
       setPending(false);
       if (res.ok) {
-        setResult(res.recommendation);
+        const merged = ai
+          ? applyAiPick(res.recommendation, ai, engineInput)
+          : res.recommendation;
+        setResult(merged);
         setNote(res.note ?? null);
-        const game = pool.find((g) => g.appid === res.recommendation.pick.appid);
-        const moodLabel =
-          custom || MOOD.find((m) => m.key === opts.mood)?.label || opts.mood || "";
+        const game = pool.find((g) => g.appid === merged.pick.appid);
         const entry = addHistory({
           time: opts.time,
           mood: moodLabel,
           pick: {
-            appid: res.recommendation.pick.appid,
-            name: res.recommendation.pick.name,
+            appid: merged.pick.appid,
+            name: merged.pick.name,
             coverUrl: game?.coverUrl ?? "",
           },
-          alternatives: res.recommendation.alternatives.map((a) => ({
+          alternatives: merged.alternatives.map((a) => ({
             appid: a.appid,
             name: a.name,
           })),
@@ -178,7 +250,7 @@ export function Picker() {
         setError(res.error);
         setResult(null);
       }
-    }, SPIN_MS);
+    });
   }
 
   function recommend(exclude: number[] = []) {
