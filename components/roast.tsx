@@ -10,8 +10,10 @@ import {
   type StoredGame,
 } from "@/lib/library";
 import { roastBacklog, type Roast } from "@/lib/roast";
+import { getAiRoast } from "@/app/roast/actions";
+import { deviceId } from "@/lib/device";
 
-/** The jokes are instant; the pause is what sells "sharpening". */
+/** The templates are instant; the pause is what sells "sharpening". */
 const SHARPEN_MS = 450;
 
 export function BacklogRoast() {
@@ -43,13 +45,25 @@ export function BacklogRoast() {
     if (!stats) return;
     setError(null);
     setPending(true);
-    const res = roastBacklog(stats);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
+
+    // Templates first, so there is always something to show. The model gets to
+    // beat them if it answers in time; if it doesn't, nobody notices.
+    const local = roastBacklog(stats);
+    const ai = getAiRoast({ deviceId: deviceId(), stats })
+      .then((r) => (r.ok ? r.roast : null))
+      .catch(() => null);
+
+    const waited = new Promise<void>((resolve) => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(resolve, SHARPEN_MS);
+    });
+
+    Promise.all([waited, ai]).then(([, generated]) => {
       setPending(false);
-      if (res.ok) setRoast(res.roast);
-      else setError(res.error);
-    }, SHARPEN_MS);
+      if (generated) setRoast(generated);
+      else if (local.ok) setRoast(local.roast);
+      else setError(local.error);
+    });
   }
 
   if (!stats) return null;
