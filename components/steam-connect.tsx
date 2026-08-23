@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { connectSteam } from "@/app/connect/actions";
 import { saveLibrary, saveProfile } from "@/lib/library";
 import { AddGames } from "@/components/add-games";
+import { TagEnricher } from "@/components/tag-enricher";
 
 export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
   const [state, action, pending] = useActionState(connectSteam, null);
+  // Bumped whenever we rewrite the stored library, so the tag enricher re-reads
+  // what still needs fetching.
+  const [libVersion, setLibVersion] = useState(0);
 
   // Persist the imported library so the picker (/play) can recommend from it.
   useEffect(() => {
@@ -18,8 +22,10 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
           playtimeMin: g.playtimeMin,
           coverUrl: g.coverUrl,
           recentMin: g.recentMin ?? 0,
+          tags: g.tags ?? [],
         }))
       );
+      setLibVersion((v) => v + 1);
       // Keep the SteamID so we can refresh recent-play data later without a re-import.
       if (!state.isMock && state.profile.steamId) {
         saveProfile({ steamId: state.profile.steamId });
@@ -29,6 +35,8 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
 
   return (
     <div className="space-y-6">
+      <TagEnricher version={libVersion} />
+
       <form action={action} className="card p-6">
         <label
           htmlFor="steam"
@@ -140,6 +148,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
               name: g.name,
               playtimeMin: g.playtimeMin,
               coverUrl: g.coverUrl,
+              tags: g.tags ?? [],
             }))}
           />
         </div>
