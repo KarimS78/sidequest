@@ -1,7 +1,7 @@
 // Recommendation history (V1, local-first — same swap-to-Supabase contract as
 // lib/library.ts: keep all reads/writes behind these helpers).
 
-import type { PickerTime } from "@/lib/ai";
+import type { PickerTime } from "@/lib/recommend";
 
 export type HistoryEntry = {
   id: string;

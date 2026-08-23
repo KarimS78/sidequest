@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getRecommendation } from "@/app/play/actions";
+import { recommendGame } from "@/lib/recommend";
 import {
   loadLibrary,
   loadProfile,
@@ -12,7 +12,18 @@ import {
   type StoredGame,
 } from "@/lib/library";
 import { addHistory, markPlayed, loadHistory } from "@/lib/history";
-import type { PickerTime, PickerMood, Recommendation } from "@/lib/ai";
+import type {
+  PickerTime,
+  PickerMood,
+  Reason,
+  Recommendation,
+} from "@/lib/recommend";
+
+/**
+ * The engine answers in under a millisecond, but the reel *is* the feature —
+ * landing instantly reads as "it didn't think". Hold the spin for a beat.
+ */
+const SPIN_MS = 700;
 
 const TIME: { key: PickerTime; label: string; hint: string }[] = [
   { key: "short", label: "~30 min", hint: "Just a quick one" },
@@ -59,9 +70,9 @@ export function Picker() {
   const [played, setPlayed] = useState(false);
   const [excluded, setExcluded] = useState<number[]>([]);
   const [recentAppids, setRecentAppids] = useState<number[]>([]);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
 
-  // Slot-machine reel: a game cycling on screen while the AI thinks.
+  // Slot-machine reel: a game cycling on screen while the pick lands.
   const [reel, setReel] = useState<StoredGame | null>(null);
 
   useEffect(() => {
@@ -70,7 +81,7 @@ export function Picker() {
     setIsSample(!lib);
     setGenres(loadProfile().favoriteGenres);
     setBlacklist(loadBlacklist());
-    // Recent picks → ask the AI not to keep repeating the same games.
+    // Recent picks → penalised by the engine so it stops repeating itself.
     setRecentAppids([...new Set(loadHistory().slice(0, 8).map((e) => e.pick.appid))]);
   }, []);
 
@@ -87,8 +98,15 @@ export function Picker() {
 
   const trimmedCustom = customMood.trim();
 
-  // Spin the reel while the AI is thinking, then it lands on the real pick.
+  // Spin the reel while the pick resolves, then it lands on the real one.
   const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (spinTimer.current) clearTimeout(spinTimer.current);
+    },
+    []
+  );
   useEffect(() => {
     if (pending && pool.length) {
       reelTimer.current = setInterval(() => {
@@ -114,24 +132,30 @@ export function Picker() {
     const custom = opts.customMood.trim();
     if (!opts.time || (!opts.mood && !custom)) return;
     setError(null);
-    startTransition(async () => {
-      const res = await getRecommendation({
-        library: pool.map((g) => ({
-          appid: g.appid,
-          name: g.name,
-          playtimeMin: g.playtimeMin,
-          recentMin: g.recentMin ?? 0,
-        })),
-        favoriteGenres: genres,
-        time: opts.time,
-        mood: opts.mood ?? undefined,
-        customMood: custom || undefined,
-        excludeAppids: opts.exclude,
-        recentAppids,
-      });
+    setPending(true);
+
+    const res = recommendGame({
+      library: pool.map((g) => ({
+        appid: g.appid,
+        name: g.name,
+        playtimeMin: g.playtimeMin,
+        recentMin: g.recentMin ?? 0,
+        tags: g.tags,
+      })),
+      favoriteGenres: genres,
+      time: opts.time,
+      mood: opts.mood ?? undefined,
+      customMood: custom || undefined,
+      excludeAppids: opts.exclude,
+      recentAppids,
+    });
+
+    if (spinTimer.current) clearTimeout(spinTimer.current);
+    spinTimer.current = setTimeout(() => {
+      setPending(false);
       if (res.ok) {
         setResult(res.recommendation);
-        setNote(res.isMock ? (res.note ?? null) : null);
+        setNote(res.note ?? null);
         const game = pool.find((g) => g.appid === res.recommendation.pick.appid);
         const moodLabel =
           custom || MOOD.find((m) => m.key === opts.mood)?.label || opts.mood || "";
@@ -154,7 +178,7 @@ export function Picker() {
         setError(res.error);
         setResult(null);
       }
-    });
+    }, SPIN_MS);
   }
 
   function recommend(exclude: number[] = []) {
@@ -362,6 +386,7 @@ export function Picker() {
             game={byId.get(result.pick.appid)}
             name={result.pick.name}
             reason={result.pick.reason}
+            reasons={result.pick.reasons}
             played={played}
             onPlayed={handlePlayed}
             onReject={rejectPick}
@@ -423,6 +448,7 @@ function PickCard({
   game,
   name,
   reason,
+  reasons,
   played,
   onPlayed,
   onReject,
@@ -432,6 +458,7 @@ function PickCard({
   game?: StoredGame;
   name: string;
   reason: string;
+  reasons: Reason[];
   played: boolean;
   onPlayed: () => void;
   onReject: () => void;
@@ -456,6 +483,19 @@ function PickCard({
         </p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">{name}</h2>
         <p className="mt-2 text-sm leading-6 text-muted">{reason}</p>
+        {reasons.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {reasons.map((r) => (
+              <span
+                key={r.label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-elevated px-2.5 py-1 text-xs text-muted"
+              >
+                <span aria-hidden>{r.icon}</span>
+                {r.label}
+              </span>
+            ))}
+          </div>
+        )}
         {game && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <a
