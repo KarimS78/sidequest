@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { connectSteam } from "@/app/connect/actions";
 import { saveLibrary, saveProfile } from "@/lib/library";
 import { AddGames } from "@/components/add-games";
+import { CoverArt } from "@/components/cover-art";
 import { TagEnricher } from "@/components/tag-enricher";
 
 export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
@@ -12,7 +13,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
   // what still needs fetching.
   const [libVersion, setLibVersion] = useState(0);
 
-  // Persist the imported library so the picker (/play) can recommend from it.
+  // Persist the imported library so the deck (/play) can pick from it.
   useEffect(() => {
     if (state?.ok) {
       saveLibrary(
@@ -34,65 +35,59 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
   }, [state]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <TagEnricher version={libVersion} />
 
-      <form action={action} className="card p-6">
+      <form action={action} className="border border-line p-3.5">
         <label
           htmlFor="steam"
-          className="text-sm font-medium text-foreground"
+          className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft"
         >
           Your Steam profile
         </label>
-        <p className="mt-1 text-sm text-muted">
-          Paste your SteamID64, your full profile URL, or your custom URL name.
-          Your profile must be public to read playtime.
+        <p className="mt-1.5 text-sm leading-relaxed text-[#cfc4b8]">
+          Paste your SteamID64, your profile URL, or your custom URL name. The
+          profile has to be public to read playtime.
         </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             id="steam"
             name="steam"
             autoComplete="off"
             placeholder="76561198… or steamcommunity.com/id/yourname"
-            className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-subtle focus:border-accent"
+            className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
           />
           <button
             type="submit"
             disabled={pending}
-            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+            className="h-11 shrink-0 rounded-[3px] bg-label px-5 font-display text-[17px] font-extrabold uppercase tracking-[0.06em] text-ink transition-transform duration-[var(--fast)] active:translate-y-0.5 disabled:opacity-60"
           >
-            {pending
-              ? "Importing…"
-              : demoMode
-                ? "Preview sample"
-                : "Import library"}
+            {pending ? "Reading…" : demoMode ? "Preview" : "Import"}
           </button>
         </div>
-        <p className="mt-3 font-mono text-xs text-subtle">
-          Tip: find your SteamID64 at steamid.io if you only know your name.
+        <p className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+          Find your SteamID64 at steamid.io if you only know your name
         </p>
       </form>
 
       {state && state.ok === false && (
-        <div className="card border-amber/30 bg-amber/5 p-4 text-sm text-amber">
+        <p className="border border-challenge/40 bg-challenge/10 p-3 text-sm leading-relaxed text-label">
           {state.error}
-        </div>
+        </p>
       )}
 
       {state && state.ok && (
         <div className="space-y-5">
           {state.isMock && (
-            <div className="rounded-xl border border-border bg-accent-dim px-4 py-2.5 text-xs text-accent-soft">
-              Demo data — no <code className="font-mono">STEAM_API_KEY</code> set
-              yet, so this is a sample import. Add the key to pull a real
-              library.
-            </div>
+            <p className="border border-line p-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.08em] text-ink-soft">
+              Demo data — no STEAM_API_KEY set, so this is a sample shelf
+            </p>
           )}
 
-          <div className="card flex items-center gap-4 p-5">
-            <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-accent to-[#38bdf8] text-base font-semibold text-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+          <div className="flex items-center gap-3 border border-line p-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-gradient-to-br from-shell to-shell-dark font-display text-[20px] font-extrabold text-ink">
               {state.profile.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={state.profile.avatar}
                   alt=""
@@ -101,45 +96,39 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
               ) : (
                 state.profile.name.charAt(0).toUpperCase()
               )}
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold">{state.profile.name}</p>
-              <p className="font-mono text-xs text-subtle">
-                {state.profile.steamId} · {state.games.length} games
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-display text-[20px] font-bold uppercase leading-none">
+                {state.profile.name}
+              </p>
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
+                {state.games.length} carts racked
               </p>
             </div>
-            <span className="rounded-full border border-green/30 bg-green/10 px-3 py-1 text-xs font-medium text-green">
+            <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-contacts">
               Connected
             </span>
           </div>
 
           <div>
-            <h3 className="mb-3 text-xs font-medium uppercase tracking-widest text-subtle">
-              Imported library · sorted by playtime
-            </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {state.games.map((g) => (
-                <div key={g.appid} className="card card-hover overflow-hidden">
-                  <div className="aspect-[460/215] w-full bg-background">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={g.coverUrl}
-                      alt={g.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
+            <p className="rule">Racked · by playtime</p>
+            <div className="grid grid-cols-3 gap-2">
+              {state.games.slice(0, 12).map((g) => (
+                <div key={g.appid} className="cart !rounded-[6px_6px_2px_2px] !p-1.5 !pb-0">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-[2px] bg-paper">
+                    <CoverArt appid={g.appid} name={g.name} sizes="120px" />
                   </div>
-                  <div className="p-3">
-                    <p className="line-clamp-1 text-sm font-medium">{g.name}</p>
-                    <p className="mt-1 font-mono text-xs text-subtle">
-                      {g.playtimeMin > 0
-                        ? `${Math.round(g.playtimeMin / 60)}h played`
-                        : "never played"}
-                    </p>
-                  </div>
+                  <p className="truncate px-px py-1 font-display text-[11px] font-bold uppercase leading-none text-ink">
+                    {g.name}
+                  </p>
                 </div>
               ))}
             </div>
+            {state.games.length > 12 && (
+              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
+                +{state.games.length - 12} more on the shelf
+              </p>
+            )}
           </div>
 
           <AddGames

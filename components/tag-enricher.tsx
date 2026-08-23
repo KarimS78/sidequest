@@ -54,10 +54,9 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
 
   if (finished && !missing.length) {
     return (
-      <div className="rounded-xl border border-green/30 bg-green/5 px-4 py-2.5 text-xs text-green">
-        Tags fetched — the picker now scores on genre and vibe, not just
-        playtime.
-      </div>
+      <p className="border border-contacts/40 bg-contacts/10 p-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.08em] text-contacts">
+        Tags read — the deck now scores on genre and vibe, not just playtime
+      </p>
     );
   }
 
@@ -66,37 +65,34 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
   const pct = missing.length ? Math.round((done / missing.length) * 100) : 0;
 
   return (
-    <div className="card p-5">
-      <h3 className="text-sm font-semibold tracking-tight">
-        Fetch game tags
-      </h3>
-      <p className="mt-1 text-sm text-muted">
-        SideQuest scores your games on their community tags — genre, pace, vibe.
-        {" "}
-        <strong>{missing.length}</strong>{" "}
-        {missing.length === 1 ? "game is" : "games are"} missing theirs.
+    <div className="border border-line p-3.5">
+      <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft">
+        Label data
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-[#cfc4b8]">
+        SideQuest scores your games on their community tags — genre, pace, vibe.{" "}
+        <b className="text-label">{missing.length}</b>{" "}
+        {missing.length === 1 ? "cart is" : "carts are"} missing theirs.
       </p>
 
       {running ? (
-        <div className="mt-4">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
+        <div className="mt-3.5">
+          <div className="h-1.5 w-full overflow-hidden rounded-[1px] bg-plank">
             <div
-              className="h-full bg-accent transition-[width] duration-300"
+              className="h-full bg-contacts transition-[width] duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="mt-2 font-mono text-xs text-subtle">
-            {done} / {missing.length} · this takes a few seconds per game, it&apos;s
-            a throttled public API.
+          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
+            {done} / {missing.length} · throttled public API, a few seconds each
           </p>
         </div>
       ) : (
         <button
           onClick={run}
-          className="mt-4 rounded-lg border border-accent bg-accent-dim px-3.5 py-2 text-sm font-medium text-accent-soft transition-colors hover:bg-accent/20"
+          className="mt-3.5 rounded-[2px] border border-contacts px-3.5 py-2 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-contacts transition-colors hover:bg-contacts hover:text-ink"
         >
-          🏷️ Fetch tags for {missing.length}{" "}
-          {missing.length === 1 ? "game" : "games"}
+          Read {missing.length} {missing.length === 1 ? "label" : "labels"}
         </button>
       )}
     </div>
