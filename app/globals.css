@@ -161,6 +161,11 @@ body {
   );
 }
 
+/* the cream shell variant — shelves are never all one colour */
+.cart-cream {
+  background: linear-gradient(160deg, var(--shell-cream) 0%, #b3a68b 100%);
+}
+
 .cart-out {
   transform: translateY(-26px) rotate(-1.2deg);
 }

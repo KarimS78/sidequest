@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadLibrary, SAMPLE_LIBRARY, type StoredGame } from "@/lib/library";
+import { CoverArt } from "@/components/cover-art";
+import { loadLibrary, SAMPLE_LIBRARY, untaggedAppids, type StoredGame } from "@/lib/library";
 
 type Sort = "playtime" | "name";
+
+/** Two columns on a phone-width column, so this is the only size that matters. */
+const GRID_SIZES = "(max-width: 448px) 45vw, 200px";
 
 export function LibraryView() {
   const [library, setLibrary] = useState<StoredGame[] | null>(null);
@@ -21,130 +25,138 @@ export function LibraryView() {
   const filtered = useMemo(() => {
     if (!library) return [];
     const q = query.trim().toLowerCase();
-    const list = q
-      ? library.filter((g) => g.name.toLowerCase().includes(q))
-      : [...library];
+    const list = q ? library.filter((g) => g.name.toLowerCase().includes(q)) : [...library];
     list.sort((a, b) =>
-      sort === "name"
-        ? a.name.localeCompare(b.name)
-        : b.playtimeMin - a.playtimeMin
+      sort === "name" ? a.name.localeCompare(b.name) : b.playtimeMin - a.playtimeMin
     );
     return list;
   }, [library, query, sort]);
 
-  if (!library) return null;
-
-  const totalHours = Math.round(
-    library.reduce((s, g) => s + g.playtimeMin, 0) / 60
-  );
-  const neverPlayed = library.filter((g) => g.playtimeMin === 0).length;
+  if (library === null) return <ShelfSkeleton />;
 
   if (library.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm text-muted">Your library is empty.</p>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
+        <span className="deck-slot w-28" />
+        <h1 className="mt-5 font-display text-[30px] font-extrabold uppercase leading-none">
+          The shelf is empty
+        </h1>
+        <p className="mt-2.5 max-w-[26ch] text-sm text-ink-soft">
+          Connect Steam and your backlog racks up here, one cartridge per game.
+        </p>
         <Link
           href="/connect"
-          className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5"
+          className="mt-5 inline-flex h-[50px] items-center rounded-[3px] bg-label px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.06em] text-ink"
         >
-          Connect your Steam →
+          Connect Steam
         </Link>
       </div>
     );
   }
 
+  const untagged = untaggedAppids(library).length;
+
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
-          <p className="mt-1 text-sm text-muted">
-            {library.length} games · {totalHours}h played · {neverPlayed} never
-            launched
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+            Shelf
+          </h1>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+            {library.length} carts
+            {untagged > 0 && ` · ${untagged} untagged`}
+            {isSample && " · sample"}
           </p>
-          {isSample && (
-            <p className="mt-1 font-mono text-xs text-subtle">
-              Sample library ·{" "}
-              <Link href="/connect" className="text-accent-soft hover:underline">
-                import yours
-              </Link>
-            </p>
-          )}
         </div>
-        <Link
-          href="/play"
-          className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5"
-        >
-          What should I play? →
-        </Link>
-      </div>
+        <div className="flex gap-1.5">
+          <Link
+            href="/connect"
+            aria-label="Re-sync your Steam library"
+            title="Re-sync"
+            className="grid h-8 w-8 place-items-center rounded-[3px] border border-line text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+          >
+            <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+              <path d="M20 4v4h-4" />
+            </svg>
+          </Link>
+          <Link
+            href="/connect"
+            aria-label="Add a game by name"
+            title="Add a game"
+            className="grid h-8 w-8 place-items-center rounded-[3px] border border-line text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+          >
+            <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </Link>
+        </div>
+      </header>
 
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex gap-1.5">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search your games…"
-          className="flex-1 rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-subtle focus:border-accent"
+          placeholder="Search the shelf…"
+          className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
         />
-        <div className="flex gap-1 rounded-lg border border-border bg-elevated p-1">
-          {(["playtime", "name"] as Sort[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => setSort(s)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                sort === s
-                  ? "bg-accent-dim text-accent-soft"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {s === "playtime" ? "Most played" : "A–Z"}
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setSort(sort === "playtime" ? "name" : "playtime")}
+          className="min-h-11 shrink-0 rounded-[2px] border border-line px-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+        >
+          {sort === "playtime" ? "Most played" : "A–Z"}
+        </button>
       </div>
 
       {filtered.length === 0 ? (
-        <p className="mt-10 text-center text-sm text-subtle">
-          No games match “{query}”.
+        <p className="mt-10 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
+          Nothing matches “{query}”
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {filtered.map((g) => (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {filtered.map((g, i) => (
             <a
               key={g.appid}
               href={`https://store.steampowered.com/app/${g.appid}`}
               target="_blank"
               rel="noreferrer"
-              className="card card-hover group overflow-hidden"
+              className={`cart block !p-[7px] !pb-0 !rounded-[7px_7px_2px_2px] transition-transform duration-[var(--fast)] hover:-translate-y-1 ${
+                i % 3 === 1 ? "cart-cream" : ""
+              }`}
             >
-              <div className="aspect-[460/215] w-full bg-elevated">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={g.coverUrl}
-                  alt={g.name}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
-                />
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[2px] border border-black/25 bg-paper">
+                <CoverArt appid={g.appid} name={g.name} sizes={GRID_SIZES} priority={i < 4} />
               </div>
-              <div className="p-3.5">
-                <p className="line-clamp-1 text-sm font-medium">{g.name}</p>
-                <div className="mt-1.5 flex items-center justify-between">
-                  <span className="font-mono text-xs text-subtle">
-                    {g.playtimeMin > 0
-                      ? `${Math.round(g.playtimeMin / 60)}h played`
-                      : "never played"}
-                  </span>
-                  {g.added && (
-                    <span className="rounded-full border border-border-strong bg-elevated px-2 py-0.5 text-[10px] text-subtle">
-                      added
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-baseline justify-between gap-1.5 px-px pb-[7px] pt-[5px] text-ink">
+                <b className="truncate font-display text-[14px] font-bold uppercase leading-none">
+                  {g.name}
+                </b>
+                <span className="shrink-0 font-mono text-[9px] text-[#5d5348]">
+                  {g.playtimeMin > 0 ? `${Math.round(g.playtimeMin / 60)}H` : "NEW"}
+                </span>
               </div>
             </a>
           ))}
         </div>
       )}
     </>
+  );
+}
+
+function ShelfSkeleton() {
+  return (
+    <div className="pt-[18px]">
+      <div className="sweep h-8 w-32 bg-plank" />
+      <div className="sweep mt-4 h-11 w-full bg-plank" />
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="cart !p-[7px] !pb-0 !rounded-[7px_7px_2px_2px]">
+            <div className="sweep aspect-[3/4] rounded-[2px] bg-[#2a221d]" />
+            <div className="h-[26px]" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

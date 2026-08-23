@@ -2,29 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CoverArt } from "@/components/cover-art";
 import {
+  clearHistory,
   loadHistory,
   markPlayed,
-  clearHistory,
   type HistoryEntry,
 } from "@/lib/history";
 
 const TIME_LABEL: Record<string, string> = {
-  short: "~30 min",
-  medium: "1–2 hours",
+  short: "30 min",
+  medium: "1–2 hrs",
   long: "All evening",
 };
 
 function timeAgo(iso: string) {
   const diff = Date.now() - Date.parse(iso);
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
-  if (d === 1) return "yesterday";
-  if (d < 7) return `${d}d ago`;
+  if (d < 7) return `${d}d`;
   return new Date(iso).toLocaleDateString();
 }
 
@@ -35,88 +35,107 @@ export function HistoryList() {
     setEntries(loadHistory());
   }, []);
 
-  function togglePlayed(e: HistoryEntry) {
-    setEntries(markPlayed(e.id, !e.played));
-  }
-
-  function clearAll() {
-    clearHistory();
-    setEntries([]);
-  }
-
-  if (entries === null) return null; // avoid SSR/CSR flash
-
-  const playedCount = entries.filter((e) => e.played).length;
+  if (entries === null) return <SavesSkeleton />;
 
   if (entries.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm text-muted">No recommendations yet.</p>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
+        <span className="deck-slot w-28" />
+        <h1 className="mt-5 font-display text-[30px] font-extrabold uppercase leading-none">
+          No saves yet
+        </h1>
+        <p className="mt-2.5 max-w-[26ch] text-sm text-ink-soft">
+          Every cartridge the deck picks lands here, with what you wrote about it.
+        </p>
         <Link
           href="/play"
-          className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5"
+          className="mt-5 inline-flex h-[50px] items-center rounded-[3px] bg-label px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.06em] text-ink"
         >
-          Get your first pick →
+          Pull one
         </Link>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted">
-          {entries.length} recommendation{entries.length > 1 ? "s" : ""}
-          <span className="text-subtle"> · {playedCount} played</span>
-        </p>
-        <button
-          onClick={clearAll}
-          className="text-xs text-subtle transition-colors hover:text-amber"
-        >
-          Clear history
-        </button>
-      </div>
+  const playedCount = entries.filter((e) => e.played).length;
 
-      <div className="space-y-3">
+  return (
+    <>
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
+        <div>
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+            Saves
+          </h1>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+            {entries.length} pulls · {playedCount} played
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            clearHistory();
+            setEntries([]);
+          }}
+          className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-challenge"
+        >
+          Clear
+        </button>
+      </header>
+
+      <div className="border-t border-line-soft">
         {entries.map((e) => (
-          <div key={e.id} className="card flex items-start gap-4 p-3">
-            <div className="h-16 w-28 shrink-0 overflow-hidden rounded-lg bg-elevated">
-              {e.pick.coverUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={e.pick.coverUrl}
-                  alt={e.pick.name}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              )}
+          <div
+            key={e.id}
+            className="flex items-start gap-3 border-b border-line-soft py-3"
+          >
+            <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-[2px] bg-[#2a221d]">
+              <CoverArt appid={e.pick.appid} name={e.pick.name} sizes="40px" />
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{e.pick.name}</p>
-              <p className="mt-0.5 text-xs text-subtle">
-                {TIME_LABEL[e.time] ?? e.time} · {e.mood} · {timeAgo(e.at)}
-              </p>
+              <b className="block font-display text-[18px] font-bold uppercase leading-none">
+                {e.pick.name}
+              </b>
+              <button
+                onClick={() => setEntries(markPlayed(e.id, !e.played))}
+                className="mt-1 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft transition-colors hover:text-label"
+              >
+                <span
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                    e.played ? "bg-contacts" : "bg-[#3a2f28]"
+                  }`}
+                />
+                {e.played ? "played" : "skipped"} · {TIME_LABEL[e.time] ?? e.time} ·{" "}
+                {e.mood}
+              </button>
               {e.note?.lastTime && (
-                <p className="mt-1.5 text-xs leading-5 text-muted">
+                <p className="mt-1.5 text-[13px] leading-snug text-[#cfc4b8]">
                   {e.note.lastTime}
                 </p>
               )}
-              {e.alternatives.length > 0 && (
-                <p className="mt-1 truncate text-xs text-muted">
-                  Alt: {e.alternatives.map((a) => a.name).join(", ")}
-                </p>
-              )}
             </div>
-            <button
-              onClick={() => togglePlayed(e)}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                e.played
-                  ? "border border-green/30 bg-green/10 text-green"
-                  : "border border-border bg-elevated text-muted hover:border-accent hover:text-accent-soft"
-              }`}
-            >
-              {e.played ? "Played ✓" : "Mark played"}
-            </button>
+
+            <span className="shrink-0 font-mono text-[9px] text-[#6a5c52]">
+              {timeAgo(e.at)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function SavesSkeleton() {
+  return (
+    <div className="pt-[18px]">
+      <div className="sweep h-8 w-28 bg-plank" />
+      <div className="mt-5 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex gap-3">
+            <div className="sweep aspect-[3/4] w-10 rounded-[2px] bg-plank" />
+            <div className="flex-1 space-y-2 py-1">
+              <div className="sweep h-4 w-2/3 bg-plank" />
+              <div className="sweep h-2.5 w-1/3 bg-plank" />
+            </div>
           </div>
         ))}
       </div>
