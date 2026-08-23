@@ -66,9 +66,12 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-[#3d3129] bg-plank"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-[#3d3129] bg-plank"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
+      {/* The nav tracks the content column rather than the window: on a desktop
+          this stays a phone app that happens to be open on a laptop. */}
+      <div className="mx-auto grid max-w-md grid-cols-4">
       {TABS.map((tab) => {
         const active = tab.href === activeHref;
         return (
@@ -99,6 +102,7 @@ export function BottomNav() {
           </Link>
         );
       })}
+      </div>
     </nav>
   );
 }

@@ -34,12 +34,15 @@ export function InstallPrompt() {
   if (!deferred) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <div className="card flex items-center gap-3 px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm font-bold text-white">
-          S
+    // Sits above the bottom nav, never over it.
+    <div
+      className="fixed inset-x-0 z-40 flex justify-center px-4"
+      style={{ bottom: "calc(62px + env(safe-area-inset-bottom) + 0.75rem)" }}
+    >
+      <div className="flex items-center gap-3 rounded-[3px] border border-line bg-plank px-3 py-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.9)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
+          Install SideQuest
         </span>
-        <span className="text-sm text-muted">Install SideQuest</span>
         <button
           type="button"
           onClick={async () => {
@@ -47,15 +50,15 @@ export function InstallPrompt() {
             setDeferred(null);
             await event.prompt();
           }}
-          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-[2px] bg-label px-3 py-1.5 font-display text-[14px] font-bold uppercase tracking-[0.06em] text-ink"
         >
-          Install app
+          Install
         </button>
         <button
           type="button"
           onClick={() => setDeferred(null)}
           aria-label="Dismiss"
-          className="px-1 text-subtle transition-colors hover:text-foreground"
+          className="px-1 text-ink-soft transition-colors hover:text-label"
         >
           ✕
         </button>

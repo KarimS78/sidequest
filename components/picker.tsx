@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { explain, recommendGame, shortlist } from "@/lib/recommend";
 import { getAiPick, summariseNote } from "@/app/play/actions";
 import { deviceId } from "@/lib/device";
+import { CoverArt } from "@/components/cover-art";
 import {
+  addToBlacklist,
+  loadBlacklist,
   loadLibrary,
   loadProfile,
-  loadBlacklist,
-  addToBlacklist,
   SAMPLE_LIBRARY,
   type StoredGame,
 } from "@/lib/library";
@@ -29,12 +30,54 @@ import type {
   RecommendInput,
 } from "@/lib/recommend";
 
+/* ============================================================
+   The pull — four mechanical beats. Reference: public/design-preview.html
+
+     1. eject    180ms  the cart rises out of the rank, contacts bared
+     2. scan    2500ms  labels flick past in the window, decelerating
+     3. seat     180ms  accelerates down, hard stop, two-frame knock
+     4. read     420ms  the deck reads it, then the label prints in
+
+   The engine answers in under a millisecond and the AI runs alongside;
+   the reveal waits for the deck, never the other way round.
+   ============================================================ */
+const SCAN_MS = 2500;
+const SETTLE_MS = 300;
+const SEAT_MS = 180;
+const READ_MS = 420;
+const OVERSHOOT = 22;
+/** Decoy labels ahead of the winner. Fixed, so the strip is built once. */
+const RUNWAY = 14;
+
+const TIME: { key: PickerTime; label: string }[] = [
+  { key: "short", label: "30 min" },
+  { key: "medium", label: "1–2 hrs" },
+  { key: "long", label: "All evening" },
+];
+
+const MOOD: { key: PickerMood; label: string; band: string }[] = [
+  { key: "chill", label: "Chill", band: "var(--chill)" },
+  { key: "story", label: "Story", band: "var(--story)" },
+  { key: "challenge", label: "Challenge", band: "var(--challenge)" },
+  { key: "quick", label: "Quick", band: "var(--quick)" },
+];
+
+/** Defaults for "let it choose": nobody starts a CRPG at 11pm on a Tuesday. */
+function timeOfDayContext(): { time: PickerTime; mood: PickerMood } {
+  const now = new Date();
+  const h = now.getHours();
+  const weekend = now.getDay() === 0 || now.getDay() === 6;
+  if (h >= 23 || h < 6) return { time: "short", mood: "chill" };
+  if (weekend && h >= 10 && h < 20) return { time: "long", mood: "story" };
+  return { time: "medium", mood: "chill" };
+}
+
+type Phase = "idle" | "scanning" | "seating" | "reading" | "done";
+
 /**
  * Swap in the game the model chose, keeping the engine's badges for THAT game.
- *
  * The sentence is the model's; the badges stay derived from the score, so the
- * justification on screen can never drift from the maths. If the model somehow
- * names a game the engine didn't score, the local pick stands.
+ * justification on screen can never drift from the maths.
  */
 function applyAiPick(
   local: Recommendation,
@@ -44,7 +87,6 @@ function applyAiPick(
   if (ai.appid === local.pick.appid) {
     return { ...local, pick: { ...local.pick, reason: ai.reason } };
   }
-
   const board = explain(input);
   const chosen = board.find((s) => s.game.appid === ai.appid);
   if (!chosen) return local;
@@ -74,63 +116,42 @@ function applyAiPick(
   };
 }
 
-/**
- * The engine answers in under a millisecond, but the reel *is* the feature —
- * landing instantly reads as "it didn't think". Hold the spin for a beat.
- */
-const SPIN_MS = 700;
-
-const TIME: { key: PickerTime; label: string; hint: string }[] = [
-  { key: "short", label: "~30 min", hint: "Just a quick one" },
-  { key: "medium", label: "1–2 hours", hint: "A proper session" },
-  { key: "long", label: "All evening", hint: "Deep dive" },
-];
-
-const MOOD: { key: PickerMood; label: string; emoji: string }[] = [
-  { key: "chill", label: "Chill", emoji: "🌙" },
-  { key: "story", label: "Story", emoji: "📖" },
-  { key: "challenge", label: "Challenge", emoji: "⚔️" },
-  { key: "quick", label: "Quick fun", emoji: "⚡" },
-];
-
-// "Decide for me" needs sensible defaults so it can fire in one tap. We infer
-// them from the clock: nobody starts a 4h CRPG at 11pm on a Tuesday.
-function timeOfDayContext(): { time: PickerTime; mood: PickerMood; label: string } {
-  const now = new Date();
-  const h = now.getHours();
-  const weekend = now.getDay() === 0 || now.getDay() === 6;
-  if (h >= 23 || h < 6)
-    return { time: "short", mood: "chill", label: "It's late — keeping it short and chill" };
-  if (weekend && h >= 10 && h < 20)
-    return { time: "long", mood: "story", label: "Weekend — room for a proper dive" };
-  if (!weekend && h >= 18)
-    return { time: "medium", mood: "chill", label: "Weeknight wind-down" };
-  return { time: "medium", mood: "chill", label: "A relaxed session" };
-}
-
 export function Picker() {
-  const [library, setLibrary] = useState<StoredGame[]>([]);
+  const [library, setLibrary] = useState<StoredGame[] | null>(null);
   const [isSample, setIsSample] = useState(true);
   const [genres, setGenres] = useState<string[]>([]);
   const [blacklist, setBlacklist] = useState<number[]>([]);
+  const [recentAppids, setRecentAppids] = useState<number[]>([]);
 
-  const [time, setTime] = useState<PickerTime | null>(null);
-  const [mood, setMood] = useState<PickerMood | null>(null);
+  const [time, setTime] = useState<PickerTime>("medium");
+  const [mood, setMood] = useState<PickerMood | null>("story");
   const [customMood, setCustomMood] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
 
+  const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<Recommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNoteMsg] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [played, setPlayed] = useState(false);
-  const [excluded, setExcluded] = useState<number[]>([]);
-  const [recentAppids, setRecentAppids] = useState<number[]>([]);
-  const [pending, setPending] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [lastNote, setLastNote] = useState<SessionNote | null>(null);
+  const [excluded, setExcluded] = useState<number[]>([]);
+  /** Index in the rank left empty by the cartridge that was pulled. */
+  const [gapIndex, setGapIndex] = useState<number | null>(null);
+  /**
+   * The cartridge the strip will land on, known before the scan starts so the
+   * window never lands on one cover and then swaps to another under your eye.
+   */
+  const [landing, setLanding] = useState<number | null>(null);
 
-  // Slot-machine reel: a game cycling on screen while the pick lands.
-  const [reel, setReel] = useState<StoredGame | null>(null);
+  const windowRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const after = useCallback((ms: number, fn: () => void) => {
+    timers.current.push(setTimeout(fn, ms));
+  }, []);
 
   useEffect(() => {
     const lib = loadLibrary();
@@ -138,60 +159,47 @@ export function Picker() {
     setIsSample(!lib);
     setGenres(loadProfile().favoriteGenres);
     setBlacklist(loadBlacklist());
-    // Recent picks → penalised by the engine so it stops repeating itself.
     setRecentAppids([...new Set(loadHistory().slice(0, 8).map((e) => e.pick.appid))]);
+    return () => timers.current.forEach(clearTimeout);
   }, []);
 
   const blacklistSet = new Set(blacklist);
-  // The pool the picker draws from: everything except games hidden for good.
-  const pool = library.filter((g) => !blacklistSet.has(g.appid));
-  const byId = new Map(library.map((g) => [g.appid, g]));
+  const pool = (library ?? []).filter((g) => !blacklistSet.has(g.appid));
+  const byId = new Map((library ?? []).map((g) => [g.appid, g]));
 
-  // Games played in the last 2 weeks — offered as a one-tap "continue" shortcut.
-  const recentGames = pool
-    .filter((g) => (g.recentMin ?? 0) > 0)
-    .sort((a, b) => (b.recentMin ?? 0) - (a.recentMin ?? 0))
-    .slice(0, 4);
-
-  const trimmedCustom = customMood.trim();
-
-  // Spin the reel while the pick resolves, then it lands on the real one.
-  const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (spinTimer.current) clearTimeout(spinTimer.current);
-    },
-    []
-  );
-  useEffect(() => {
-    if (pending && pool.length) {
-      reelTimer.current = setInterval(() => {
-        setReel(pool[Math.floor(Math.random() * pool.length)]);
-      }, 90);
-    } else if (reelTimer.current) {
-      clearInterval(reelTimer.current);
-      reelTimer.current = null;
+  /* ---- haptics: one click per label going past, spacing out ---- */
+  const buzz = (ms: number) => {
+    try {
+      navigator.vibrate?.(ms);
+    } catch {
+      // unsupported, never fatal
     }
-    return () => {
-      if (reelTimer.current) clearInterval(reelTimer.current);
-    };
-  }, [pending, pool.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+  function hapticRamp() {
+    let t = 0;
+    let gap = 90;
+    while (t < SCAN_MS - 120) {
+      after(t, () => buzz(9));
+      t += gap;
+      gap += 22;
+    }
+  }
 
-  // Core call. Takes the context explicitly so "Decide for me" can fire with
-  // computed values without waiting for state to flush.
-  function runRecommend(opts: {
-    time: PickerTime;
-    mood: PickerMood | null;
-    customMood: string;
-    exclude: number[];
-  }) {
-    const custom = opts.customMood.trim();
-    if (!opts.time || (!opts.mood && !custom)) return;
+  const band = mood ? MOOD.find((m) => m.key === mood)?.band : "var(--shell-dark)";
+
+  function pull(exclude: number[] = []) {
+    if (phase !== "idle" && phase !== "done") return;
+    if (!pool.length) return;
+    const custom = customMood.trim();
+    if (!mood && !custom) return;
+
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
     setError(null);
-    setPending(true);
+    setResult(null);
+    setPhase("scanning");
 
-    const engineInput = {
+    const engineInput: RecommendInput = {
       library: pool.map((g) => ({
         appid: g.appid,
         name: g.name,
@@ -200,85 +208,102 @@ export function Picker() {
         tags: g.tags,
       })),
       favoriteGenres: genres,
-      time: opts.time,
-      mood: opts.mood ?? undefined,
+      time,
+      mood: mood ?? undefined,
       customMood: custom || undefined,
-      excludeAppids: opts.exclude,
+      excludeAppids: exclude,
       recentAppids,
     };
 
     const res = recommendGame(engineInput);
-    const moodLabel =
-      custom || MOOD.find((m) => m.key === opts.mood)?.label || opts.mood || "";
+    const moodLabel = custom || MOOD.find((m) => m.key === mood)?.label || "";
 
-    // The AI only ever sees the engine's shortlist. It runs alongside the reel,
-    // and anything short of a clean answer leaves the local pick standing.
+    // The model only ever sees the engine's shortlist, and it runs while the
+    // reel does. Anything short of a clean answer leaves the local pick standing.
     const aiPromise: Promise<{ appid: number; reason: string } | null> = res.ok
       ? getAiPick({
           deviceId: deviceId(),
           candidates: shortlist(engineInput),
-          time: TIME.find((t) => t.key === opts.time)?.label ?? opts.time,
+          time: TIME.find((t) => t.key === time)?.label ?? time,
           mood: moodLabel,
         })
           .then((r) => (r.ok ? { appid: r.appid, reason: r.reason } : null))
           .catch(() => null)
       : Promise.resolve(null);
 
-    const spun = new Promise<void>((resolve) => {
-      if (spinTimer.current) clearTimeout(spinTimer.current);
-      spinTimer.current = setTimeout(resolve, SPIN_MS);
-    });
+    if (!res.ok) {
+      setPhase("idle");
+      setError(res.error);
+      return;
+    }
 
-    // Reveal once the reel has run AND the model has had its say — whichever
-    // finishes last. The reel never waits on a spinner.
-    Promise.all([spun, aiPromise]).then(([, ai]) => {
-      setPending(false);
-      if (res.ok) {
-        const merged = ai
-          ? applyAiPick(res.recommendation, ai, engineInput)
-          : res.recommendation;
-        setResult(merged);
-        setNote(res.note ?? null);
-        const game = pool.find((g) => g.appid === merged.pick.appid);
-        const entry = addHistory({
-          time: opts.time,
-          mood: moodLabel,
-          pick: {
-            appid: merged.pick.appid,
-            name: merged.pick.name,
-            coverUrl: game?.coverUrl ?? "",
-          },
-          alternatives: merged.alternatives.map((a) => ({
-            appid: a.appid,
-            name: a.name,
-          })),
-        });
-        setEntryId(entry.id);
-        setPlayed(false);
-        setNoteSaved(false);
-        // The entry we just added has no note yet, so this finds the previous
-        // session's — which is exactly what "Last time" means.
-        setLastNote(lastNoteFor(merged.pick.appid));
-      } else {
-        setError(res.error);
-        setResult(null);
-      }
+    // The window shows the engine's answer straight away, and swaps to the
+    // model's while the strip is still mid-scan — long before the cell is seen.
+    setLanding(res.recommendation.pick.appid);
+    aiPromise.then((ai) => ai && setLanding(ai.appid));
+
+    // 2. scan — reset the strip, then run it down to the winner and past it
+    const strip = stripRef.current;
+    const win = windowRef.current;
+    if (strip && win) {
+      const target = RUNWAY * win.clientHeight;
+      strip.style.transition = "none";
+      strip.style.transform = "translateY(0)";
+      void strip.offsetHeight; // flush, so the transition takes
+      strip.style.transition = `transform ${SCAN_MS}ms var(--ease)`;
+      strip.style.transform = `translateY(-${target + OVERSHOOT}px)`;
+      after(SCAN_MS, () => {
+        strip.style.transition = `transform ${SETTLE_MS}ms var(--ease)`;
+        strip.style.transform = `translateY(-${target}px)`;
+      });
+    }
+    buzz(14);
+    hapticRamp();
+
+    // 3. seat  4. read  then reveal
+    after(SCAN_MS + SETTLE_MS, () => setPhase("seating"));
+    after(SCAN_MS + SETTLE_MS + SEAT_MS, () => {
+      setPhase("reading");
+      buzz(45);
+    });
+    after(SCAN_MS + SETTLE_MS + SEAT_MS + READ_MS, async () => {
+      const ai = await aiPromise;
+      const merged = ai ? applyAiPick(res.recommendation, ai, engineInput) : res.recommendation;
+
+      setResult(merged);
+      setNoteMsg(res.note ?? null);
+      setPhase("done");
+
+      const game = pool.find((g) => g.appid === merged.pick.appid);
+      const entry = addHistory({
+        time,
+        mood: moodLabel,
+        pick: {
+          appid: merged.pick.appid,
+          name: merged.pick.name,
+          coverUrl: game?.coverUrl ?? "",
+        },
+        alternatives: merged.alternatives.map((a) => ({ appid: a.appid, name: a.name })),
+      });
+      setEntryId(entry.id);
+      setPlayed(false);
+      setNoteSaved(false);
+      // The entry we just added has no note, so this finds the previous
+      // session's — which is what "last save" means.
+      setLastNote(lastNoteFor(merged.pick.appid));
+      setGapIndex(pool.findIndex((g) => g.appid === merged.pick.appid));
     });
   }
 
-  function recommend(exclude: number[] = []) {
-    if (!time) return;
-    runRecommend({ time, mood, customMood, exclude });
-  }
-
-  // One tap, zero thinking: infer time + mood from the clock and pick now.
-  function decideForMe() {
+  function letItChoose() {
     const ctx = timeOfDayContext();
     setTime(ctx.time);
     setMood(ctx.mood);
     setCustomMood("");
+    setShowCustom(false);
     setExcluded([]);
-    runRecommend({ time: ctx.time, mood: ctx.mood, customMood: "", exclude: [] });
+    // state hasn't flushed yet, so pull() would read the old mood — defer a tick
+    after(0, () => pull([]));
   }
 
   function handlePlayed() {
@@ -287,8 +312,6 @@ export function Picker() {
     setPlayed(true);
   }
 
-  // What they type here becomes the "Last time" line the next time this game
-  // comes up. Saved verbatim first, then tidied — a failed summary loses nothing.
   function handleNote(raw: string) {
     if (!entryId || !result) return;
     const trimmed = raw.trim();
@@ -298,396 +321,407 @@ export function Picker() {
     setNoteSaved(true);
 
     summariseNote({ deviceId: deviceId(), game: result.pick.name, raw: trimmed })
-      .then((s) => {
-        saveNote(entryId, {
-          raw: trimmed,
-          lastTime: s.lastTime,
-          whatsNext: s.whatsNext,
-        });
-      })
+      .then((s) =>
+        saveNote(entryId, { raw: trimmed, lastTime: s.lastTime, whatsNext: s.whatsNext })
+      )
       .catch(() => {
         // their own words are already stored — nothing to recover
       });
   }
 
-  // Main button: a fresh pick. Forgets earlier rejections, but still never hands
-  // back the game already on screen — otherwise the same inputs return the same
-  // pick and it feels like the button does nothing.
-  function freshPick() {
-    const next = result ? [result.pick.appid] : [];
-    setExcluded(next);
-    recommend(next);
-  }
-
-  // "Not this one": exclude the current pick and roll again.
-  function rejectPick() {
+  function eject() {
     if (!result) return;
     const next = [...excluded, result.pick.appid];
     setExcluded(next);
-    recommend(next);
+    setGapIndex(null);
+    pull(next);
   }
 
-  // "Never suggest again": blacklist for good, then roll a replacement.
   function hideGame(appid: number) {
-    const nextBlack = addToBlacklist(appid);
-    setBlacklist(nextBlack);
+    setBlacklist(addToBlacklist(appid));
     const next = [...excluded, appid];
     setExcluded(next);
-    recommend(next);
+    setGapIndex(null);
+    pull(next);
   }
 
-  const ready = time && (mood || trimmedCustom);
+  if (library === null) return <PickerSkeleton />;
+
+  if (!pool.length) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
+        <span className="deck-slot w-28" />
+        <h1 className="mt-5 font-display text-[30px] font-extrabold uppercase leading-none">
+          The shelf is empty
+        </h1>
+        <p className="mt-2.5 max-w-[26ch] text-sm text-ink-soft">
+          Connect Steam and your backlog racks up here, one cartridge per game.
+        </p>
+        <Link
+          href="/connect"
+          className="mt-5 inline-flex h-[50px] items-center rounded-[3px] bg-label px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.06em] text-ink"
+        >
+          Connect Steam
+        </Link>
+      </div>
+    );
+  }
+
+  const busy = phase === "scanning" || phase === "seating" || phase === "reading";
+  const cartClass =
+    phase === "scanning"
+      ? "cart-out"
+      : phase === "seating"
+        ? "cart-seating"
+        : phase === "reading" || phase === "done"
+          ? "cart-seating cart-seated"
+          : "";
 
   return (
-    <div className="space-y-6">
-      {recentGames.length > 0 && (
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Jump back in</h2>
-          <p className="mt-1 text-xs text-muted">
-            You&apos;ve been playing these lately — pick up where you left off.
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {recentGames.map((g) => (
-              <a
-                key={g.appid}
-                href={`steam://run/${g.appid}`}
-                className="card-hover group overflow-hidden rounded-xl border border-border bg-background"
+    <div className={phase === "reading" ? "is-reading" : undefined}>
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
+        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+          Tonight
+        </h1>
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+          {isSample ? "Sample shelf" : `Shelf · ${pool.length} carts`}
+        </span>
+      </header>
+
+      {phase !== "done" && (
+        <>
+          <p className="rule">Session</p>
+          <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5">
+            {TIME.map((t) => (
+              <Tab
+                key={t.key}
+                pressed={time === t.key}
+                onClick={() => setTime(t.key)}
+                fill="var(--shell-dark)"
               >
-                <div className="aspect-[460/215] w-full bg-elevated">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={g.coverUrl}
-                    alt={g.name}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="p-2.5">
-                  <p className="line-clamp-1 text-xs font-medium">{g.name}</p>
-                  <p className="mt-0.5 font-mono text-[11px] text-accent-soft">
-                    {Math.round((g.recentMin ?? 0) / 60)}h in 2 weeks
-                  </p>
-                </div>
-              </a>
+                {t.label}
+              </Tab>
             ))}
           </div>
-        </div>
-      )}
 
-      <div className="card p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              What should I play right now?
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              Tell me your time and mood — I&apos;ll pick the one game to launch
-              from your library.
-            </p>
+          <p className="rule">Mood</p>
+          <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5">
+            {MOOD.map((m) => (
+              <Tab
+                key={m.key}
+                pressed={mood === m.key && !customMood.trim()}
+                onClick={() => {
+                  setMood(m.key);
+                  setCustomMood("");
+                  setShowCustom(false);
+                }}
+                fill={m.band}
+              >
+                {m.label}
+              </Tab>
+            ))}
+            <Tab
+              pressed={!!customMood.trim()}
+              onClick={() => setShowCustom(true)}
+              fill="var(--shell-dark)"
+            >
+              Own words
+            </Tab>
           </div>
-        </div>
 
-        <p className="mt-3 font-mono text-xs text-subtle">
-          {isSample ? (
-            <>
-              Using a sample library ·{" "}
-              <Link href="/connect" className="text-accent-soft hover:underline">
-                import your Steam games
-              </Link>
-            </>
-          ) : (
-            <>Picking from your {pool.length} games</>
-          )}
-        </p>
-
-        <button
-          onClick={decideForMe}
-          disabled={pending || !pool.length}
-          className="mt-5 w-full rounded-xl border border-accent bg-accent-dim px-5 py-3 text-sm font-semibold text-accent-soft transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          🎲 Just decide for me
-        </button>
-
-        <div className="my-5 flex items-center gap-3 text-xs text-subtle">
-          <span className="h-px flex-1 bg-border" />
-          or tell me what you&apos;re after
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
-        <div className="space-y-4">
-          <Field label="How much time?">
-            <div className="grid grid-cols-3 gap-2">
-              {TIME.map((t) => (
-                <Choice
-                  key={t.key}
-                  active={time === t.key}
-                  onClick={() => setTime(t.key)}
-                  title={t.label}
-                  sub={t.hint}
-                />
-              ))}
-            </div>
-          </Field>
-
-          <Field label="What's the mood?">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {MOOD.map((m) => (
-                <Choice
-                  key={m.key}
-                  active={mood === m.key && !trimmedCustom}
-                  onClick={() => {
-                    setMood(m.key);
-                    setCustomMood("");
-                  }}
-                  title={`${m.emoji} ${m.label}`}
-                />
-              ))}
-            </div>
+          {showCustom && (
             <input
+              autoFocus
               value={customMood}
               onChange={(e) => {
                 setCustomMood(e.target.value);
                 if (e.target.value.trim()) setMood(null);
               }}
-              placeholder="…or describe your own mood — e.g. “cozy but a little tense”"
-              className={`mt-2 w-full rounded-lg border bg-elevated px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-subtle ${
-                trimmedCustom
-                  ? "border-accent bg-accent-dim"
-                  : "border-border focus:border-accent"
-              }`}
+              placeholder="cozy but a bit tense…"
+              className="mt-2 min-h-[42px] w-full rounded-[2px] border border-line bg-transparent px-3 py-2 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
             />
-          </Field>
+          )}
+        </>
+      )}
+
+      {/* ---- the deck ---- */}
+      <div className="pt-5">
+        <div className={`cart mx-auto w-[206px] ${cartClass}`}>
+          <div className="overflow-hidden rounded-label border border-black/25 bg-label">
+            <div
+              className="flex items-center justify-between px-2.5 py-[5px] font-mono text-[8px] uppercase tracking-[0.16em] text-label"
+              style={{ background: band }}
+            >
+              <span>{customMood.trim() ? "Custom" : (mood ?? "—")}</span>
+              <span>SQ-{String(pool.length).padStart(3, "0")}</span>
+            </div>
+
+            <div
+              ref={windowRef}
+              className="relative aspect-[5/6] overflow-hidden bg-paper"
+            >
+              <div ref={stripRef} className="will-change-transform">
+                {Array.from({ length: RUNWAY + 1 }).map((_, i) => {
+                  // The strip is fixed-length and built once: rebuilding it per
+                  // pull would create a dozen full-size images every time.
+                  const g =
+                    i === RUNWAY && landing !== null
+                      ? byId.get(landing)
+                      : pool[i % pool.length];
+                  if (!g) return null;
+                  return (
+                    <div key={i} className="relative aspect-[5/6] w-full">
+                      <CoverArt
+                        appid={g.appid}
+                        name={g.name}
+                        sizes="206px"
+                        priority={i === 0}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 bg-label px-2.5 pb-2 pt-[7px] text-ink">
+              <b className="font-display text-[19px] font-bold uppercase leading-[0.95]">
+                {result ? result.pick.name : busy ? "Reading…" : "Pull to load"}
+              </b>
+              <span className="whitespace-nowrap font-mono text-[9px] text-ink-soft">
+                {result
+                  ? `${Math.round((byId.get(result.pick.appid)?.playtimeMin ?? 0) / 60)}H`
+                  : `${pool.length} carts`}
+              </span>
+            </div>
+          </div>
+          <div className="cart-contacts" />
         </div>
 
-        <button
-          onClick={freshPick}
-          disabled={!ready || pending}
-          className="mt-6 w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,92,255,0.4)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-        >
-          {pending
-            ? "Thinking…"
-            : result
-              ? "Pick again"
-              : ready
-                ? "Recommend a game"
-                : "Pick a time and a mood"}
-        </button>
+        <div className="deck-slot mx-6 mt-0 flex items-center justify-center gap-1.5">
+          <i className="deck-led" />
+          <i className="deck-led" />
+          <i className="deck-led" />
+        </div>
       </div>
 
       {error && (
-        <div className="card border-amber/30 bg-amber/5 p-4 text-sm text-amber">
+        <p className="mt-4 border border-challenge/40 bg-challenge/10 p-3 text-sm text-label">
           {error}
-        </div>
+        </p>
       )}
 
-      {pending && <ReelCard game={reel} />}
+      {/* ---- result ---- */}
+      {phase === "done" && result && (
+        <section className="mt-5">
+          <h2 className="print font-display text-[38px] font-extrabold uppercase leading-[0.9] tracking-[0.01em]">
+            {result.pick.name}
+          </h2>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+            {(byId.get(result.pick.appid)?.playtimeMin ?? 0) > 0
+              ? `${Math.round((byId.get(result.pick.appid)!.playtimeMin ?? 0) / 60)}h played`
+              : "Never launched"}
+            {(byId.get(result.pick.appid)?.recentMin ?? 0) > 0 &&
+              ` · ${Math.round((byId.get(result.pick.appid)!.recentMin ?? 0) / 60)}h this fortnight`}
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-[#cfc4b8]">
+            {result.pick.reason}
+          </p>
 
-      {!pending && result && (
-        <div className="space-y-4">
           {note && (
-            <div className="rounded-xl border border-border bg-accent-dim px-4 py-2.5 text-xs text-accent-soft">
+            <p className="mt-3 border border-line p-2.5 font-mono text-[10px] leading-relaxed text-ink-soft">
               {note}
-            </div>
+            </p>
           )}
 
-          <PickCard
-            game={byId.get(result.pick.appid)}
-            name={result.pick.name}
-            reason={result.pick.reason}
-            reasons={result.pick.reasons}
-            lastNote={lastNote}
-            noteSaved={noteSaved}
-            onNote={handleNote}
-            played={played}
-            onPlayed={handlePlayed}
-            onReject={rejectPick}
-            onHide={() => hideGame(result.pick.appid)}
-            rejecting={pending}
-          />
-
-          {result.alternatives.length > 0 && (
-            <div>
-              <h3 className="mb-3 text-xs font-medium uppercase tracking-widest text-subtle">
-                Or, if not that…
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {result.alternatives.map((a) => (
-                  <AltCard
-                    key={a.appid}
-                    game={byId.get(a.appid)}
-                    name={a.name}
-                    reason={a.reason}
-                  />
-                ))}
+          {lastNote && (
+            <div className="mt-4 overflow-hidden rounded-[2px] border border-line">
+              <div className="flex justify-between bg-plank px-2.5 py-[5px] font-mono text-[9px] uppercase tracking-[0.14em] text-ink-soft">
+                <span>Last save</span>
+              </div>
+              <div className="p-2.5 text-sm leading-relaxed">
+                {lastNote.lastTime}
+                {lastNote.whatsNext && (
+                  <span className="mt-1.5 block text-contacts">
+                    Next: {lastNote.whatsNext}
+                  </span>
+                )}
               </div>
             </div>
           )}
-        </div>
+
+          {result.pick.reasons.length > 0 && (
+            <div className="mt-3.5 flex flex-wrap gap-1.5">
+              {result.pick.reasons.map((r) => {
+                const [head, tail] = r.label.split(" — ");
+                return (
+                  <span
+                    key={r.label}
+                    className="inline-flex items-center gap-1.5 rounded-[2px] border border-line px-2.5 py-1 font-mono text-[10px] text-[#cfc4b8]"
+                  >
+                    <span aria-hidden>{r.icon}</span>
+                    <b className="font-medium text-label">{head}</b>
+                    {tail && <span>· {tail}</span>}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-[18px] flex gap-[7px]">
+            <a
+              href={`steam://run/${result.pick.appid}`}
+              onClick={handlePlayed}
+              className="flex h-[50px] flex-1 items-center justify-center rounded-[3px] bg-label font-display text-[20px] font-extrabold uppercase tracking-[0.06em] text-ink transition-transform duration-[var(--fast)] active:translate-y-0.5"
+            >
+              Let&apos;s play
+            </a>
+            <button
+              onClick={eject}
+              disabled={busy}
+              className="h-[50px] shrink-0 rounded-[3px] border border-[#4d3f36] px-[18px] font-display text-[18px] font-bold uppercase tracking-[0.06em] text-[#cfc4b8] transition-colors duration-[var(--fast)] hover:border-label hover:text-label disabled:opacity-50"
+            >
+              Eject
+            </button>
+          </div>
+
+          {!played && (
+            <button
+              onClick={handlePlayed}
+              className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-label"
+            >
+              I played this
+            </button>
+          )}
+
+          {played && <NoteField saved={noteSaved} onSave={handleNote} />}
+
+          <button
+            onClick={() => hideGame(result.pick.appid)}
+            className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-[#6a5c52] transition-colors hover:text-challenge"
+          >
+            Never suggest this again
+          </button>
+
+          {result.alternatives.length > 0 && (
+            <>
+              <p className="rule mt-6">Or</p>
+              <div className="grid gap-2">
+                {result.alternatives.map((a) => (
+                  <div
+                    key={a.appid}
+                    className="flex items-center gap-3 border border-line-soft p-2"
+                  >
+                    <div className="relative aspect-[5/6] w-9 shrink-0 overflow-hidden rounded-[2px] bg-paper">
+                      <CoverArt appid={a.appid} name={a.name} sizes="36px" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-display text-[16px] font-bold uppercase leading-none">
+                        {a.name}
+                      </p>
+                      <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft">
+                        {a.reason}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ---- the rank + the lever ---- */}
+      {phase !== "done" && (
+        <>
+          <Rank count={pool.length} gapIndex={gapIndex} />
+          <button
+            onClick={() => pull(excluded)}
+            disabled={busy}
+            className="relative mt-[18px] h-14 w-full rounded-[4px] bg-gradient-to-b from-[#c4402c] to-[#9d3020] font-display text-[25px] font-extrabold uppercase tracking-[0.18em] text-label transition-[transform,box-shadow] duration-[var(--fast)] [transition-timing-function:var(--seat)] active:translate-y-1 active:shadow-none disabled:saturate-[0.35] disabled:brightness-75"
+            style={{ boxShadow: "0 4px 0 #6d1f14, 0 10px 18px -8px rgba(0,0,0,.8)" }}
+          >
+            {busy ? "…" : "Pull"}
+          </button>
+          <button
+            onClick={letItChoose}
+            disabled={busy}
+            className="mt-3 w-full py-2 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label disabled:opacity-50"
+          >
+            or let it choose
+          </button>
+          {isSample && (
+            <p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+              Sample shelf ·{" "}
+              <Link href="/connect" className="text-ink-soft hover:text-label">
+                import yours
+              </Link>
+            </p>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-// Slot-machine card shown while the AI thinks: a game cover flickers past.
-function ReelCard({ game }: { game?: StoredGame | null }) {
-  return (
-    <div className="glow-border overflow-hidden rounded-2xl bg-background">
-      <div className="aspect-[460/215] w-full bg-elevated">
-        {game?.coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={game.coverUrl}
-            alt=""
-            className="h-full w-full object-cover opacity-70 blur-[1px] transition-opacity"
-          />
-        )}
-      </div>
-      <div className="p-5">
-        <p className="text-xs font-medium uppercase tracking-widest text-accent-soft">
-          Rolling…
-        </p>
-        <h2 className="mt-1 truncate text-2xl font-semibold tracking-tight text-muted">
-          {game?.name ?? "Picking your game"}
-        </h2>
-        <p className="mt-2 text-sm text-subtle">Weighing your time, mood and backlog…</p>
-      </div>
-    </div>
-  );
-}
-
-function PickCard({
-  game,
-  name,
-  reason,
-  reasons,
-  lastNote,
-  noteSaved,
-  onNote,
-  played,
-  onPlayed,
-  onReject,
-  onHide,
-  rejecting,
+/** A printed tab, not a pill. */
+function Tab({
+  pressed,
+  onClick,
+  fill,
+  children,
 }: {
-  game?: StoredGame;
-  name: string;
-  reason: string;
-  reasons: Reason[];
-  lastNote: SessionNote | null;
-  noteSaved: boolean;
-  onNote: (raw: string) => void;
-  played: boolean;
-  onPlayed: () => void;
-  onReject: () => void;
-  onHide: () => void;
-  rejecting: boolean;
+  pressed: boolean;
+  onClick: () => void;
+  fill: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="glow-border overflow-hidden rounded-2xl bg-background">
-      {game?.coverUrl && (
-        <div className="aspect-[460/215] w-full bg-elevated">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={game.coverUrl}
-            alt={name}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
-      <div className="p-5">
-        <p className="text-xs font-medium uppercase tracking-widest text-accent-soft">
-          Tonight, play
-        </p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight">{name}</h2>
-        <p className="mt-2 text-sm leading-6 text-muted">{reason}</p>
-
-        {lastNote && (
-          <div className="mt-4 rounded-xl border border-border bg-elevated p-3.5">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-subtle">
-              Last time
-            </p>
-            <p className="mt-1 text-sm leading-6">{lastNote.lastTime}</p>
-            {lastNote.whatsNext && (
-              <p className="mt-1.5 text-sm leading-6 text-accent-soft">
-                Next: {lastNote.whatsNext}
-              </p>
-            )}
-          </div>
-        )}
-
-        {reasons.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {reasons.map((r) => (
-              <span
-                key={r.label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-elevated px-2.5 py-1 text-xs text-muted"
-              >
-                <span aria-hidden>{r.icon}</span>
-                {r.label}
-              </span>
-            ))}
-          </div>
-        )}
-        {game && (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <a
-              href={`steam://run/${game.appid}`}
-              onClick={onPlayed}
-              className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
-            >
-              ▶ Launch on Steam
-            </a>
-            <button
-              onClick={onPlayed}
-              disabled={played}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                played
-                  ? "cursor-default border border-green/30 bg-green/10 text-green"
-                  : "border border-border bg-elevated text-muted hover:border-accent hover:text-accent-soft"
-              }`}
-            >
-              {played ? "Played ✓" : "I played this"}
-            </button>
-            <button
-              onClick={onReject}
-              disabled={rejecting}
-              className="rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium text-muted transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
-            >
-              Not this one ↻
-            </button>
-            <button
-              onClick={onHide}
-              disabled={rejecting}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-subtle transition-colors hover:text-amber disabled:opacity-50"
-            >
-              Never suggest again 🚫
-            </button>
-            <a
-              href={`https://store.steampowered.com/app/${game.appid}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-subtle hover:text-foreground"
-            >
-              View store page ↗
-            </a>
-            {game.playtimeMin > 0 && (
-              <span className="font-mono text-xs text-subtle">
-                {Math.round(game.playtimeMin / 60)}h played
-              </span>
-            )}
-          </div>
-        )}
-
-        {played && <NoteField saved={noteSaved} onSave={onNote} />}
-      </div>
-    </div>
+    <button
+      aria-pressed={pressed}
+      onClick={onClick}
+      style={pressed ? { background: fill, borderColor: "transparent" } : undefined}
+      className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-[2px] border px-3.5 font-display text-[16px] font-bold uppercase tracking-[0.04em] transition-colors duration-[var(--fast)] ${
+        pressed
+          ? "text-label"
+          : "border-line text-ink-soft hover:border-[#4d3f36] hover:text-label"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
 /**
- * Asked only after they say they played — before that there is nothing to
- * write down, and prompting for it would be noise.
+ * The rank of spines. Deterministic heights and tints from the index, so the
+ * shelf looks hand-stacked without re-randomising on every render.
  */
+function Rank({ count, gapIndex }: { count: number; gapIndex: number | null }) {
+  const TINTS = ["var(--story)", "var(--chill)", "var(--challenge)", "var(--quick)"];
+  const spines = Math.min(Math.max(count, 12), 34);
+  return (
+    <div className="-mx-5 mt-3.5 px-5">
+      <div className="no-bar flex items-end gap-[3px] overflow-x-auto pt-2">
+        {Array.from({ length: spines }).map((_, i) => (
+          <span
+            key={i}
+            className={`spine ${i % 3 === 1 ? "spine-cream" : ""} ${
+              gapIndex !== null && i === gapIndex % spines ? "spine-gap" : ""
+            }`}
+            style={
+              {
+                height: `${44 + ((i * 7) % 10)}px`,
+                "--tint": TINTS[i % TINTS.length],
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+      <div className="h-[5px] bg-plank shadow-[0_1px_0_var(--plank-edge)]" />
+    </div>
+  );
+}
+
+/** Asked only after they say they played — before that there is nothing to write. */
 function NoteField({
   saved,
   onSave,
@@ -699,17 +733,17 @@ function NoteField({
 
   if (saved) {
     return (
-      <p className="mt-4 border-t border-border pt-4 text-xs text-green">
-        Saved ✓ — you&apos;ll see this the next time this game comes up.
+      <p className="mt-4 border-t border-line pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-contacts">
+        Saved — you&apos;ll see this next time this cart comes up
       </p>
     );
   }
 
   return (
-    <div className="mt-4 border-t border-border pt-4">
+    <div className="mt-4 border-t border-line pt-3">
       <label
         htmlFor="session-note"
-        className="font-mono text-[10px] uppercase tracking-widest text-subtle"
+        className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-soft"
       >
         Where did you get to?
       </label>
@@ -720,12 +754,12 @@ function NoteField({
         rows={2}
         maxLength={600}
         placeholder="A line for future you — “cleared Asphodel, unlocked the rail”"
-        className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-subtle focus:border-accent"
+        className="mt-2 w-full resize-none rounded-[2px] border border-line bg-transparent px-3 py-2 text-sm text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
       />
       <button
         onClick={() => onSave(draft)}
         disabled={!draft.trim()}
-        className="mt-2 rounded-lg border border-border bg-elevated px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent hover:text-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-2 rounded-[2px] border border-line px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:border-contacts hover:text-label disabled:opacity-40"
       >
         Save note
       </button>
@@ -733,74 +767,16 @@ function NoteField({
   );
 }
 
-function AltCard({
-  game,
-  name,
-  reason,
-}: {
-  game?: StoredGame;
-  name: string;
-  reason: string;
-}) {
+function PickerSkeleton() {
   return (
-    <div className="card flex gap-3 p-3">
-      {game?.coverUrl && (
-        <div className="h-16 w-28 shrink-0 overflow-hidden rounded-lg bg-elevated">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={game.coverUrl}
-            alt={name}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="mt-0.5 text-xs leading-5 text-muted">{reason}</p>
+    <div className="pt-[18px]">
+      <div className="sweep h-8 w-40 bg-plank" />
+      <div className="mt-6 flex gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="sweep h-11 w-24 bg-plank" />
+        ))}
       </div>
+      <div className="sweep mx-auto mt-6 h-[300px] w-[206px] rounded-cart bg-plank" />
     </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-subtle">
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function Choice({
-  active,
-  onClick,
-  title,
-  sub,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  sub?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
-        active
-          ? "border-accent bg-accent-dim"
-          : "border-border bg-elevated hover:border-border-strong"
-      }`}
-    >
-      <span className="block text-sm font-medium">{title}</span>
-      {sub && <span className="mt-0.5 block text-xs text-subtle">{sub}</span>}
-    </button>
   );
 }
