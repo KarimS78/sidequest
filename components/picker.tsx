@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { explain, recommendGame, shortlist } from "@/lib/recommend";
-import { getAiPick } from "@/app/play/actions";
+import { getAiPick, summariseNote } from "@/app/play/actions";
 import { deviceId } from "@/lib/device";
 import {
   loadLibrary,
@@ -13,7 +13,14 @@ import {
   SAMPLE_LIBRARY,
   type StoredGame,
 } from "@/lib/library";
-import { addHistory, markPlayed, loadHistory } from "@/lib/history";
+import {
+  addHistory,
+  lastNoteFor,
+  loadHistory,
+  markPlayed,
+  setNote as saveNote,
+  type SessionNote,
+} from "@/lib/history";
 import type {
   PickerTime,
   PickerMood,
@@ -119,6 +126,8 @@ export function Picker() {
   const [excluded, setExcluded] = useState<number[]>([]);
   const [recentAppids, setRecentAppids] = useState<number[]>([]);
   const [pending, setPending] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [lastNote, setLastNote] = useState<SessionNote | null>(null);
 
   // Slot-machine reel: a game cycling on screen while the pick lands.
   const [reel, setReel] = useState<StoredGame | null>(null);
@@ -246,6 +255,10 @@ export function Picker() {
         });
         setEntryId(entry.id);
         setPlayed(false);
+        setNoteSaved(false);
+        // The entry we just added has no note yet, so this finds the previous
+        // session's — which is exactly what "Last time" means.
+        setLastNote(lastNoteFor(merged.pick.appid));
       } else {
         setError(res.error);
         setResult(null);
@@ -272,6 +285,29 @@ export function Picker() {
     if (!entryId) return;
     markPlayed(entryId);
     setPlayed(true);
+  }
+
+  // What they type here becomes the "Last time" line the next time this game
+  // comes up. Saved verbatim first, then tidied — a failed summary loses nothing.
+  function handleNote(raw: string) {
+    if (!entryId || !result) return;
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    saveNote(entryId, { raw: trimmed, lastTime: trimmed });
+    setNoteSaved(true);
+
+    summariseNote({ deviceId: deviceId(), game: result.pick.name, raw: trimmed })
+      .then((s) => {
+        saveNote(entryId, {
+          raw: trimmed,
+          lastTime: s.lastTime,
+          whatsNext: s.whatsNext,
+        });
+      })
+      .catch(() => {
+        // their own words are already stored — nothing to recover
+      });
   }
 
   // Main button: a fresh pick. Forgets earlier rejections, but still never hands
@@ -459,6 +495,9 @@ export function Picker() {
             name={result.pick.name}
             reason={result.pick.reason}
             reasons={result.pick.reasons}
+            lastNote={lastNote}
+            noteSaved={noteSaved}
+            onNote={handleNote}
             played={played}
             onPlayed={handlePlayed}
             onReject={rejectPick}
@@ -521,6 +560,9 @@ function PickCard({
   name,
   reason,
   reasons,
+  lastNote,
+  noteSaved,
+  onNote,
   played,
   onPlayed,
   onReject,
@@ -531,6 +573,9 @@ function PickCard({
   name: string;
   reason: string;
   reasons: Reason[];
+  lastNote: SessionNote | null;
+  noteSaved: boolean;
+  onNote: (raw: string) => void;
   played: boolean;
   onPlayed: () => void;
   onReject: () => void;
@@ -555,6 +600,21 @@ function PickCard({
         </p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">{name}</h2>
         <p className="mt-2 text-sm leading-6 text-muted">{reason}</p>
+
+        {lastNote && (
+          <div className="mt-4 rounded-xl border border-border bg-elevated p-3.5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-subtle">
+              Last time
+            </p>
+            <p className="mt-1 text-sm leading-6">{lastNote.lastTime}</p>
+            {lastNote.whatsNext && (
+              <p className="mt-1.5 text-sm leading-6 text-accent-soft">
+                Next: {lastNote.whatsNext}
+              </p>
+            )}
+          </div>
+        )}
+
         {reasons.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {reasons.map((r) => (
@@ -617,7 +677,58 @@ function PickCard({
             )}
           </div>
         )}
+
+        {played && <NoteField saved={noteSaved} onSave={onNote} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Asked only after they say they played — before that there is nothing to
+ * write down, and prompting for it would be noise.
+ */
+function NoteField({
+  saved,
+  onSave,
+}: {
+  saved: boolean;
+  onSave: (raw: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  if (saved) {
+    return (
+      <p className="mt-4 border-t border-border pt-4 text-xs text-green">
+        Saved ✓ — you&apos;ll see this the next time this game comes up.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <label
+        htmlFor="session-note"
+        className="font-mono text-[10px] uppercase tracking-widest text-subtle"
+      >
+        Where did you get to?
+      </label>
+      <textarea
+        id="session-note"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={2}
+        maxLength={600}
+        placeholder="A line for future you — “cleared Asphodel, unlocked the rail”"
+        className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-subtle focus:border-accent"
+      />
+      <button
+        onClick={() => onSave(draft)}
+        disabled={!draft.trim()}
+        className="mt-2 rounded-lg border border-border bg-elevated px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent hover:text-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Save note
+      </button>
     </div>
   );
 }

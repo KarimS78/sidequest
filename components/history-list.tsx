@@ -79,7 +79,7 @@ export function HistoryList() {
 
       <div className="space-y-3">
         {entries.map((e) => (
-          <div key={e.id} className="card flex items-center gap-4 p-3">
+          <div key={e.id} className="card flex items-start gap-4 p-3">
             <div className="h-16 w-28 shrink-0 overflow-hidden rounded-lg bg-elevated">
               {e.pick.coverUrl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -96,6 +96,11 @@ export function HistoryList() {
               <p className="mt-0.5 text-xs text-subtle">
                 {TIME_LABEL[e.time] ?? e.time} · {e.mood} · {timeAgo(e.at)}
               </p>
+              {e.note?.lastTime && (
+                <p className="mt-1.5 text-xs leading-5 text-muted">
+                  {e.note.lastTime}
+                </p>
+              )}
               {e.alternatives.length > 0 && (
                 <p className="mt-1 truncate text-xs text-muted">
                   Alt: {e.alternatives.map((a) => a.name).join(", ")}
