@@ -1,25 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import {
-  suggestGamesToAdd,
-  searchGamesToAdd,
-  type SuggestedGame,
-} from "@/app/connect/actions";
+import { searchGamesToAdd } from "@/app/connect/actions";
 import type { StoreHit } from "@/lib/steam";
-import {
-  addGameToLibrary,
-  loadLibrary,
-  loadProfile,
-  type StoredGame,
-} from "@/lib/library";
+import { addGameToLibrary, type StoredGame } from "@/lib/library";
 
 export function AddGames({ seed }: { seed: StoredGame[] }) {
   const [library, setLibrary] = useState<StoredGame[]>(seed);
-  const [suggestions, setSuggestions] = useState<SuggestedGame[] | null>(null);
-  const [suggestError, setSuggestError] = useState<string | null>(null);
-  const [loadingSuggest, startSuggest] = useTransition();
 
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<StoreHit[]>([]);
@@ -29,21 +17,6 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
     () => new Set(library.map((g) => g.appid)),
     [library]
   );
-
-  // Fetch AI suggestions once, based on the imported library + profile genres.
-  useEffect(() => {
-    const lib = loadLibrary() ?? seed;
-    startSuggest(async () => {
-      const res = await suggestGamesToAdd({
-        ownedNames: lib.map((g) => g.name),
-        ownedAppids: lib.map((g) => g.appid),
-        favoriteGenres: loadProfile().favoriteGenres,
-      });
-      if (res.ok) setSuggestions(res.games);
-      else setSuggestError(res.error ?? "Couldn't load suggestions.");
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function add(game: { appid: number; name: string; coverUrl: string }) {
     setLibrary(addGameToLibrary(game));
@@ -72,49 +45,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
           Epic, console, or just love. SideQuest factors them into what to play.
         </p>
 
-        {/* AI suggestions */}
         <div className="mt-5">
-          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-subtle">
-            Suggested for you
-          </p>
-
-          {loadingSuggest && !suggestions && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[104px] animate-pulse rounded-xl bg-elevated"
-                />
-              ))}
-            </div>
-          )}
-
-          {suggestError && (
-            <p className="text-sm text-amber">{suggestError}</p>
-          )}
-
-          {suggestions && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {suggestions.map((g) => (
-                <GameRow
-                  key={g.appid}
-                  game={g}
-                  reason={g.reason}
-                  added={ownedIds.has(g.appid)}
-                  onAdd={() => add(g)}
-                />
-              ))}
-              {suggestions.length === 0 && (
-                <p className="text-sm text-subtle">
-                  No fresh suggestions — try the search below.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Manual search */}
-        <div className="mt-6 border-t border-border pt-5">
           <p className="mb-2 text-xs font-medium uppercase tracking-widest text-subtle">
             Add any game by name
           </p>
@@ -162,12 +93,10 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
 
 function GameRow({
   game,
-  reason,
   added,
   onAdd,
 }: {
   game: StoreHit;
-  reason?: string;
   added: boolean;
   onAdd: () => void;
 }) {
@@ -184,11 +113,6 @@ function GameRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{game.name}</p>
-        {reason && (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted">
-            {reason}
-          </p>
-        )}
       </div>
       <button
         onClick={onAdd}

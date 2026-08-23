@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   GENRE_OPTIONS,
@@ -11,7 +11,6 @@ import {
   removeFromBlacklist,
   type StoredGame,
 } from "@/lib/library";
-import { detectGenresFromLibrary } from "@/app/profile/actions";
 
 export function ProfileEditor() {
   const [genres, setGenres] = useState<string[]>([]);
@@ -19,8 +18,6 @@ export function ProfileEditor() {
   const [blacklist, setBlacklist] = useState<number[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [detectNote, setDetectNote] = useState<string | null>(null);
-  const [detecting, startDetect] = useTransition();
 
   useEffect(() => {
     setGenres(loadProfile().favoriteGenres);
@@ -46,30 +43,6 @@ export function ProfileEditor() {
         ? genres.filter((g) => g !== genre)
         : [...genres, genre]
     );
-  }
-
-  function detect() {
-    setDetectNote(null);
-    startDetect(async () => {
-      const res = await detectGenresFromLibrary({
-        games: library.map((g) => ({ name: g.name, playtimeMin: g.playtimeMin })),
-        allowedGenres: [...GENRE_OPTIONS],
-      });
-      if (!res.ok) {
-        setDetectNote(res.error);
-        return;
-      }
-      if (res.genres.length) {
-        // Merge with what's already selected — never wipe the player's choices.
-        persist([...new Set([...genres, ...res.genres])]);
-      }
-      setDetectNote(
-        res.note ??
-          (res.genres.length
-            ? `Added ${res.genres.length} genre${res.genres.length > 1 ? "s" : ""} from your library.`
-            : "Couldn't read a clear taste from your library — pick a few by hand.")
-      );
-    });
   }
 
   if (!loaded) return null;
@@ -106,24 +79,6 @@ export function ProfileEditor() {
             Saved ✓
           </span>
         </div>
-
-        {library.length > 0 && (
-          <button
-            onClick={detect}
-            disabled={detecting}
-            className={`mt-5 flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              genres.length === 0
-                ? "border-accent bg-accent-dim text-accent-soft hover:bg-accent/20"
-                : "border-border bg-elevated text-muted hover:border-border-strong"
-            }`}
-          >
-            {detecting ? "Reading your library…" : "✨ Detect from my library"}
-          </button>
-        )}
-
-        {detectNote && (
-          <p className="mt-3 text-xs text-subtle">{detectNote}</p>
-        )}
 
         <div className="mt-5 flex flex-wrap gap-2">
           {GENRE_OPTIONS.map((g) => {
