@@ -28,6 +28,7 @@ Dark-first. Fond `#0a0a0b`, surfaces `#141416`, bordures `#232326`, accent viole
 - `app/profile/` — stats + "What to play this weekend" (recommander)
 - `components/` — nav, game-bits, recommender
 - `lib/seed.ts` — données fictives (à remplacer par Supabase)
+- **PWA** : `app/manifest.ts` (manifest), `public/sw.js` (service worker écrit à la main — pas de next-pwa/workbox), `components/sw-register.tsx` (enregistrement en prod uniquement), `components/install-prompt.tsx`, `app/offline/page.tsx`, icônes générées par `scripts/generate-icons.mjs`.
 
 ## Conventions
 - Français casual avec Karim. App en anglais.
