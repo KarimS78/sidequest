@@ -63,6 +63,15 @@ function cover(appid: number) {
   return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 }
 
+/**
+ * Portrait art, the shape a cartridge label wants. Derived from the appid at
+ * render time rather than stored, so libraries imported before the redesign
+ * get it for free. Not every appid has one — callers fall back to the name.
+ */
+export function portraitFor(appid: number) {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_600x900.jpg`;
+}
+
 // Used when the player hasn't imported a real library yet, so the picker still
 // demos end-to-end. Mirrors the mock Steam import, tags included, so the scoring
 // engine behaves exactly as it would on a real enriched library.

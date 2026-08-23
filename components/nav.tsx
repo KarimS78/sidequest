@@ -1,84 +1,104 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-export function Logo({ className = "" }: { className?: string }) {
-  return (
-    <Link href="/" className={`flex items-center gap-2 ${className}`}>
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm font-bold text-white shadow-[0_0_20px_rgba(124,92,255,0.5)]">
-        S
-      </span>
-      <span className="text-[15px] font-semibold tracking-tight">
-        SideQuest <span className="text-accent-soft">AI</span>
-      </span>
-    </Link>
-  );
-}
+/**
+ * The shelf edge: four tabs pinned to the bottom, the active one marked by a
+ * gold contact strip — the same gold as a cartridge's edge connector, so the
+ * current tab reads as the one that's seated.
+ */
+const TABS = [
+  {
+    href: "/play",
+    label: "Pull",
+    // a cartridge above its slot
+    path: (
+      <>
+        <path d="M5 9h14v10H5z" />
+        <path d="M8 9V5h8v4" />
+        <path d="M9 19v2M15 19v2" />
+      </>
+    ),
+  },
+  {
+    href: "/dashboard",
+    label: "Shelf",
+    // spines standing on a board
+    path: (
+      <>
+        <path d="M4 4v16M9 4v16M14 4v16M19 4v16" />
+        <path d="M3 20h18" />
+      </>
+    ),
+  },
+  {
+    href: "/history",
+    label: "Saves",
+    // a memory card
+    path: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="1" />
+        <path d="M8 4v6h8V4" />
+        <path d="M8 20v-4h8v4" />
+      </>
+    ),
+  },
+  {
+    href: "/profile",
+    label: "You",
+    path: (
+      <>
+        <circle cx="12" cy="8.5" r="3.7" />
+        <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+      </>
+    ),
+  },
+];
 
-export function TopNav({
-  active,
-}: {
-  active?: "play" | "library" | "history" | "profile" | "roast";
-}) {
-  return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
-        <div className="flex items-center gap-8">
-          <Logo />
-          <nav className="hidden items-center gap-1 sm:flex">
-            <NavLink href="/play" current={active === "play"}>
-              Play
-            </NavLink>
-            <NavLink href="/dashboard" current={active === "library"}>
-              Library
-            </NavLink>
-            <NavLink href="/history" current={active === "history"}>
-              History
-            </NavLink>
-            <NavLink href="/roast" current={active === "roast"}>
-              Roast
-            </NavLink>
-            <NavLink href="/profile" current={active === "profile"}>
-              Profile
-            </NavLink>
-          </nav>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/connect"
-            className="hidden rounded-lg border border-border bg-elevated px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-border-strong hover:text-foreground sm:block"
-          >
-            Connect Steam
-          </Link>
-          <span className="hidden rounded-full border border-border bg-elevated px-2.5 py-1 text-xs text-subtle sm:block">
-            Demo mode
-          </span>
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-accent to-[#38bdf8] text-xs font-semibold text-white">
-            K
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
+export function BottomNav() {
+  const pathname = usePathname();
 
-function NavLink({
-  href,
-  current,
-  children,
-}: {
-  href: string;
-  current?: boolean;
-  children: React.ReactNode;
-}) {
+  // /connect belongs to the library flow, so Shelf stays lit while you're in it.
+  const activeHref =
+    TABS.find((t) => pathname === t.href)?.href ??
+    (pathname.startsWith("/connect") ? "/dashboard" : null);
+
   return (
-    <Link
-      href={href}
-      className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-        current
-          ? "bg-elevated text-foreground"
-          : "text-muted hover:text-foreground"
-      }`}
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-[#3d3129] bg-plank"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {children}
-    </Link>
+      {TABS.map((tab) => {
+        const active = tab.href === activeHref;
+        return (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
+            className={`relative flex h-[62px] min-h-11 flex-col items-center justify-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] transition-colors duration-[var(--fast)] ${
+              active ? "text-label" : "text-ink-soft hover:text-label"
+            }`}
+          >
+            {active && (
+              <span className="absolute top-0 h-[3px] w-10 bg-contacts" />
+            )}
+            <svg
+              viewBox="0 0 24 24"
+              className="h-[19px] w-[19px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              {tab.path}
+            </svg>
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
