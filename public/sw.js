@@ -11,7 +11,8 @@
  * Bump CACHE to invalidate; activate() drops every other cache we own.
  */
 
-const CACHE = "sidequest-v1";
+// v2: the desktop rework. Bumped so nobody keeps a cached phone-shaped shell.
+const CACHE = "sidequest-v2";
 
 const PRECACHE = [
   "/",

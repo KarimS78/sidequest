@@ -96,8 +96,9 @@ body {
 }
 
 /* ---------- the app column ----------------------------------
-   One column on every screen size. On desktop it stays centred rather
-   than stretching: this is a phone app that happens to open on a laptop. */
+   The phone measure: one hand, one column. Screens that are genuinely
+   narrow by nature (connecting an account, the offline card) keep it at
+   every size; the rest use .room and open up on a desktop. */
 .column {
   width: 100%;
   max-width: 28rem;
@@ -235,6 +236,7 @@ body {
   position: relative;
   flex: 0 0 auto;
   width: 13px;
+  height: var(--h, 48px);
   border-radius: 2px 2px 0 0;
   background: linear-gradient(180deg, var(--shell) 0%, var(--shell-dark) 100%);
   box-shadow:
@@ -316,4 +318,176 @@ body {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================================================
+   THE ROOM — desktop
+   The phone app is one cartridge over one slot, held in the hand. On a
+   large screen you step back and the room appears: the deck sits on the
+   plank, the controls are on the panel to its left, and the shelf runs
+   the full width underneath. Nothing is stretched — things are placed.
+   ============================================================ */
+
+/* The desktop measure. Under lg it is the phone column, unchanged. */
+.room {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .room {
+    max-width: 78rem;
+    padding-inline: 2.5rem;
+  }
+  /* The bottom nav is gone up here; the rail takes over on the left. */
+  .has-nav {
+    padding-bottom: 3.5rem;
+  }
+  .app-shell {
+    padding-left: 5.25rem;
+  }
+}
+
+/* ---------- the panel and the plank --------------------------
+   Desktop furniture only: on a phone the controls sit on the ground
+   like everything else, and a card around them would just be a box.
+   The controls live on a moulded panel beside the deck, the way the
+   buttons live on the console and not on the cartridge; the deck rests
+   on a surface with a real edge so the cartridge reads as an object
+   sitting on something. */
+@media (min-width: 1024px) {
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%),
+      var(--plank);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 14px 26px -20px rgba(0, 0, 0, 0.9);
+    padding: 1.25rem;
+  }
+
+  .plank-top {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      var(--plank);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    box-shadow: 0 22px 40px -28px rgba(0, 0, 0, 0.95);
+    padding: 1.25rem;
+  }
+}
+
+/* ---------- the rail -----------------------------------------
+   Desktop navigation: the console's front panel. Four seats, the active
+   one marked by the same gold contact strip as a seated cartridge. */
+.rail {
+  background: var(--plank);
+  border-right: 1px solid #3d3129;
+}
+
+@media (min-width: 1024px) {
+  .spine {
+    width: 19px;
+    height: calc(var(--h, 48px) * 1.75);
+  }
+  .spine::after {
+    top: 16px;
+    height: 44px;
+  }
+  .spine:hover {
+    transform: translateY(-10px);
+  }
+}
+
+/* ---------- the long shelf -----------------------------------
+   The rank of spines is the signature. On a phone it is a strip you can
+   nudge; on a desktop it is the width of the room. */
+.shelf-board {
+  height: 7px;
+  background: var(--plank);
+  border-radius: 0 0 2px 2px;
+  box-shadow:
+    0 1px 0 var(--plank-edge),
+    0 10px 20px -14px rgba(0, 0, 0, 0.9);
+}
+
+/* ---------- the install dock ---------------------------------
+   Above the bottom nav on a phone, parked in the corner on a desk. */
+.install-dock {
+  bottom: calc(62px + env(safe-area-inset-bottom) + 0.75rem);
+}
+@media (min-width: 1024px) {
+  .install-dock {
+    bottom: 1.5rem;
+  }
+}
+
+/* ---------- keyboard focus -----------------------------------
+   Gold, like the contacts. Never removed, only shaped. */
+:focus-visible {
+  outline: 2px solid var(--contacts);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   EASTER EGGS
+   Every one of these is a physical joke about the object, or a line
+   this audience has read a hundred times. They cost nothing until found.
+   ============================================================ */
+
+/* Konami: thirty lives. The spines go gold for half a minute. */
+[data-konami] .spine::after {
+  background: var(--contacts) !important;
+  box-shadow: 0 0 12px rgba(201, 162, 39, 0.45);
+}
+[data-konami] .cart-contacts {
+  opacity: 1;
+}
+
+/* Do a barrel roll. */
+.barrel-roll {
+  animation: barrel-roll 1100ms var(--ease) 1;
+}
+@keyframes barrel-roll {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+/* Three red lights: the console everyone owned twice. */
+.rrod .deck-led {
+  background: #c8432e !important;
+  box-shadow: 0 0 8px rgba(200, 67, 46, 0.8);
+  animation: none !important;
+}
+
+/* The blow-on-the-contacts ritual — dust off the label. */
+.blown {
+  animation: blown 620ms var(--ease) 1;
+}
+@keyframes blown {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(1.25) contrast(1.05); }
+  100% { filter: brightness(1); }
+}
+
+/* ---------- the trophy card ----------------------------------
+   Unlocks arrive as a memory-card write: the card slides in, the gold
+   contact strip fills left to right, then it parks. */
+.trophy {
+  animation: trophy-in 260ms var(--ease) both;
+}
+@keyframes trophy-in {
+  from { transform: translateX(18px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.trophy-write {
+  animation: trophy-write 900ms var(--ease) both;
+}
+@keyframes trophy-write {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }

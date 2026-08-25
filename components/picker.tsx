@@ -5,6 +5,7 @@ import Link from "next/link";
 import { explain, recommendGame, shortlist } from "@/lib/recommend";
 import { getAiPick, summariseNote } from "@/app/play/actions";
 import { deviceId } from "@/lib/device";
+import { unlock } from "@/lib/eggs";
 import { CoverArt } from "@/components/cover-art";
 import {
   addToBlacklist,
@@ -20,6 +21,7 @@ import {
   loadHistory,
   markPlayed,
   setNote as saveNote,
+  type HistoryEntry,
   type SessionNote,
 } from "@/lib/history";
 import type {
@@ -122,6 +124,7 @@ export function Picker() {
   const [genres, setGenres] = useState<string[]>([]);
   const [blacklist, setBlacklist] = useState<number[]>([]);
   const [recentAppids, setRecentAppids] = useState<number[]>([]);
+  const [recent, setRecent] = useState<HistoryEntry[]>([]);
 
   const [time, setTime] = useState<PickerTime>("medium");
   const [mood, setMood] = useState<PickerMood | null>("story");
@@ -145,6 +148,50 @@ export function Picker() {
    */
   const [landing, setLanding] = useState<number | null>(null);
 
+  /* ---- the hidden half (lib/eggs.ts) ---------------------------
+     None of this changes what the app does. It is the object being
+     funny about itself: you blow on the contacts, you poke the deck
+     lights, you say goodbye to a cart properly. */
+  const [blown, setBlown] = useState(false);
+  const [rrod, setRrod] = useState(false);
+  const [payRespects, setPayRespects] = useState(false);
+  const blows = useRef(0);
+  const leds = useRef<Set<number>>(new Set());
+
+  function blowOnContacts() {
+    blows.current += 1;
+    if (blows.current < 3) return;
+    blows.current = 0;
+    unlock("blow");
+    setBlown(true);
+    window.setTimeout(() => setBlown(false), 700);
+  }
+
+  function pokeLed(i: number) {
+    leds.current.add(i);
+    if (leds.current.size < 3) return;
+    leds.current.clear();
+    unlock("rrod");
+    setRrod(true);
+    window.setTimeout(() => setRrod(false), 6000);
+  }
+
+  // Retiring a cart deserves the one key this audience presses for it.
+  useEffect(() => {
+    if (!payRespects) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "f") return;
+      unlock("respects");
+      setPayRespects(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const t = window.setTimeout(() => setPayRespects(false), 9000);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(t);
+    };
+  }, [payRespects]);
+
   const windowRef = useRef<HTMLDivElement | null>(null);
   const stripRef = useRef<HTMLDivElement | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -159,13 +206,22 @@ export function Picker() {
     setIsSample(!lib);
     setGenres(loadProfile().favoriteGenres);
     setBlacklist(loadBlacklist());
-    setRecentAppids([...new Set(loadHistory().slice(0, 8).map((e) => e.pick.appid))]);
+    const history = loadHistory();
+    setRecentAppids([...new Set(history.slice(0, 8).map((e) => e.pick.appid))]);
+    setRecent(history.slice(0, 3));
     return () => timers.current.forEach(clearTimeout);
   }, []);
 
   const blacklistSet = new Set(blacklist);
   const pool = (library ?? []).filter((g) => !blacklistSet.has(g.appid));
   const byId = new Map((library ?? []).map((g) => [g.appid, g]));
+
+  const sealedCount = pool.filter((g) => (g.playtimeMin ?? 0) === 0).length;
+
+  // A shelf of a very particular size.
+  useEffect(() => {
+    if (pool.length === 42) unlock("answer");
+  }, [pool.length]);
 
   /* ---- haptics: one click per label going past, spacing out ---- */
   const buzz = (ms: number) => {
@@ -339,6 +395,7 @@ export function Picker() {
 
   function hideGame(appid: number) {
     setBlacklist(addToBlacklist(appid));
+    setPayRespects(true);
     const next = [...excluded, appid];
     setExcluded(next);
     setGapIndex(null);
@@ -377,288 +434,392 @@ export function Picker() {
           ? "cart-seating cart-seated"
           : "";
 
+  /* ---- the pieces, composed differently per screen -------------
+     Phone: one column, and the controls step aside once a cart is
+     seated so the result owns the screen.
+     Desktop: the panel keeps the controls, the deck sits on the plank
+     beside it, and the label prints out to its right. Nothing is
+     hidden up there — there is room, so use it. */
+
+  const controls = (
+    <>
+      <p className="rule">Session</p>
+      <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
+        {TIME.map((t) => (
+          <Tab
+            key={t.key}
+            pressed={time === t.key}
+            onClick={() => setTime(t.key)}
+            fill="var(--shell-dark)"
+          >
+            {t.label}
+          </Tab>
+        ))}
+      </div>
+
+      <p className="rule">Mood</p>
+      <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
+        {MOOD.map((m) => (
+          <Tab
+            key={m.key}
+            pressed={mood === m.key && !customMood.trim()}
+            onClick={() => {
+              setMood(m.key);
+              setCustomMood("");
+              setShowCustom(false);
+            }}
+            fill={m.band}
+          >
+            {m.label}
+          </Tab>
+        ))}
+        <Tab
+          pressed={!!customMood.trim()}
+          onClick={() => setShowCustom(true)}
+          fill="var(--shell-dark)"
+        >
+          Own words
+        </Tab>
+      </div>
+
+      {showCustom && (
+        <input
+          autoFocus
+          value={customMood}
+          onChange={(e) => {
+            setCustomMood(e.target.value);
+            if (e.target.value.trim()) setMood(null);
+          }}
+          placeholder="cozy but a bit tense…"
+          className="mt-2 min-h-[42px] w-full rounded-[2px] border border-line bg-transparent px-3 py-2 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
+        />
+      )}
+    </>
+  );
+
+  const lever = (
+    <>
+      <button
+        onClick={() => pull(excluded)}
+        disabled={busy}
+        className="relative h-14 w-full rounded-[4px] bg-gradient-to-b from-[#c4402c] to-[#9d3020] font-display text-[25px] font-extrabold uppercase tracking-[0.18em] text-label transition-[transform,box-shadow] duration-[var(--fast)] [transition-timing-function:var(--seat)] active:translate-y-1 active:shadow-none disabled:saturate-[0.35] disabled:brightness-75 lg:h-16 lg:text-[29px]"
+        style={{ boxShadow: "0 4px 0 #6d1f14, 0 10px 18px -8px rgba(0,0,0,.8)" }}
+      >
+        {busy ? "…" : phase === "done" ? "Pull again" : "Pull"}
+      </button>
+      <button
+        onClick={letItChoose}
+        disabled={busy}
+        className="mt-3 w-full py-2 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label disabled:opacity-50"
+      >
+        or let it choose
+      </button>
+      {isSample && (
+        <p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+          Sample shelf ·{" "}
+          <Link href="/connect" className="text-ink-soft hover:text-label">
+            import yours
+          </Link>
+        </p>
+      )}
+    </>
+  );
+
+  const deck = (
+    <div className={`pt-5 lg:pt-0 ${rrod ? "rrod" : ""}`}>
+      <div
+        data-cart
+        className={`cart mx-auto w-[206px] lg:w-[248px] ${cartClass} ${blown ? "blown" : ""}`}
+      >
+        {/* The ritual. It never worked, and everybody did it anyway. */}
+        <button
+          onClick={blowOnContacts}
+          aria-label="Blow on the contacts"
+          title="Blow on the contacts"
+          className="absolute inset-x-0 top-0 h-[13px] cursor-pointer"
+        />
+        <div className="overflow-hidden rounded-label border border-black/25 bg-label">
+          <div
+            className="flex items-center justify-between px-2.5 py-[5px] font-mono text-[8px] uppercase tracking-[0.16em] text-label"
+            style={{ background: band }}
+          >
+            <span>{customMood.trim() ? "Custom" : (mood ?? "—")}</span>
+            <span>
+              SQ-{String(pool.length).padStart(3, "0")}
+              {pool.length === 42 && " · DON'T PANIC"}
+            </span>
+          </div>
+
+          <div ref={windowRef} className="relative aspect-[5/6] overflow-hidden bg-paper">
+            <div ref={stripRef} className="will-change-transform">
+              {Array.from({ length: RUNWAY + 1 }).map((_, i) => {
+                // The strip is fixed-length and built once: rebuilding it per
+                // pull would create a dozen full-size images every time.
+                const g =
+                  i === RUNWAY && landing !== null
+                    ? byId.get(landing)
+                    : pool[i % pool.length];
+                if (!g) return null;
+                return (
+                  <div key={i} className="relative aspect-[5/6] w-full">
+                    <CoverArt
+                      appid={g.appid}
+                      name={g.name}
+                      sizes="(min-width: 1024px) 248px, 206px"
+                      priority={i === 0}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-baseline justify-between gap-2 bg-label px-2.5 pb-2 pt-[7px] text-ink">
+            <b className="font-display text-[19px] font-bold uppercase leading-[0.95]">
+              {result ? result.pick.name : busy ? "Reading…" : "Pull to load"}
+            </b>
+            <span className="whitespace-nowrap font-mono text-[9px] text-ink-soft">
+              {result
+                ? `${Math.round((byId.get(result.pick.appid)?.playtimeMin ?? 0) / 60)}H`
+                : `${pool.length} carts`}
+            </span>
+          </div>
+        </div>
+        <div className="cart-contacts" />
+      </div>
+
+      <div className="deck-slot mx-6 mt-0 flex items-center justify-center gap-1.5 lg:mx-10">
+        {[0, 1, 2].map((i) => (
+          <button
+            key={i}
+            onClick={() => pokeLed(i)}
+            aria-label={`Deck indicator ${i + 1}`}
+            className="grid h-4 w-4 place-items-center"
+          >
+            <i className="deck-led" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  /* While the deck is empty the right-hand column would be a hole. On a
+     phone there is no hole — the deck is the screen. On a desk it holds
+     the thing the app exists for: what you were doing last time. */
+  const idleCard = (
+    <div className="hidden lg:block">
+      {recent.length > 0 ? (
+        <>
+          <p className="rule">Where you left off</p>
+          <div className="grid gap-2">
+            {recent.map((e) => (
+              <div key={e.id} className="border border-line-soft p-3">
+                <b className="font-display text-[17px] font-bold uppercase leading-none">
+                  {e.pick.name}
+                </b>
+                <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
+                  {e.note?.lastTime ??
+                    (e.played ? "Played. No note left." : "Pulled, not played.")}
+                </p>
+                {e.note?.whatsNext && (
+                  <p className="mt-1 text-[13px] leading-snug text-contacts">
+                    Next: {e.note.whatsNext}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="rule">The deck</p>
+          <ol className="grid gap-3">
+            {[
+              "Say how long you have, and what you are in the mood for.",
+              "Pull the lever. The deck scans the shelf.",
+              "One cart seats, and the label prints: what to play, and why.",
+            ].map((step, n) => (
+              <li key={n} className="flex gap-3">
+                <span className="font-mono text-[10px] leading-5 tracking-[0.14em] text-contacts">
+                  {String(n + 1).padStart(2, "0")}
+                </span>
+                <span className="text-[13px] leading-relaxed text-ink-soft">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </div>
+  );
+
+  const resultPanel = phase === "done" && result && (
+    <section className="mt-5 lg:mt-0">
+      <h2 className="print font-display text-[38px] font-extrabold uppercase leading-[0.9] tracking-[0.01em] lg:text-[46px]">
+        {result.pick.name}
+      </h2>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+        {(byId.get(result.pick.appid)?.playtimeMin ?? 0) > 0
+          ? `${Math.round((byId.get(result.pick.appid)!.playtimeMin ?? 0) / 60)}h played`
+          : "Never launched"}
+        {(byId.get(result.pick.appid)?.recentMin ?? 0) > 0 &&
+          ` · ${Math.round((byId.get(result.pick.appid)!.recentMin ?? 0) / 60)}h this fortnight`}
+      </p>
+      <p className="mt-3 text-sm leading-relaxed text-[#cfc4b8] lg:text-[15px]">
+        {result.pick.reason}
+      </p>
+
+      {note && (
+        <p className="mt-3 border border-line p-2.5 font-mono text-[10px] leading-relaxed text-ink-soft">
+          {note}
+        </p>
+      )}
+
+      {lastNote && (
+        <div className="mt-4 overflow-hidden rounded-[2px] border border-line">
+          <div className="flex justify-between bg-plank px-2.5 py-[5px] font-mono text-[9px] uppercase tracking-[0.14em] text-ink-soft">
+            <span>Last save</span>
+          </div>
+          <div className="p-2.5 text-sm leading-relaxed">
+            {lastNote.lastTime}
+            {lastNote.whatsNext && (
+              <span className="mt-1.5 block text-contacts">Next: {lastNote.whatsNext}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {result.pick.reasons.length > 0 && (
+        <div className="mt-3.5 flex flex-wrap gap-1.5">
+          {result.pick.reasons.map((r) => {
+            const [head, tail] = r.label.split(" — ");
+            return (
+              <span
+                key={r.label}
+                className="inline-flex items-center gap-1.5 rounded-[2px] border border-line px-2.5 py-1 font-mono text-[10px] text-[#cfc4b8]"
+              >
+                <span aria-hidden>{r.icon}</span>
+                <b className="font-medium text-label">{head}</b>
+                {tail && <span>· {tail}</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-[18px] flex gap-[7px] lg:max-w-md">
+        <a
+          href={`steam://run/${result.pick.appid}`}
+          onClick={handlePlayed}
+          className="flex h-[50px] flex-1 items-center justify-center rounded-[3px] bg-label font-display text-[20px] font-extrabold uppercase tracking-[0.06em] text-ink transition-transform duration-[var(--fast)] active:translate-y-0.5"
+        >
+          Let&apos;s play
+        </a>
+        <button
+          onClick={eject}
+          disabled={busy}
+          className="h-[50px] shrink-0 rounded-[3px] border border-[#4d3f36] px-[18px] font-display text-[18px] font-bold uppercase tracking-[0.06em] text-[#cfc4b8] transition-colors duration-[var(--fast)] hover:border-label hover:text-label disabled:opacity-50"
+        >
+          Eject
+        </button>
+      </div>
+
+      {!played && (
+        <button
+          onClick={handlePlayed}
+          className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-label lg:w-auto lg:text-left"
+        >
+          I played this
+        </button>
+      )}
+
+      {played && <NoteField saved={noteSaved} onSave={handleNote} />}
+
+      <button
+        onClick={() => hideGame(result.pick.appid)}
+        className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-[#6a5c52] transition-colors hover:text-challenge lg:w-auto lg:text-left"
+      >
+        Never suggest this again
+      </button>
+
+      {result.alternatives.length > 0 && (
+        <>
+          <p className="rule mt-6">Or</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            {result.alternatives.map((a) => (
+              <div key={a.appid} className="flex items-center gap-3 border border-line-soft p-2">
+                <div className="relative aspect-[5/6] w-9 shrink-0 overflow-hidden rounded-[2px] bg-paper">
+                  <CoverArt appid={a.appid} name={a.name} sizes="36px" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-display text-[16px] font-bold uppercase leading-none">
+                    {a.name}
+                  </p>
+                  <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft">
+                    {a.reason}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+
   return (
-    <div className={phase === "reading" ? "is-reading" : undefined}>
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
-        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+    <div
+      className={`lg:flex lg:min-h-[calc(100dvh-3.5rem)] lg:flex-col ${
+        phase === "reading" ? "is-reading" : ""
+      }`}
+    >
+      <header className="sticky top-0 z-10 flex items-baseline justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px] lg:static lg:block lg:pb-7 lg:pt-9">
+        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] lg:text-[54px]">
           Tonight
         </h1>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft lg:mt-2 lg:block">
           {isSample ? "Sample shelf" : `Shelf · ${pool.length} carts`}
         </span>
       </header>
 
-      {phase !== "done" && (
-        <>
-          <p className="rule">Session</p>
-          <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5">
-            {TIME.map((t) => (
-              <Tab
-                key={t.key}
-                pressed={time === t.key}
-                onClick={() => setTime(t.key)}
-                fill="var(--shell-dark)"
-              >
-                {t.label}
-              </Tab>
-            ))}
+      <div className="lg:my-auto lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+        {/* the panel */}
+        <div className={phase === "done" ? "hidden lg:block" : undefined}>
+          <div className="panel">
+            {controls}
+            <div className="mt-6 hidden lg:block">{lever}</div>
           </div>
-
-          <p className="rule">Mood</p>
-          <div className="no-bar -mx-5 flex gap-1 overflow-x-auto px-5">
-            {MOOD.map((m) => (
-              <Tab
-                key={m.key}
-                pressed={mood === m.key && !customMood.trim()}
-                onClick={() => {
-                  setMood(m.key);
-                  setCustomMood("");
-                  setShowCustom(false);
-                }}
-                fill={m.band}
-              >
-                {m.label}
-              </Tab>
-            ))}
-            <Tab
-              pressed={!!customMood.trim()}
-              onClick={() => setShowCustom(true)}
-              fill="var(--shell-dark)"
-            >
-              Own words
-            </Tab>
-          </div>
-
-          {showCustom && (
-            <input
-              autoFocus
-              value={customMood}
-              onChange={(e) => {
-                setCustomMood(e.target.value);
-                if (e.target.value.trim()) setMood(null);
-              }}
-              placeholder="cozy but a bit tense…"
-              className="mt-2 min-h-[42px] w-full rounded-[2px] border border-line bg-transparent px-3 py-2 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
-            />
-          )}
-        </>
-      )}
-
-      {/* ---- the deck ---- */}
-      <div className="pt-5">
-        <div className={`cart mx-auto w-[206px] ${cartClass}`}>
-          <div className="overflow-hidden rounded-label border border-black/25 bg-label">
-            <div
-              className="flex items-center justify-between px-2.5 py-[5px] font-mono text-[8px] uppercase tracking-[0.16em] text-label"
-              style={{ background: band }}
-            >
-              <span>{customMood.trim() ? "Custom" : (mood ?? "—")}</span>
-              <span>SQ-{String(pool.length).padStart(3, "0")}</span>
-            </div>
-
-            <div
-              ref={windowRef}
-              className="relative aspect-[5/6] overflow-hidden bg-paper"
-            >
-              <div ref={stripRef} className="will-change-transform">
-                {Array.from({ length: RUNWAY + 1 }).map((_, i) => {
-                  // The strip is fixed-length and built once: rebuilding it per
-                  // pull would create a dozen full-size images every time.
-                  const g =
-                    i === RUNWAY && landing !== null
-                      ? byId.get(landing)
-                      : pool[i % pool.length];
-                  if (!g) return null;
-                  return (
-                    <div key={i} className="relative aspect-[5/6] w-full">
-                      <CoverArt
-                        appid={g.appid}
-                        name={g.name}
-                        sizes="206px"
-                        priority={i === 0}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-baseline justify-between gap-2 bg-label px-2.5 pb-2 pt-[7px] text-ink">
-              <b className="font-display text-[19px] font-bold uppercase leading-[0.95]">
-                {result ? result.pick.name : busy ? "Reading…" : "Pull to load"}
-              </b>
-              <span className="whitespace-nowrap font-mono text-[9px] text-ink-soft">
-                {result
-                  ? `${Math.round((byId.get(result.pick.appid)?.playtimeMin ?? 0) / 60)}H`
-                  : `${pool.length} carts`}
-              </span>
-            </div>
-          </div>
-          <div className="cart-contacts" />
         </div>
 
-        <div className="deck-slot mx-6 mt-0 flex items-center justify-center gap-1.5">
-          <i className="deck-led" />
-          <i className="deck-led" />
-          <i className="deck-led" />
+        {/* the deck, and the label it prints */}
+        <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <div className="plank-top">{deck}</div>
+          <div>
+            {error && (
+              <p className="mt-4 border border-challenge/40 bg-challenge/10 p-3 text-sm text-label lg:mt-0">
+                {error}
+              </p>
+            )}
+            {phase === "done" ? resultPanel : idleCard}
+            {payRespects && (
+              <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft">
+                Retired from the shelf. Press F.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {error && (
-        <p className="mt-4 border border-challenge/40 bg-challenge/10 p-3 text-sm text-label">
-          {error}
-        </p>
-      )}
-
-      {/* ---- result ---- */}
-      {phase === "done" && result && (
-        <section className="mt-5">
-          <h2 className="print font-display text-[38px] font-extrabold uppercase leading-[0.9] tracking-[0.01em]">
-            {result.pick.name}
-          </h2>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {(byId.get(result.pick.appid)?.playtimeMin ?? 0) > 0
-              ? `${Math.round((byId.get(result.pick.appid)!.playtimeMin ?? 0) / 60)}h played`
-              : "Never launched"}
-            {(byId.get(result.pick.appid)?.recentMin ?? 0) > 0 &&
-              ` · ${Math.round((byId.get(result.pick.appid)!.recentMin ?? 0) / 60)}h this fortnight`}
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-[#cfc4b8]">
-            {result.pick.reason}
-          </p>
-
-          {note && (
-            <p className="mt-3 border border-line p-2.5 font-mono text-[10px] leading-relaxed text-ink-soft">
-              {note}
-            </p>
-          )}
-
-          {lastNote && (
-            <div className="mt-4 overflow-hidden rounded-[2px] border border-line">
-              <div className="flex justify-between bg-plank px-2.5 py-[5px] font-mono text-[9px] uppercase tracking-[0.14em] text-ink-soft">
-                <span>Last save</span>
-              </div>
-              <div className="p-2.5 text-sm leading-relaxed">
-                {lastNote.lastTime}
-                {lastNote.whatsNext && (
-                  <span className="mt-1.5 block text-contacts">
-                    Next: {lastNote.whatsNext}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {result.pick.reasons.length > 0 && (
-            <div className="mt-3.5 flex flex-wrap gap-1.5">
-              {result.pick.reasons.map((r) => {
-                const [head, tail] = r.label.split(" — ");
-                return (
-                  <span
-                    key={r.label}
-                    className="inline-flex items-center gap-1.5 rounded-[2px] border border-line px-2.5 py-1 font-mono text-[10px] text-[#cfc4b8]"
-                  >
-                    <span aria-hidden>{r.icon}</span>
-                    <b className="font-medium text-label">{head}</b>
-                    {tail && <span>· {tail}</span>}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="mt-[18px] flex gap-[7px]">
-            <a
-              href={`steam://run/${result.pick.appid}`}
-              onClick={handlePlayed}
-              className="flex h-[50px] flex-1 items-center justify-center rounded-[3px] bg-label font-display text-[20px] font-extrabold uppercase tracking-[0.06em] text-ink transition-transform duration-[var(--fast)] active:translate-y-0.5"
-            >
-              Let&apos;s play
-            </a>
-            <button
-              onClick={eject}
-              disabled={busy}
-              className="h-[50px] shrink-0 rounded-[3px] border border-[#4d3f36] px-[18px] font-display text-[18px] font-bold uppercase tracking-[0.06em] text-[#cfc4b8] transition-colors duration-[var(--fast)] hover:border-label hover:text-label disabled:opacity-50"
-            >
-              Eject
-            </button>
-          </div>
-
-          {!played && (
-            <button
-              onClick={handlePlayed}
-              className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-label"
-            >
-              I played this
-            </button>
-          )}
-
-          {played && <NoteField saved={noteSaved} onSave={handleNote} />}
-
-          <button
-            onClick={() => hideGame(result.pick.appid)}
-            className="mt-3 w-full py-1.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-[#6a5c52] transition-colors hover:text-challenge"
-          >
-            Never suggest this again
-          </button>
-
-          {result.alternatives.length > 0 && (
-            <>
-              <p className="rule mt-6">Or</p>
-              <div className="grid gap-2">
-                {result.alternatives.map((a) => (
-                  <div
-                    key={a.appid}
-                    className="flex items-center gap-3 border border-line-soft p-2"
-                  >
-                    <div className="relative aspect-[5/6] w-9 shrink-0 overflow-hidden rounded-[2px] bg-paper">
-                      <CoverArt appid={a.appid} name={a.name} sizes="36px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-display text-[16px] font-bold uppercase leading-none">
-                        {a.name}
-                      </p>
-                      <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft">
-                        {a.reason}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {/* ---- the rank + the lever ---- */}
-      {phase !== "done" && (
-        <>
-          <Rank count={pool.length} gapIndex={gapIndex} />
-          <button
-            onClick={() => pull(excluded)}
-            disabled={busy}
-            className="relative mt-[18px] h-14 w-full rounded-[4px] bg-gradient-to-b from-[#c4402c] to-[#9d3020] font-display text-[25px] font-extrabold uppercase tracking-[0.18em] text-label transition-[transform,box-shadow] duration-[var(--fast)] [transition-timing-function:var(--seat)] active:translate-y-1 active:shadow-none disabled:saturate-[0.35] disabled:brightness-75"
-            style={{ boxShadow: "0 4px 0 #6d1f14, 0 10px 18px -8px rgba(0,0,0,.8)" }}
-          >
-            {busy ? "…" : "Pull"}
-          </button>
-          <button
-            onClick={letItChoose}
-            disabled={busy}
-            className="mt-3 w-full py-2 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label disabled:opacity-50"
-          >
-            or let it choose
-          </button>
-          {isSample && (
-            <p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
-              Sample shelf ·{" "}
-              <Link href="/connect" className="text-ink-soft hover:text-label">
-                import yours
-              </Link>
-            </p>
-          )}
-        </>
-      )}
+      {/* ---- the rank, and the lever on a phone ---- */}
+      <div
+        className={`lg:mt-auto lg:pt-10 ${phase === "done" ? "hidden lg:block" : ""}`}
+      >
+        <Rank
+          count={pool.length}
+          gapIndex={gapIndex}
+          caption={`${pool.length} on the shelf · ${sealedCount} never launched`}
+        />
+        <div className="mt-[18px] lg:hidden">{lever}</div>
+      </div>
     </div>
   );
 }
@@ -695,12 +856,29 @@ function Tab({
  * The rank of spines. Deterministic heights and tints from the index, so the
  * shelf looks hand-stacked without re-randomising on every render.
  */
-function Rank({ count, gapIndex }: { count: number; gapIndex: number | null }) {
+function Rank({
+  count,
+  gapIndex,
+  caption,
+}: {
+  count: number;
+  gapIndex: number | null;
+  caption?: string;
+}) {
   const TINTS = ["var(--story)", "var(--chill)", "var(--challenge)", "var(--quick)"];
-  const spines = Math.min(Math.max(count, 12), 34);
+  // A phone shows a strip you can nudge; a desktop shows the whole run.
+  const spines = Math.min(Math.max(count, 12), 48);
   return (
-    <div className="-mx-5 mt-3.5 px-5">
-      <div className="no-bar flex items-end gap-[3px] overflow-x-auto pt-2">
+    <div className="-mx-5 mt-3.5 px-5 lg:mx-0 lg:mt-10 lg:px-0">
+      {/* The board is as long as the run of spines, not as long as the window:
+          a shelf holds what is on it. */}
+      <div className="lg:mx-auto lg:w-fit">
+        {caption && (
+          <p className="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-ink-soft lg:mb-2.5 lg:block">
+            {caption}
+          </p>
+        )}
+      <div className="no-bar flex items-end gap-[3px] overflow-x-auto pt-2 lg:gap-[5px] lg:overflow-visible">
         {Array.from({ length: spines }).map((_, i) => (
           <span
             key={i}
@@ -709,14 +887,15 @@ function Rank({ count, gapIndex }: { count: number; gapIndex: number | null }) {
             }`}
             style={
               {
-                height: `${44 + ((i * 7) % 10)}px`,
+                "--h": `${44 + ((i * 7) % 10)}px`,
                 "--tint": TINTS[i % TINTS.length],
               } as React.CSSProperties
             }
           />
         ))}
       </div>
-      <div className="h-[5px] bg-plank shadow-[0_1px_0_var(--plank-edge)]" />
+      <div className="shelf-board" />
+      </div>
     </div>
   );
 }

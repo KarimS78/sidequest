@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/nav";
+import { EggHost } from "@/components/eggs";
 import { InstallPrompt } from "@/components/install-prompt";
 import { SwRegister } from "@/components/sw-register";
 
@@ -44,7 +45,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0b",
+  // The room, not a cold black — the same --ground the app paints, so the
+  // phone's status bar and the desktop title bar belong to the shelf.
+  themeColor: "#191412",
   colorScheme: "dark",
   viewportFit: "cover",
 };
@@ -59,11 +62,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${bigShoulders.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      {/* app-shell clears the desktop rail; under lg it is a no-op. */}
+      <body className="app-shell flex min-h-full flex-col">
         {children}
         <BottomNav />
         <InstallPrompt />
         <SwRegister />
+        <EggHost />
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CoverArt } from "@/components/cover-art";
+import { TrophyCase } from "@/components/eggs";
 import {
   computeBacklogStats,
   GENRE_OPTIONS,
@@ -49,12 +50,16 @@ export function ProfileEditor() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
-        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+      <header className="sticky top-0 z-10 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px] lg:static lg:pb-6 lg:pt-9">
+        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] lg:text-[54px]">
           Collector
         </h1>
       </header>
 
+      {/* Desktop: who you are on the left, what the shelf says about you on
+          the right. Phone: the same order, stacked. */}
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
+      <div>
       <div className="flex items-center gap-3 pb-1">
         <span className="grid h-[52px] w-[52px] place-items-center rounded-[3px] bg-gradient-to-br from-shell to-shell-dark font-display text-[26px] font-extrabold text-ink">
           K
@@ -84,8 +89,6 @@ export function ProfileEditor() {
           </Link>
         </p>
       )}
-
-      {stats.total > 0 && <BacklogRoast stats={stats} />}
 
       <div className="mt-6 flex items-baseline justify-between">
         <p className="rule mb-0 flex-1">Your taste</p>
@@ -119,6 +122,11 @@ export function ProfileEditor() {
         })}
       </div>
 
+      </div>
+
+      <div className="mt-8 lg:mt-0">
+      {stats.total > 0 && <BacklogRoast stats={stats} />}
+
       {hidden.length > 0 && (
         <>
           <p className="rule mt-6">Never suggest</p>
@@ -145,6 +153,10 @@ export function ProfileEditor() {
           </div>
         </>
       )}
+
+      <TrophyCase />
+      </div>
+      </div>
     </>
   );
 }

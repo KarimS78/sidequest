@@ -61,9 +61,9 @@ export function HistoryList() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px] lg:static lg:pb-6 lg:pt-9">
         <div>
-          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] lg:text-[54px]">
             Saves
           </h1>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
@@ -82,7 +82,7 @@ export function HistoryList() {
         </button>
       </header>
 
-      <div className="border-t border-line-soft">
+      <div className="border-t border-line-soft lg:grid lg:grid-cols-2 lg:gap-x-10 lg:border-t-0">
         {entries.map((e) => (
           <div
             key={e.id}

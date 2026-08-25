@@ -4,11 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CoverArt } from "@/components/cover-art";
 import { loadLibrary, SAMPLE_LIBRARY, untaggedAppids, type StoredGame } from "@/lib/library";
+import { unlock } from "@/lib/eggs";
 
 type Sort = "playtime" | "name";
 
-/** Two columns on a phone-width column, so this is the only size that matters. */
-const GRID_SIZES = "(max-width: 448px) 45vw, 200px";
+/** Two carts wide on a phone, up to six on a desk. */
+const GRID_SIZES = "(max-width: 448px) 45vw, (max-width: 1024px) 30vw, 190px";
+
+/** Two searches that are not searches. */
+const SEARCH_EGGS: { test: RegExp; id: "cake" | "halflife" }[] = [
+  { test: /^cake$/i, id: "cake" },
+  { test: /^(half.?life ?3|hl3|portal ?3)$/i, id: "halflife" },
+];
 
 export function LibraryView() {
   const [library, setLibrary] = useState<StoredGame[] | null>(null);
@@ -21,6 +28,14 @@ export function LibraryView() {
     setLibrary(lib ?? SAMPLE_LIBRARY);
     setIsSample(!lib);
   }, []);
+
+  // Type the name of something that was never on a shelf.
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
+    const hit = SEARCH_EGGS.find((e) => e.test.test(q));
+    if (hit) unlock(hit.id);
+  }, [query]);
 
   const filtered = useMemo(() => {
     if (!library) return [];
@@ -58,9 +73,9 @@ export function LibraryView() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px]">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-2.5 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px] lg:static lg:pb-6 lg:pt-9">
         <div>
-          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em]">
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] lg:text-[54px]">
             Shelf
           </h1>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
@@ -69,7 +84,7 @@ export function LibraryView() {
             {isSample && " · sample"}
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 lg:max-w-xl">
           <Link
             href="/connect"
             aria-label="Re-sync your Steam library"
@@ -114,7 +129,7 @@ export function LibraryView() {
           Nothing matches “{query}”
         </p>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-6 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
           {filtered.map((g, i) => (
             <a
               key={g.appid}
@@ -126,7 +141,7 @@ export function LibraryView() {
               }`}
             >
               <div className="relative aspect-[3/4] overflow-hidden rounded-[2px] border border-black/25 bg-paper">
-                <CoverArt appid={g.appid} name={g.name} sizes={GRID_SIZES} priority={i < 4} />
+                <CoverArt appid={g.appid} name={g.name} sizes={GRID_SIZES} priority={i < 6} />
               </div>
               <div className="flex items-baseline justify-between gap-1.5 px-px pb-[7px] pt-[5px] text-ink">
                 <b className="truncate font-display text-[14px] font-bold uppercase leading-none">
@@ -149,8 +164,8 @@ function ShelfSkeleton() {
     <div className="pt-[18px]">
       <div className="sweep h-8 w-32 bg-plank" />
       <div className="sweep mt-4 h-11 w-full bg-plank" />
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {Array.from({ length: 8 }).map((_, i) => (
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+        {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="cart !p-[7px] !pb-0 !rounded-[7px_7px_2px_2px]">
             <div className="sweep aspect-[3/4] rounded-[2px] bg-[#2a221d]" />
             <div className="h-[26px]" />

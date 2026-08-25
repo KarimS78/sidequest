@@ -71,7 +71,9 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
   if (!stats) return null;
 
   return (
-    <div className="mt-5 rounded-[2px] bg-label p-3.5 text-ink shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)]">
+    // A moulded warning label keeps its size: it is printed on a shell, not
+    // stretched across a desk.
+    <div className="mt-5 max-w-[34rem] rounded-[2px] bg-label p-3.5 text-ink shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)] lg:p-5">
       <div className="flex items-baseline justify-between gap-3 border-b-2 border-ink pb-1.5">
         <h2 className="font-display text-[20px] font-extrabold uppercase tracking-[0.03em]">
           Warning

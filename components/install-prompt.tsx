@@ -34,10 +34,10 @@ export function InstallPrompt() {
   if (!deferred) return null;
 
   return (
-    // Sits above the bottom nav, never over it.
+    // Phone: above the bottom nav, never over it. Desktop: parked in the
+    // corner, where a system prompt belongs.
     <div
-      className="fixed inset-x-0 z-40 flex justify-center px-4"
-      style={{ bottom: "calc(62px + env(safe-area-inset-bottom) + 0.75rem)" }}
+      className="install-dock fixed inset-x-0 z-40 flex justify-center px-4 lg:inset-x-auto lg:right-6 lg:justify-end"
     >
       <div className="flex items-center gap-3 rounded-[3px] border border-line bg-plank px-3 py-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.9)]">
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">

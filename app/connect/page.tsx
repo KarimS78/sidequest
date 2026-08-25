@@ -4,7 +4,7 @@ import { SteamConnect } from "@/components/steam-connect";
 export default function ConnectPage() {
   const hasKey = Boolean(process.env.STEAM_API_KEY?.trim());
   return (
-    <main className="column has-nav flex-1">
+    <main className="column has-nav flex-1 lg:flex lg:max-w-[34rem] lg:flex-col lg:justify-center lg:py-10">
       <div className="pt-5">
         <Link
           href="/dashboard"
