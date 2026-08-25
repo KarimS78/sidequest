@@ -22,7 +22,8 @@ export type CallKind = "pick" | "roast" | "note";
 
 /**
  * Every number that costs money, in one place.
- * Tuned for Gemini's free tier: ~15 req/min, 1500 req/day on flash-lite.
+ * Tuned for gpt-5-nano ($0.05 / 1M in, $0.40 / 1M out): hitting the global
+ * ceiling below every single day costs roughly $0.05 a day.
  */
 export const LIMITS = {
   /** Candidates sent to the model. The local engine ranks; the AI only chooses. */
@@ -32,8 +33,15 @@ export const LIMITS = {
   /** Raw session note the player typed, before summarising. */
   maxNoteChars: 600,
 
-  /** Output ceiling per call kind, enforced by the provider. */
-  maxOutputTokens: { pick: 220, roast: 320, note: 160 } as Record<CallKind, number>,
+  /**
+   * Output ceiling per call kind, enforced by the provider.
+   *
+   * On a reasoning model this budget covers the thinking tokens too, not just
+   * the visible answer: too tight and the call comes back `incomplete` with no
+   * text at all. Sized with that headroom — the answers stay short because the
+   * prompts ask for short answers, and tokens never generated cost nothing.
+   */
+  maxOutputTokens: { pick: 400, roast: 600, note: 300 } as Record<CallKind, number>,
 
   /** Calls per device per day. */
   perDevicePerDay: { pick: 40, roast: 10, note: 30 } as Record<CallKind, number>,

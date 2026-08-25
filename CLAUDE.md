@@ -7,7 +7,7 @@ Companion gaming — "Never forget where you left off." Répond à « je joue à
 ## Décisions produit (V1)
 - **Périmètre** : web d'abord, agent desktop léger prévu en étape ultérieure.
 - **Steam** : import via SteamID64 manuel (pas d'OAuth), fetch library + playtime via Steam Web API côté serveur.
-- **IA optionnelle, et bornée** : le moteur local reste la base et le repli. L'IA (Gemini, clé de Karim) vient par-dessus sur trois points — choix du pick dans la shortlist, phrase de justification, roast, et résumé des notes de session. Sans `GEMINI_API_KEY`, tout fonctionne en local. **Toute dépense passe par `lib/ai-guard.ts`** : jamais plus de 12 candidats dans un prompt, texte libre tronqué, plafond de tokens en sortie par type d'appel, quotas jour par appareil et global, budget de tokens compté sur l'`usageMetadata` réel du provider, cache de réponses. Un garde-fou qui saute ne produit jamais d'erreur visible : ça dégrade vers le local.
+- **IA optionnelle, et bornée** : le moteur local reste la base et le repli. L'IA (OpenAI `gpt-5-nano`, clé de Karim) vient par-dessus sur trois points — choix du pick dans la shortlist, phrase de justification, roast, et résumé des notes de session. Sans `OPENAI_API_KEY`, tout fonctionne en local. **Toute dépense passe par `lib/ai-guard.ts`** : jamais plus de 12 candidats dans un prompt, texte libre tronqué, plafond de tokens en sortie par type d'appel, quotas jour par appareil et global, budget de tokens compté sur l'`usage.total_tokens` réel du provider, cache de réponses. Un garde-fou qui saute ne produit jamais d'erreur visible : ça dégrade vers le local.
 - **Langue de l'app** : anglais (cible recruteurs remote).
 - **Accès** : démo publique (SAMPLE_LIBRARY, aucun compte requis) + auth Supabase optionnelle.
 
@@ -42,7 +42,7 @@ Le backlog est une **collection d'objets physiques**, et l'UI en est une : coque
 
 ## Dette connue
 - Les compteurs de quota de `lib/ai-guard.ts` vivent en mémoire du module : sur un hébergeur serverless chaque instance a son propre compte et un déploiement les remet à zéro. C'est un frein, pas une comptabilité. À basculer sur Supabase quand la base arrive (un seul fichier à changer).
-- `desktop/` (overlay Electron) a son propre appel Gemini dans `desktop/ai.js`, sans ces garde-fous, et partage la même `GEMINI_API_KEY`. À aligner sur `lib/ai-guard.ts` ou à débrancher.
+- `desktop/` (overlay Electron) a son propre appel OpenAI dans `desktop/ai.js`, sans ces garde-fous, et partage la même `OPENAI_API_KEY`. À aligner sur `lib/ai-guard.ts` ou à débrancher.
 - Le `<title>` et le manifeste disent encore « SideQuest AI » par endroits alors que le produit s'appelle SideQuest — à harmoniser.
 
 ## Conventions

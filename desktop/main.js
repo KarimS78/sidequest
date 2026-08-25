@@ -18,7 +18,7 @@ const games = require("./games");
 const settings = require("./settings");
 
 const env = loadEnv();
-const API_KEY = env.GEMINI_API_KEY || "";
+const API_KEY = env.OPENAI_API_KEY || "";
 
 let overlay = null;
 let tray = null;
@@ -110,7 +110,7 @@ async function captureScreenBase64() {
   return img.toJPEG(80).toString("base64");
 }
 
-// ----- The help flow: ground on the wiki -> capture -> ask Gemini -> render -----
+// ----- The help flow: ground on the wiki -> capture -> ask OpenAI -> render -----
 async function runHelp(question) {
   showOverlay();
   const profile = currentProfile();
@@ -179,7 +179,7 @@ function createTray() {
   tray.setToolTip("SideQuest — Ctrl+Shift+H for help");
   const menu = Menu.buildFromTemplate([
     {
-      label: API_KEY ? "✓ Gemini key loaded" : "⚠ No GEMINI_API_KEY",
+      label: API_KEY ? "✓ OpenAI key loaded" : "⚠ No OPENAI_API_KEY",
       enabled: false,
     },
     { type: "separator" },

@@ -1,12 +1,12 @@
 # SideQuest Desktop (Electron overlay)
 
 In-game companion overlay for **single-player games**. Runs in the tray, listens
-for global hotkeys, captures your screen, and asks Gemini for help — shown in a
+for global hotkeys, captures your screen, and asks OpenAI for help — shown in a
 transparent always-on-top overlay.
 
 ## Requirements
 
-- The web app's `../.env.local` must contain `GEMINI_API_KEY` (the desktop app
+- The web app's `../.env.local` must contain `OPENAI_API_KEY` (the desktop app
   reuses it automatically). Or put a `.env.local` here.
 - Run your game in **borderless windowed** mode. Overlays cannot draw over
   *exclusive* fullscreen without DLL injection (risky / anti-cheat).
@@ -32,5 +32,5 @@ The tray icon (purple dot) has a menu: get help, open the web dashboard, quit.
 
 ## Notes
 
-- Screenshots are downscaled and sent to Gemini in-memory — never written to disk.
+- Screenshots are downscaled and sent to OpenAI in-memory — never written to disk.
 - Works on borderless-windowed games (Elden Ring, BG3, most single-player titles).

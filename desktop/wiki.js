@@ -1,6 +1,6 @@
 // Free game-knowledge grounding via MediaWiki/Fandom APIs (no key needed).
 // Search the game's wiki for the player's question, fetch the top articles'
-// wikitext, clean it lightly, and return it as context for Gemini.
+// wikitext, clean it lightly, and return it as context for the model.
 const https = require("https");
 
 const UA = "SideQuest/0.1 (gaming companion; contact: local)";

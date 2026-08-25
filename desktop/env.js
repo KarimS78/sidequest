@@ -1,5 +1,5 @@
 // Tiny .env reader (no deps). Looks in desktop/.env.local first, then falls back
-// to the web app's ../.env.local so the GEMINI_API_KEY is shared automatically.
+// to the web app's ../.env.local so the OPENAI_API_KEY is shared automatically.
 const fs = require("fs");
 const path = require("path");
 
