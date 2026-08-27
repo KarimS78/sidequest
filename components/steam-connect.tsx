@@ -45,7 +45,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
         >
           Your Steam profile
         </label>
-        <p className="mt-1.5 text-sm leading-relaxed text-[#cfc4b8]">
+        <p className="mt-1.5 text-sm leading-relaxed text-[#b3c0c7]">
           Paste your SteamID64, your profile URL, or your custom URL name. The
           profile has to be public to read playtime.
         </p>
@@ -55,17 +55,17 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
             name="steam"
             autoComplete="off"
             placeholder="76561198… or steamcommunity.com/id/yourname"
-            className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
+            className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#5b6a72] focus:border-contacts"
           />
           <button
             type="submit"
             disabled={pending}
-            className="h-11 shrink-0 rounded-[3px] bg-label px-5 font-display text-[17px] font-extrabold uppercase tracking-[0.06em] text-ink transition-transform duration-[var(--fast)] active:translate-y-0.5 disabled:opacity-60"
+            className="switch h-11 w-auto shrink-0 px-5 font-display text-[17px] font-extrabold uppercase tracking-[0.12em] disabled:opacity-60"
           >
             {pending ? "Reading…" : demoMode ? "Preview" : "Import"}
           </button>
         </div>
-        <p className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+        <p className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#5b6a72]">
           Find your SteamID64 at steamid.io if you only know your name
         </p>
       </form>

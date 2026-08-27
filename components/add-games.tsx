@@ -35,7 +35,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
         <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft">
           Rack another
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-[#cfc4b8]">
+        <p className="mt-1.5 text-sm leading-relaxed text-[#b3c0c7]">
           Steam isn&apos;t your whole shelf. Add what you play on Epic, on a
           console, or just love — the deck picks from those too.
         </p>
@@ -44,7 +44,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
           value={term}
           onChange={(e) => runSearch(e.target.value)}
           placeholder="Search a game — “God of War”, “Forza”…"
-          className="mt-3 min-h-11 w-full rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
+          className="mt-3 min-h-11 w-full rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#5b6a72] focus:border-contacts"
         />
 
         {searching && (
@@ -62,7 +62,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
                   key={g.appid}
                   className="flex items-center gap-3 border border-line-soft p-2"
                 >
-                  <div className="relative aspect-[3/4] w-9 shrink-0 overflow-hidden rounded-[2px] bg-[#2a221d]">
+                  <div className="relative aspect-[3/4] w-9 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
                     <CoverArt appid={g.appid} name={g.name} sizes="36px" />
                   </div>
                   <span className="min-w-0 flex-1 truncate font-display text-[16px] font-bold uppercase leading-none">
@@ -93,7 +93,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
         </p>
         <Link
           href="/play"
-          className="rounded-[3px] bg-label px-3.5 py-2 font-display text-[15px] font-extrabold uppercase tracking-[0.06em] text-ink"
+          className="switch w-auto px-3.5 py-2 font-display text-[15px] font-extrabold uppercase tracking-[0.1em]"
         >
           Pull one
         </Link>

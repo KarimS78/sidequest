@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// The label face: condensed industrial signage, the way a cartridge sticker is
-// set. Variable, so the whole weight range is available for one download.
+// The silkscreen face: condensed industrial signage, the way a panel label and
+// a cartridge sticker are both set. Variable, so the whole weight range comes
+// in one download.
 const bigShoulders = Big_Shoulders({
   variable: "--font-big-shoulders",
   subsets: ["latin"],
@@ -29,9 +30,9 @@ const bigShoulders = Big_Shoulders({
 });
 
 export const metadata: Metadata = {
-  title: "SideQuest AI — Never forget where you left off",
+  title: "SideQuest — Never forget where you left off",
   description:
-    "Your intelligent gaming companion. SideQuest AI remembers your progress so you can pick up any game exactly where you stopped.",
+    "You own 150 games and have one free hour. SideQuest reads your library and your mood, picks the one game to play right now, and tells you why.",
   applicationName: "SideQuest",
   icons: {
     icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
@@ -45,9 +46,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // The room, not a cold black — the same --ground the app paints, so the
-  // phone's status bar and the desktop title bar belong to the shelf.
-  themeColor: "#191412",
+  // The same --ground the app paints, so the phone's status bar and the
+  // desktop title bar belong to the cabinet rather than floating above it.
+  themeColor: "#0d1114",
   colorScheme: "dark",
   viewportFit: "cover",
 };

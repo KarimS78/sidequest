@@ -45,13 +45,13 @@ export function HistoryList() {
           No saves yet
         </h1>
         <p className="mt-2.5 max-w-[26ch] text-sm text-ink-soft">
-          Every cartridge the deck picks lands here, with what you wrote about it.
+          Every cart the deck seats lands here, with the note you left on it.
         </p>
         <Link
           href="/play"
-          className="mt-5 inline-flex h-[50px] items-center rounded-[3px] bg-label px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.06em] text-ink"
+          className="switch mt-5 inline-flex h-[50px] w-auto items-center px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.12em]"
         >
-          Pull one
+          Run a draw
         </Link>
       </div>
     );
@@ -88,7 +88,7 @@ export function HistoryList() {
             key={e.id}
             className="flex items-start gap-3 border-b border-line-soft py-3"
           >
-            <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-[2px] bg-[#2a221d]">
+            <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
               <CoverArt appid={e.pick.appid} name={e.pick.name} sizes="40px" />
             </div>
 
@@ -102,20 +102,20 @@ export function HistoryList() {
               >
                 <span
                   className={`inline-block h-1.5 w-1.5 rounded-full ${
-                    e.played ? "bg-contacts" : "bg-[#3a2f28]"
+                    e.played ? "bg-contacts" : "bg-[#1e262b]"
                   }`}
                 />
                 {e.played ? "played" : "skipped"} · {TIME_LABEL[e.time] ?? e.time} ·{" "}
                 {e.mood}
               </button>
               {e.note?.lastTime && (
-                <p className="mt-1.5 text-[13px] leading-snug text-[#cfc4b8]">
+                <p className="mt-1.5 text-[13px] leading-snug text-[#b3c0c7]">
                   {e.note.lastTime}
                 </p>
               )}
             </div>
 
-            <span className="shrink-0 font-mono text-[9px] text-[#6a5c52]">
+            <span className="shrink-0 font-mono text-[9px] text-[#5b6a72]">
               {timeAgo(e.at)}
             </span>
           </div>

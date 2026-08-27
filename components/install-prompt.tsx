@@ -50,7 +50,7 @@ export function InstallPrompt() {
             setDeferred(null);
             await event.prompt();
           }}
-          className="rounded-[2px] bg-label px-3 py-1.5 font-display text-[14px] font-bold uppercase tracking-[0.06em] text-ink"
+          className="switch w-auto px-3 py-1.5 font-display text-[14px] font-bold uppercase tracking-[0.1em]"
         >
           Install
         </button>

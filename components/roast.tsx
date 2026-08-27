@@ -71,8 +71,8 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
   if (!stats) return null;
 
   return (
-    // A moulded warning label keeps its size: it is printed on a shell, not
-    // stretched across a desk.
+    // A warning label keeps its size: it is a sticker on the cabinet, not a
+    // banner stretched across a desk. The one printed thing in a steel room.
     <div className="mt-5 max-w-[34rem] rounded-[2px] bg-label p-3.5 text-ink shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)] lg:p-5">
       <div className="flex items-baseline justify-between gap-3 border-b-2 border-ink pb-1.5">
         <h2 className="font-display text-[20px] font-extrabold uppercase tracking-[0.03em]">
@@ -81,7 +81,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
         <button
           onClick={run}
           disabled={pending}
-          className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-[#5d5348] transition-colors hover:text-ink disabled:opacity-50"
+          className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-[#5a656b] transition-colors hover:text-ink disabled:opacity-50"
         >
           {pending ? "Sharpening…" : roast ? "Again" : "Read it"}
         </button>
@@ -90,9 +90,9 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
       {error && <p className="mt-3 text-[13px] text-challenge">{error}</p>}
 
       {!roast && !error && (
-        <p className="mt-3 text-[13px] leading-relaxed text-[#4a4139]">
-          This shell carries a moulded warning about its owner. Read it at your
-          own risk.
+        <p className="mt-3 text-[13px] leading-relaxed text-[#454e53]">
+          This cabinet carries a warning about its operator. Read it at your own
+          risk.
         </p>
       )}
 
@@ -103,7 +103,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
           </p>
           <ul className="mt-3 grid gap-2">
             {roast.lines.map((line, i) => (
-              <li key={i} className="flex gap-2 text-[13px] leading-snug text-[#4a4139]">
+              <li key={i} className="flex gap-2 text-[13px] leading-snug text-[#454e53]">
                 <span className="font-display font-extrabold text-challenge" aria-hidden>
                   !
                 </span>
@@ -112,7 +112,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
             ))}
           </ul>
           {roast.redemption && (
-            <p className="mt-3 border-t border-ink/20 pt-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.06em] text-[#5d5348]">
+            <p className="mt-3 border-t border-ink/20 pt-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.06em] text-[#5a656b]">
               {roast.redemption}
             </p>
           )}

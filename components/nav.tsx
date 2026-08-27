@@ -8,18 +8,17 @@ import { unlock } from "@/lib/eggs";
 /**
  * Two housings for the same four seats.
  *
- * On a phone: the shelf edge, four tabs pinned to the bottom.
- * On a desktop: the console's front panel down the left, because a bar
- * glued to the bottom of a 27-inch screen is a phone app in a costume.
+ * On a phone: the cabinet's bottom edge, four seats pinned there.
+ * On a desktop: the service rail down the left, because a bar glued to the
+ * bottom of a 27-inch screen is a phone app in a costume.
  *
- * Either way the active seat is marked by a gold contact strip — the same
- * gold as a cartridge's edge connector, so the current tab reads as the
- * one that's seated.
+ * Either way the active seat is marked in amber — the same amber as every
+ * powered indicator in the app, so the current tab reads as the live one.
  */
 const TABS = [
   {
     href: "/play",
-    label: "Pull",
+    label: "Draw",
     // a cartridge above its slot
     path: (
       <>
@@ -115,10 +114,10 @@ export function BottomNav() {
 
   return (
     <>
-      {/* ---------------- phone: the shelf edge ---------------- */}
+      {/* ---------------- phone: the cabinet's bottom edge ---------------- */}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-[#3d3129] bg-plank lg:hidden"
+        className="rail fixed inset-x-0 bottom-0 z-30 border-t border-line !border-r-0 lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="mx-auto grid max-w-md grid-cols-4">
@@ -142,7 +141,7 @@ export function BottomNav() {
         </div>
       </nav>
 
-      {/* ---------------- desktop: the front panel ---------------- */}
+      {/* ---------------- desktop: the service rail ---------------- */}
       <nav
         aria-label="Main"
         className="rail fixed inset-y-0 left-0 z-30 hidden w-[84px] flex-col items-center py-5 lg:flex"

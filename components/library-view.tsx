@@ -54,14 +54,14 @@ export function LibraryView() {
       <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
         <span className="deck-slot w-28" />
         <h1 className="mt-5 font-display text-[30px] font-extrabold uppercase leading-none">
-          The shelf is empty
+          No carts racked
         </h1>
         <p className="mt-2.5 max-w-[26ch] text-sm text-ink-soft">
-          Connect Steam and your backlog racks up here, one cartridge per game.
+          Import your Steam library and every game racks up here as a cart.
         </p>
         <Link
           href="/connect"
-          className="mt-5 inline-flex h-[50px] items-center rounded-[3px] bg-label px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.06em] text-ink"
+          className="switch mt-5 inline-flex h-[50px] w-auto items-center px-[22px] font-display text-[19px] font-extrabold uppercase tracking-[0.12em]"
         >
           Connect Steam
         </Link>
@@ -79,9 +79,9 @@ export function LibraryView() {
             Shelf
           </h1>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {library.length} carts
+            {library.length} racked
             {untagged > 0 && ` · ${untagged} untagged`}
-            {isSample && " · sample"}
+            {isSample && " · demo"}
           </p>
         </div>
         <div className="flex gap-1.5 lg:max-w-xl">
@@ -89,7 +89,7 @@ export function LibraryView() {
             href="/connect"
             aria-label="Re-sync your Steam library"
             title="Re-sync"
-            className="grid h-8 w-8 place-items-center rounded-[3px] border border-line text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+            className="key grid h-9 w-9 place-items-center text-ink-soft transition-colors hover:text-label"
           >
             <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 12a8 8 0 1 1-2.6-5.9" />
@@ -100,7 +100,7 @@ export function LibraryView() {
             href="/connect"
             aria-label="Add a game by name"
             title="Add a game"
-            className="grid h-8 w-8 place-items-center rounded-[3px] border border-line text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+            className="key grid h-9 w-9 place-items-center text-ink-soft transition-colors hover:text-label"
           >
             <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
               <path d="M12 5v14M5 12h14" />
@@ -114,11 +114,11 @@ export function LibraryView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the shelf…"
-          className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#6a5c52] focus:border-contacts"
+          className="min-h-11 flex-1 rounded-[2px] border border-line bg-[#0b1013] px-3 text-[13px] text-label shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-colors placeholder:text-[#5b6a72] focus:border-contacts"
         />
         <button
           onClick={() => setSort(sort === "playtime" ? "name" : "playtime")}
-          className="min-h-11 shrink-0 rounded-[2px] border border-line px-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:border-[#4d3f36] hover:text-label"
+          className="key min-h-11 shrink-0 px-3 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label"
         >
           {sort === "playtime" ? "Most played" : "A–Z"}
         </button>
@@ -143,11 +143,11 @@ export function LibraryView() {
               <div className="relative aspect-[3/4] overflow-hidden rounded-[2px] border border-black/25 bg-paper">
                 <CoverArt appid={g.appid} name={g.name} sizes={GRID_SIZES} priority={i < 6} />
               </div>
-              <div className="flex items-baseline justify-between gap-1.5 px-px pb-[7px] pt-[5px] text-ink">
+              <div className="flex items-baseline justify-between gap-1.5 px-px pb-[7px] pt-[5px] text-label">
                 <b className="truncate font-display text-[14px] font-bold uppercase leading-none">
                   {g.name}
                 </b>
-                <span className="shrink-0 font-mono text-[9px] text-[#5d5348]">
+                <span className="shrink-0 font-mono text-[9px] text-ink-soft">
                   {g.playtimeMin > 0 ? `${Math.round(g.playtimeMin / 60)}H` : "NEW"}
                 </span>
               </div>
@@ -167,7 +167,7 @@ function ShelfSkeleton() {
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="cart !p-[7px] !pb-0 !rounded-[7px_7px_2px_2px]">
-            <div className="sweep aspect-[3/4] rounded-[2px] bg-[#2a221d]" />
+            <div className="sweep aspect-[3/4] rounded-[2px] bg-paper" />
             <div className="h-[26px]" />
           </div>
         ))}

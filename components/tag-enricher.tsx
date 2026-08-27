@@ -69,7 +69,7 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
       <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft">
         Label data
       </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-[#cfc4b8]">
+      <p className="mt-1.5 text-sm leading-relaxed text-[#b3c0c7]">
         SideQuest scores your games on their community tags — genre, pace, vibe.{" "}
         <b className="text-label">{missing.length}</b>{" "}
         {missing.length === 1 ? "cart is" : "carts are"} missing theirs.

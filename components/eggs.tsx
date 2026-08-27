@@ -119,7 +119,7 @@ export function EggHost() {
       {toasts.map(({ key, egg }) => (
         <div
           key={key}
-          className="trophy w-full max-w-[19rem] overflow-hidden rounded-[3px] border border-[#4d3f36] bg-plank shadow-[0_18px_30px_-14px_rgba(0,0,0,.85)]"
+          className="trophy w-full max-w-[19rem] overflow-hidden rounded-[3px] border border-[#3d4a51] bg-plank shadow-[0_18px_30px_-14px_rgba(0,0,0,.85)]"
         >
           <div className="trophy-write h-[3px] origin-left bg-contacts" />
           <div className="px-3 py-2.5">
@@ -173,7 +173,7 @@ export function TrophyCase() {
               <span
                 aria-hidden
                 className={`mt-[3px] h-[13px] w-[9px] shrink-0 rounded-[1px] ${
-                  got ? "bg-contacts" : "bg-[#3a2f28]"
+                  got ? "bg-contacts" : "bg-[#1e262b]"
                 }`}
               />
               <div className="min-w-0">
@@ -192,7 +192,7 @@ export function TrophyCase() {
           );
         })}
       </div>
-      <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-[#6a5c52]">
+      <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-[#5b6a72]">
         Kept in this browser only. Nothing is sent anywhere.
       </p>
     </section>
