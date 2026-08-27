@@ -30,6 +30,26 @@ npm start
 
 The tray icon (purple dot) has a menu: get help, open the web dashboard, quit.
 
+## Spend
+
+Every request goes through `guard.js`:
+
+| Ceiling | Value |
+| --- | --- |
+| Minimum gap between calls | 1.5s — a held global hotkey auto-repeats on Windows |
+| Calls per day | 120 (about $0.07 at nano rates) |
+| Tokens per day | 250,000, counted on what OpenAI says it billed |
+| Output per call | 1,200 tokens, reasoning included |
+| Request timeout | 20s — vision plus a wiki lookup is slower than plain text |
+| Cache | same screen and question within 60s answers from memory |
+
+Counters live in Electron's `settings.json`, so they survive a restart. A
+refused call renders as a normal overlay answer rather than an error — you get
+told why, mid-game, without a red box.
+
+The numbers deliberately differ from the web app's `lib/ai-guard.ts`: those are
+sized for a 350-token text prompt, and one overlay call carries a screenshot.
+
 ## Notes
 
 - Screenshots are downscaled and sent to OpenAI in-memory — never written to disk.

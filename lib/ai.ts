@@ -355,3 +355,18 @@ export async function aiSessionNote(input: {
 }
 
 export { budgetSnapshot } from "@/lib/ai-guard";
+
+/**
+ * Whether the AI layer is live, and why not when it isn't — for the readout on
+ * the profile. Deliberately says nothing about the key beyond present/absent:
+ * the answer crosses to the client, so it carries a boolean and never a value.
+ */
+export function aiStatus(): { on: boolean; why: string } {
+  if (process.env.AI_ENABLED === "false") {
+    return { on: false, why: "Switched off — AI_ENABLED is false." };
+  }
+  if (!apiKey()) {
+    return { on: false, why: "No OPENAI_API_KEY. Every screen runs on the local engine." };
+  }
+  return { on: true, why: `Live on ${MODEL}.` };
+}

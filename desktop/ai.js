@@ -1,6 +1,12 @@
 // OpenAI call for the overlay. Vision + game-specific system prompt + wiki
 // grounding. Kept standalone (no build step).
+//
+// Every request goes through ./guard.js, which is the overlay's half of the
+// rule the web app follows in lib/ai-guard.ts: clamp the input, cap the output,
+// count what was actually billed, cache, and never hang. Read that file for why
+// the numbers differ from the web app's.
 const https = require("https");
+const guard = require("./guard");
 
 // Same model as the web app, so the whole product runs on one key. If reading
 // the screenshot ever disappoints, this is the single line to change:
@@ -68,7 +74,18 @@ function postJson(url, body, apiKey) {
         res.on("end", () => resolve({ status: res.statusCode, body: data }));
       }
     );
-    req.on("error", reject);
+    // Without this the overlay spins forever on a stalled connection, in front
+    // of a game, with no way to tell it is stuck.
+    req.setTimeout(guard.LIMITS.timeoutMs, () => {
+      req.destroy(new Error("timeout"));
+    });
+    req.on("error", (e) =>
+      reject(
+        e.message === "timeout"
+          ? new Error("OpenAI took too long. Press the bind again.")
+          : e
+      )
+    );
     req.write(payload);
     req.end();
   });
@@ -88,13 +105,34 @@ function outputText(json) {
 
 // { apiKey, question, imageBase64, profile, wikiContext } -> { game, answer, steps }
 async function askOverlay({ apiKey, question, imageBase64, profile, wikiContext }) {
+  const game = profile?.name || "Unknown";
+
   if (!apiKey) {
     return {
-      game: profile?.name || "Unknown",
+      game,
       answer: "No OPENAI_API_KEY found. Add it to .env.local in the project root.",
       steps: ["Set OPENAI_API_KEY", "Restart SideQuest", "Press the bind again"],
     };
   }
+
+  // Clamp before anything else: both of these land verbatim in the prompt, and
+  // the wiki text arrives from a page we do not control.
+  question = guard.clamp(question, guard.LIMITS.maxQuestionChars);
+  wikiContext = guard.clamp(wikiContext, guard.LIMITS.maxWikiChars);
+
+  // Same screen, same question, within the minute — this is the double-tap of
+  // the bind, and it should not cost anything.
+  const ck = guard.cacheKey({ question, game, imageBase64 });
+  const cached = guard.cacheGet(ck);
+  if (cached) return cached;
+
+  // A refusal here is a shaped answer, not an error: it renders in the overlay
+  // the same way help does, which is what you want mid-game.
+  const allowed = guard.check();
+  if (!allowed.ok) {
+    return { game, answer: allowed.reason, steps: [] };
+  }
+  guard.markSent();
 
   const content = [{ type: "input_text", text: buildPrompt({ profile, question, wikiContext }) }];
   if (imageBase64) {
@@ -114,7 +152,7 @@ async function askOverlay({ apiKey, question, imageBase64, profile, wikiContext 
       reasoning: { effort: "low" },
       // A wrong answer here is worse than a truncated one; leave room for both
       // the reasoning tokens and the answer.
-      max_output_tokens: 1200,
+      max_output_tokens: guard.LIMITS.maxOutputTokens,
       // The screenshot is the player's screen. It does not get retained.
       store: false,
       text: {
@@ -129,6 +167,11 @@ async function askOverlay({ apiKey, question, imageBase64, profile, wikiContext 
   }
 
   const json = JSON.parse(body);
+
+  // Bill what the provider says it billed, and do it before any early return —
+  // a truncated answer is still a paid one.
+  guard.record(json?.usage?.total_tokens ?? 0);
+
   if (json?.status === "incomplete") {
     throw new Error(`Answer cut short (${json?.incomplete_details?.reason || "unknown"}).`);
   }
@@ -136,11 +179,13 @@ async function askOverlay({ apiKey, question, imageBase64, profile, wikiContext 
   const text = outputText(json);
   if (!text) throw new Error("Empty response from OpenAI.");
   const parsed = JSON.parse(text);
-  return {
-    game: parsed.game || profile?.name || "Unknown",
+  const result = {
+    game: parsed.game || game,
     answer: parsed.answer || "",
     steps: Array.isArray(parsed.steps) ? parsed.steps : [],
   };
+  guard.cacheSet(ck, result);
+  return result;
 }
 
-module.exports = { askOverlay };
+module.exports = { askOverlay, usage: guard.snapshot };

@@ -19,30 +19,47 @@ Companion gaming — "Never forget where you left off." Répond à « je joue à
 - **Tags** : SteamSpy (tags communautaires), fallback genres + catégories du store Steam. Endpoints publics sans clé, throttlés à 250ms, appelés par lots depuis `components/tag-enricher.tsx`.
 - Déploiement : Vercel + Supabase (plans gratuits).
 
-## Design system — « l'étagère »
-Le backlog est une **collection d'objets physiques**, et l'UI en est une : coques moulées, étiquettes sérigraphiées, tranches sur une étagère. Tirer un jeu sort une cartouche du rang (le trou reste visible) et l'encliquette dans le lecteur.
+## Design system — « le panneau de service »
+Pas l'écran d'attract : l'arrière de la borne, la porte que l'exploitant ouvre, avec la carte dedans et les cartouches rangées dessus. Une **Neo Geo MVS** — la borne dont les jeux *sont* des cartouches — ce qui fait qu'un panneau de service et une étagère de carts sont ici le même objet.
 
-- **Palette** : fond `#191412` (brun-charbon chaud, jamais un noir bureautique), plateau `#241c18`, plastique `#b9b0a0` / crème `#e0d4bc`, étiquette `#f2ede1`, encre `#211c19`, contacts dorés `#c9a227`. Une couleur par humeur, imprimée sur le bandeau de l'étiquette et sur les tranches : story `#2f6fb3`, chill `#3e8e8a`, challenge `#c8432e`, quick `#d9a441`.
-- **Typo** : Big Shoulders (étiquettes, titres, condensé industriel) + Geist (corps) + Geist Mono (données, petites capitales).
-- **Mouvement — la règle qui tient la direction** : rien ne rebondit. Pas de ressort, pas de confetti. `--ease` pour les déplacements, `--seat` (`cubic-bezier(.85,0,.9,1)`) pour ce qui s'encliquette. Le pull fait quatre temps : éjection → défilement 2500ms → assise 180ms → lecture 420ms, puis l'étiquette s'imprime par balayage (`.print`), jamais par fondu.
-- **Layout** : mobile-first, une colonne `max-w-md` centrée même sur desktop (`.column`), bottom nav fixe à 4 onglets, `.has-nav` pour dégager la hauteur de la nav + safe area.
-- Tokens et matières (`.cart`, `.spine`, `.deck-slot`) dans `app/globals.css`.
+Ce choix rapporte deux choses qu'une UI néon ne peut pas donner :
+1. **La sobriété est native.** Un panneau de maintenance, c'est de la sérigraphie sur acier et un afficheur ambre. L'ambre veut dire SOUS TENSION et rien d'autre — quand il apparaît, on regarde.
+2. **L'UI se raconte elle-même.** Une machine conçue pour être dépannée affiche quel canal est réglé, ce qui manque, et ce qui se passe ensuite. Ce n'est pas une couche ajoutée par-dessus la DA, c'est la DA.
+
+- **Palette** : fond `#0d1114` (acier froid, jamais un brun), plaque `#161c20`, plastique de cart `#39424a`/`#232a30`, sérigraphie `#dfe6ea`, gris secondaire `#7c8b93`, puits CRT `#080c0e`, **ambre `#ffb020`**. Une LED par humeur : story `#4a8fd4`, chill `#34b3a0`, challenge `#e34a2f`, quick `#f0c020`.
+- **Typo** : Geist Mono porte tout le chrome opérateur (numéros de canaux, valeurs, readout) ; Big Shoulders est réservé au **contenu** (titres d'écran, noms de jeux) ; Geist pour les rares phrases. C'est l'inversion des rôles par rapport à l'ancienne DA.
+- **Les deux signatures** :
+  - **Le rail de canaux** (`.chan`, `.seg`) — `01 SESSION` / `02 MOOD` / `03 DRAW`. La numérotation n'est pas décorative : 01 et 02 sont des entrées, 03 est la sortie, et chaque canal = un en-tête + son contrôle (l'interrupteur *est* le contrôle de 03). Les segments de 01 sont littéralement les heures dont tu disposes ; ceux de 03 défilent pendant le tirage.
+  - **Le readout** (`.readout`) — la bande CRT encastrée, seul endroit de l'app qui parle en phrases, et qui finit **toujours** par la prochaine action. Si le readout devient vague, c'est un bug de l'écran. Les scanlines n'existent que là : partout ailleurs ce serait un déguisement.
+- **Mouvement — la règle qui tient la direction** : rien ne rebondit. Pas de ressort, pas de confetti. `--ease` pour les déplacements, `--seat` (`cubic-bezier(.85,0,.9,1)`) pour ce qui s'encliquette. Le pull fait quatre temps : éjection → défilement 2500ms → assise 180ms → lecture 420ms, puis l'étiquette s'imprime par balayage (`.print`), jamais par fondu. Appuyer sur l'interrupteur fait défiler la fente dans le champ de vision : le panneau passe la main à la carte.
+- **Layout** : mobile-first, une colonne `max-w-md` (`.column`), bottom nav fixe à 4 onglets, `.has-nav` pour la nav + safe area.
+- **Desktop = `.bench`, trois vraies colonnes** (plaque de contrôle / carte / journal) à partir de `lg`, pas deux colonnes avec une bande restante — c'est ça qui faisait lire un 1440px comme un téléphone élargi. `.room` s'ouvre jusqu'à 100rem en 2xl. La colonne de droite porte *à la fois* « how the board runs », « where you left off » et la plaque de specs du moteur de score : une colonne à moitié vide était la vraie cause du problème, pas la largeur.
+- **Marquages sérigraphiés** (`.legend`, composant `Legend`) : la bande de légendes sous les plaques. Le `SERVICE CODE ↑↑↓↓←→←→BA` n'est pas décoratif — ce sont les touches que `components/eggs.tsx` écoute vraiment, donc l'indice et la réponse au même endroit, imprimés là où un indice s'imprime sur une machine.
+- **Le rack** (`.rack`, `.spine`) : largeur dérivée du nombre de cartouches (`--rack-max`), jamais `fit-content` — un conteneur flex en `fit-content` retombe sur sa taille min-content et écrasait un rack de dix en 116px. Un rack qui ne remplit pas la largeur n'est pas un bug de layout : c'est un rack où il reste de la place.
+- **Les trois animations, et pas une de plus** : `.post` (power-on self test — les canaux montent 01, 02, 03 puis le readout, une seule fois au montage, par balayage jamais par fondu) ; le readout qui **s'imprime caractère par caractère** (`useTyped`, la ligne entière reste dans le DOM en `sr-only` pour les lecteurs d'écran) ; `.rack-live` (pendant le scan une lumière parcourt le rack, décalée par `--i`, sinon la bobine tourne dans un coin et le rack est mort à côté). Plus les scanlines qui dérivent dans le readout. Tout respecte `prefers-reduced-motion`.
+- **Vocabulaire** : on *run* un *draw*, une cartouche s'*assied* (seated), les jeux sont *racked*. L'onglet de tirage s'appelle DRAW comme l'interrupteur et comme le canal 03 — un mot par action, jamais deux.
+- Tokens et matières (`.plate`, `.panel`, `.key`, `.switch`, `.led`, `.cart`, `.spine`, `.deck-slot`) dans `app/globals.css`.
 
 ## Structure actuelle
 - `app/page.tsx` — redirige vers `/play` : le Spin **est** l'écran d'accueil, il n'y a pas de landing
 - `app/play/` — le deck (session + humeur → une cartouche)
 - `app/dashboard/` — Shelf (grille de cartouches)
 - `app/history/` — Saves (les pulls + les notes de session)
-- `app/profile/` — Collector : stats, roast (étiquette d'avertissement), goûts, jeux bannis
+- `app/profile/` — Collector : stats, roast (étiquette d'avertissement), goûts, jeux bannis, jauge de conso IA (+ `actions.ts` : `getAiStatus`)
 - `app/roast/` — conservé comme lien direct ; le roast s'affiche surtout dans le profil
 - `app/connect/` — import Steam (+ `actions.ts` : import, recherche store, enrichissement des tags)
-- `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view, history-list, profile-editor, nav
+- `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view, history-list, profile-editor, ai-status, nav
 - `lib/` — `recommend.ts` (moteur), `roast.ts` (punchlines), `ai.ts` + `ai-guard.ts` (couche IA et ses plafonds), `steam.ts` (API Steam + tags), `library.ts` + `history.ts` (persistance localStorage), `device.ts` (id navigateur pour répartir le quota)
 - **PWA** : `app/manifest.ts` (manifest), `public/sw.js` (service worker écrit à la main — pas de next-pwa/workbox), `components/sw-register.tsx` (enregistrement en prod uniquement), `components/install-prompt.tsx`, `app/offline/page.tsx`, icônes générées par `scripts/generate-icons.mjs`.
 
+## Pièges du dev local (vérifiés le 27/08/2026)
+- **Turbopack rate les écritures sur `app/globals.css`** dans ce dossier (OneDrive) : le CSS servi reste une version en arrière et `✓ Compiled` ment. Un `touch` ne suffit pas. Ce qui marche : écrire le fichier **deux fois** (write + write 1,2s plus tard) ou redémarrer le serveur. Toujours vérifier avec `curl` sur le `.css` de `/_next/static/chunks/` avant de conclure qu'une règle ne marche pas.
+- **`next dev` orphelin** : un vieux serveur peut tenir le port 3000 avec un watcher mort ; le nouveau bascule sur 3001 en silence et tu regardes l'ancien. Vérifier le PID dans le log de démarrage, `taskkill /PID <n> /F`.
+- **Service worker sur `localhost:3000`** : `public/sw.js` ne s'enregistre qu'en prod, mais un `next start` passé laisse le SW installé sur l'origine — il resert le vieux HTML pendant que les chunks JS arrivent frais, ce qui bloque l'app sur son skeleton. Et l'origine est partagée avec les autres projets du même port (des caches `applabo-*` traînaient là). Désinscrire + vider `caches` avant de débugger un écran figé.
+
 ## Dette connue
 - Les compteurs de quota de `lib/ai-guard.ts` vivent en mémoire du module : sur un hébergeur serverless chaque instance a son propre compte et un déploiement les remet à zéro. C'est un frein, pas une comptabilité. À basculer sur Supabase quand la base arrive (un seul fichier à changer).
-- `desktop/` (overlay Electron) a son propre appel OpenAI dans `desktop/ai.js`, sans ces garde-fous, et partage la même `OPENAI_API_KEY`. À aligner sur `lib/ai-guard.ts` ou à débrancher.
+- ~~`desktop/ai.js` sans garde-fous~~ — **fait le 27/08/2026** : `desktop/guard.js`. Volontairement *pas* le même module que `lib/ai-guard.ts` — les plafonds web sont calibrés pour un prompt texte de 350 tokens, un appel overlay porte une capture d'écran et vaut une vingtaine de ceux-là ; partager les chiffres voudrait dire que l'un des deux est faux. Ce qui est partagé c'est la forme : clamp de l'entrée, plafond de sortie, comptage sur l'`usage` réel, cache, et jamais de blocage. Le garde-fou de l'overlay fait deux choses de plus : un **écart minimum de 1,5s entre appels** (un raccourci global maintenu se répète tout seul sous Windows — c'était le vrai trou) et des compteurs **persistés** dans le settings.json d'Electron, donc ils survivent à un redémarrage.
 - Le `<title>` et le manifeste disent encore « SideQuest AI » par endroits alors que le produit s'appelle SideQuest — à harmoniser.
 
 ## Conventions

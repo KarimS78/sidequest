@@ -16,6 +16,7 @@ import {
   type StoredGame,
 } from "@/lib/library";
 import { BacklogRoast } from "@/components/roast";
+import { AiStatusPanel } from "@/components/ai-status";
 
 export function ProfileEditor() {
   const [genres, setGenres] = useState<string[]>([]);
@@ -69,7 +70,7 @@ export function ProfileEditor() {
             Karim
           </b>
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {isSample ? "Sample shelf" : `${library.length} carts`}
+            {isSample ? "Demo shelf" : `${library.length} carts`}
           </span>
         </div>
       </div>
@@ -82,7 +83,7 @@ export function ProfileEditor() {
       </div>
 
       {isSample && (
-        <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[#6a5c52]">
+        <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[#5b6a72]">
           These are sample numbers ·{" "}
           <Link href="/connect" className="text-ink-soft hover:text-label">
             connect your Steam
@@ -112,8 +113,8 @@ export function ProfileEditor() {
               }
               className={`min-h-9 rounded-[2px] border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors duration-[var(--fast)] ${
                 active
-                  ? "border-label bg-label text-ink"
-                  : "border-line text-ink-soft hover:border-[#4d3f36] hover:text-label"
+                  ? "border-contacts text-label shadow-[inset_0_0_0_1px_rgba(255,176,32,.22)]"
+                  : "border-line text-ink-soft hover:border-[#3d4a51] hover:text-label"
               }`}
             >
               {g}
@@ -136,7 +137,7 @@ export function ProfileEditor() {
                 key={g.appid}
                 className="flex items-center gap-3 border border-line-soft p-2"
               >
-                <div className="relative aspect-[3/4] w-8 shrink-0 overflow-hidden rounded-[2px] bg-[#2a221d]">
+                <div className="relative aspect-[3/4] w-8 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
                   <CoverArt appid={g.appid} name={g.name} sizes="32px" />
                 </div>
                 <span className="min-w-0 flex-1 truncate font-display text-[16px] font-bold uppercase leading-none">
@@ -153,6 +154,8 @@ export function ProfileEditor() {
           </div>
         </>
       )}
+
+      <AiStatusPanel />
 
       <TrophyCase />
       </div>
