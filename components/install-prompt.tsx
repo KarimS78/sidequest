@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type BeforeInstallPromptEvent = Event & {
@@ -40,6 +41,11 @@ export function InstallPrompt() {
       className="install-dock fixed inset-x-0 z-40 flex justify-center px-4 lg:inset-x-auto lg:right-6 lg:justify-end"
     >
       <div className="flex items-center gap-3 rounded-[3px] border border-line bg-plank px-3 py-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.9)]">
+        {/* The icon the home screen is about to get. Showing it here is the
+            whole pitch: this is the thing that will be sitting on your phone. */}
+        <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-[4px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]">
+          <Image src="/brand/mark-128.png" alt="" fill sizes="28px" />
+        </span>
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
           Install SideQuest
         </span>

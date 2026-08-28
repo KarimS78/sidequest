@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { CoverArt } from "@/components/cover-art";
@@ -59,12 +60,14 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b border-line-soft bg-ground/85 backdrop-blur">
       <div className="room flex h-14 items-center justify-between !py-0">
+        {/* The mark, then the name set in the app's own face. The logo carries
+            its own wordmark, but at 32px its tagline is a grey smear and its
+            typeface is not the one the rest of this page is set in — so the
+            mark travels and the wordmark stays behind. The full lockup gets
+            its moment on the social card, where there is room to read it. */}
         <div className="flex items-center gap-2.5">
-          <span
-            className="grid h-8 w-8 place-items-center rounded-[3px] bg-gradient-to-b from-shell to-shell-dark font-display text-[15px] font-extrabold leading-none text-ink shadow-[inset_0_1px_0_rgba(255,255,255,.35)]"
-            aria-hidden
-          >
-            SQ
+          <span className="relative h-9 w-9 overflow-hidden rounded-[5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)]">
+            <Image src="/brand/mark-128.png" alt="" fill sizes="36px" priority />
           </span>
           <b className="font-display text-[20px] font-extrabold uppercase leading-none tracking-[0.04em]">
             SideQuest
@@ -150,14 +153,6 @@ function Hero() {
   );
 }
 
-/**
- * The machine, standing still.
- *
- * A landing page normally shows a screenshot here. A screenshot of this app is
- * a picture of a panel — so the panel is built instead, out of the same classes
- * the real screen uses. It is inert on purpose: nothing spins, because the one
- * thing you can do on this page is go and spin it yourself.
- */
 /** Mostly two moods, with the odd outlier — what a real shelf looks like. */
 const RACK_TINTS = [
   "var(--story)",
@@ -170,6 +165,14 @@ const RACK_TINTS = [
   "var(--quick)",
 ];
 
+/**
+ * The machine, standing still.
+ *
+ * A landing page normally shows a screenshot here. A screenshot of this app is
+ * a picture of a panel — so the panel is built instead, out of the same classes
+ * the real screen uses. It is inert on purpose: nothing spins, because the one
+ * thing you can do on this page is go and spin it yourself.
+ */
 function BoardMock() {
   const seated = SAMPLE_LIBRARY[7] ?? SAMPLE_LIBRARY[0];
 

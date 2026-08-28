@@ -23,9 +23,11 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "any",
     lang: "en",
     categories: ["games", "entertainment", "productivity"],
-    // The room, not a cold black.
-    background_color: "#191412",
-    theme_color: "#191412",
+    // Inside the cabinet — the same --ground the app paints and the same value
+    // layout.tsx gives the viewport. These two said #191412 long after the app
+    // stopped being warm brown, so the install splash flashed the old theme.
+    background_color: "#0d1114",
+    theme_color: "#0d1114",
     icons: [
       {
         src: "/icon-192.png",
@@ -49,8 +51,9 @@ export default function manifest(): MetadataRoute.Manifest {
     // Long-press the installed icon: the three things worth doing directly.
     shortcuts: [
       {
-        name: "Pull a cartridge",
-        short_name: "Pull",
+        // One word per action: the tab, the switch and channel 03 all say DRAW.
+        name: "Run a draw",
+        short_name: "Draw",
         description: "Pick tonight's game",
         url: "/play",
         icons: [{ src: "/icon-192.png", sizes: "192x192" }],

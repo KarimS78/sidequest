@@ -11,8 +11,10 @@
  * Bump CACHE to invalidate; activate() drops every other cache we own.
  */
 
-// v2: the desktop rework. Bumped so nobody keeps a cached phone-shaped shell.
-const CACHE = "sidequest-v2";
+// v3: the landing and the real logo. "/" used to be a redirect to /play and the
+// icons were the old drawn mark — both are precached here, so anyone who visited
+// before would keep serving the previous ones until this string changes.
+const CACHE = "sidequest-v3";
 
 const PRECACHE = [
   "/",
@@ -21,6 +23,7 @@ const PRECACHE = [
   "/icon-512.png",
   "/icon-maskable-512.png",
   "/apple-touch-icon.png",
+  "/brand/mark-128.png",
 ];
 
 self.addEventListener("install", (event) => {

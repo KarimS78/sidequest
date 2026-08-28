@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef } from "react";
@@ -102,7 +103,14 @@ function TabIcon({ path }: { path: React.ReactNode }) {
   );
 }
 
-/** The moulded mark at the top of the rail. Ask it nicely three times. */
+/**
+ * The mark at the top of the rail. Ask it nicely three times.
+ *
+ * It used to be "SQ" moulded into plastic. It is the real logo now — kept in
+ * its own dark tile rather than knocked out onto the steel, because the mark
+ * carries its own glow and its own near-black ground, and floating it on a
+ * brushed panel would show every pixel of that ground as a smudge.
+ */
 function Mark() {
   const taps = useRef(0);
   return (
@@ -115,9 +123,9 @@ function Mark() {
         }
       }}
       aria-label="SideQuest"
-      className="grid h-10 w-10 place-items-center rounded-[3px] bg-gradient-to-b from-shell to-shell-dark font-display text-[17px] font-extrabold leading-none text-ink shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_6px_12px_-8px_rgba(0,0,0,.9)] transition-transform duration-[var(--fast)] active:translate-y-px"
+      className="relative h-10 w-10 overflow-hidden rounded-[5px] shadow-[0_6px_12px_-8px_rgba(0,0,0,.9),inset_0_0_0_1px_rgba(255,255,255,.06)] transition-transform duration-[var(--fast)] active:translate-y-px"
     >
-      SQ
+      <Image src="/brand/mark-128.png" alt="" fill sizes="40px" priority />
     </button>
   );
 }
