@@ -159,8 +159,14 @@ async function generate<T>(opts: {
 
       const data = await res.json();
 
-      // Bill what the provider says it billed, not what we guessed.
-      recordUsage(opts.deviceId, opts.kind, data?.usage?.total_tokens ?? 0);
+      // Bill what the provider says it billed, not what we guessed. Input and
+      // output are kept apart because they are priced an order of magnitude
+      // apart — a single total cannot be turned back into a cost.
+      recordUsage(opts.deviceId, opts.kind, {
+        input: data?.usage?.input_tokens ?? 0,
+        output: data?.usage?.output_tokens ?? 0,
+        total: data?.usage?.total_tokens ?? 0,
+      });
 
       // Reasoning that eats the whole ceiling returns 200 with no text at all.
       if (data?.status === "incomplete") {
@@ -351,6 +357,205 @@ export async function aiSessionNote(input: {
     prompt,
     schema: NOTE_SCHEMA,
     cacheOn: { g: input.game, r: raw },
+  });
+}
+
+// ===================== 4. The shelf search =====================
+//
+// "something short I don't have to think about" — a sentence the local filter
+// cannot answer, because it matches no substring of any title.
+//
+// The model never sees the library. It sees the vocabulary the library is
+// written in (its own community tags) and answers with a FILTER, which local
+// code then applies to every game. Three things fall out of that: the prompt is
+// the same size for a 10-game demo and a 900-game account, a hallucinated game
+// is structurally impossible, and the result is explainable — the filter it
+// chose is shown back to the player.
+
+export type AiFilter = {
+  /** Tags to match, drawn from the shelf's own vocabulary. */
+  tags: string[];
+  /** Only games never launched. */
+  unplayedOnly: boolean;
+  /** Upper bound on hours already sunk in. 0 = no bound. */
+  maxHours: number;
+  /** Bias towards short bursts or long sittings. */
+  sessionFit: "any" | "short" | "long";
+  /** One line, shown as the readout: what it understood the ask to be. */
+  say: string;
+};
+
+const SEARCH_SCHEMA = {
+  type: "object",
+  properties: {
+    tags: { type: "array", items: { type: "string" } },
+    unplayedOnly: { type: "boolean" },
+    maxHours: { type: "integer" },
+    sessionFit: { type: "string", enum: ["any", "short", "long"] },
+    say: { type: "string" },
+  },
+  required: ["tags", "unplayedOnly", "maxHours", "sessionFit", "say"],
+  additionalProperties: false,
+};
+
+export async function aiSearch(input: {
+  deviceId?: string;
+  query: string;
+  /** The tags actually present on this shelf, most common first. */
+  vocabulary: string[];
+}): Promise<GenResult<AiFilter>> {
+  const query = clamp(input.query, LIMITS.maxQueryChars);
+  if (query.length < 3) return { ok: false, reason: "query too short" };
+
+  const vocab = input.vocabulary.slice(0, LIMITS.maxTagsInPrompt);
+  if (!vocab.length) return { ok: false, reason: "shelf has no tags to search on" };
+
+  const prompt = [
+    "Turn this player's request into a filter over their game shelf.",
+    "",
+    `Request: "${query}"`,
+    "",
+    "Tags available on this shelf (use ONLY these, copied exactly):",
+    vocab.join(", "),
+    "",
+    "tags — up to 5 that match the request. Empty if the request is not about genre or feel.",
+    "unplayedOnly — true only if they asked for something new or untouched.",
+    "maxHours — 0 unless they implied a game they have barely played.",
+    "sessionFit — short if they implied a quick session, long if a deep one, else any.",
+    "say — one line, max 14 words, stating what you filtered for. No preamble.",
+  ].join("\n");
+
+  return generate<AiFilter>({
+    kind: "search",
+    deviceId: input.deviceId,
+    prompt,
+    // Same question over the same vocabulary is the same filter, free.
+    cacheOn: { q: query.toLowerCase(), v: vocab },
+    schema: SEARCH_SCHEMA,
+  });
+}
+
+// ===================== 5. The portrait =====================
+//
+// The roast mocks the habit; this one takes the shelf seriously. Numbers and
+// tag counts only — no titles beyond the top one, no prices, no ratings.
+
+export type AiPortrait = { archetype: string; reading: string; blindSpot: string };
+
+const PORTRAIT_SCHEMA = {
+  type: "object",
+  properties: {
+    archetype: { type: "string" },
+    reading: { type: "string" },
+    blindSpot: { type: "string" },
+  },
+  required: ["archetype", "reading", "blindSpot"],
+  additionalProperties: false,
+};
+
+export async function aiPortrait(input: {
+  deviceId?: string;
+  stats: {
+    total: number;
+    played: number;
+    neverPlayed: number;
+    barelyPlayed: number;
+    totalHours: number;
+    topGame?: { name: string; hours: number };
+  };
+  /** Top tags by how many games carry them. */
+  tags: { tag: string; count: number }[];
+  /** The genres the player claims to like, from their profile. */
+  stated: string[];
+}): Promise<GenResult<AiPortrait>> {
+  const s = input.stats;
+  const tags = input.tags
+    .slice(0, 12)
+    .map((t) => `${t.tag}:${t.count}`)
+    .join(", ");
+  const stated = input.stated.slice(0, 8).join(", ") || "none stated";
+
+  const facts = [
+    `owned:${s.total}`,
+    `played:${s.played}`,
+    `never launched:${s.neverPlayed}`,
+    `under 2h:${s.barelyPlayed}`,
+    `total hours:${s.totalHours}`,
+    s.topGame ? `most played:${s.topGame.name} (${s.topGame.hours}h)` : "",
+    `shelf tags: ${tags}`,
+    `says they like: ${stated}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = [
+    "Read this Steam shelf and tell the player what kind of player it describes.",
+    "Use only these facts. Invent no games, no prices, no ratings, no completion.",
+    "",
+    facts,
+    "",
+    "archetype — a two or three word label for this player. Specific, not flattering filler.",
+    "reading — max 35 words on what the tags and the hours actually say about their taste.",
+    "blindSpot — max 20 words: what the shelf shows they avoid, or where the stated taste and the hours disagree.",
+    "Plain, observant, no hype. Second person.",
+  ].join("\n");
+
+  return generate<AiPortrait>({
+    kind: "portrait",
+    deviceId: input.deviceId,
+    prompt,
+    schema: PORTRAIT_SCHEMA,
+    cacheOn: facts,
+  });
+}
+
+// ===================== 6. The resume =====================
+//
+// Weeks later, the notes the player left are still their own words in their own
+// shorthand. This reads them back as one line of "here is where you were" — the
+// literal promise on the tin, "never forget where you left off".
+
+export type AiResume = { where: string; next: string };
+
+const RESUME_SCHEMA = {
+  type: "object",
+  properties: {
+    where: { type: "string" },
+    next: { type: "string" },
+  },
+  required: ["where", "next"],
+  additionalProperties: false,
+};
+
+export async function aiResume(input: {
+  deviceId?: string;
+  game: string;
+  /** Newest first: what they wrote, and how long ago. */
+  notes: { ago: string; raw: string }[];
+}): Promise<GenResult<AiResume>> {
+  const notes = input.notes
+    .slice(0, LIMITS.maxNotesInPrompt)
+    .map((n) => `- ${clamp(n.ago, 24)}: ${clamp(n.raw, LIMITS.maxNoteChars)}`)
+    .filter((line) => line.length > 12);
+
+  if (!notes.length) return { ok: false, reason: "no notes to read back" };
+
+  const prompt = [
+    `A player is coming back to ${clamp(input.game, 80)} after a break.`,
+    "These are the notes they left themselves, newest first:",
+    ...notes,
+    "",
+    "where — max 25 words, second person, where they were when they stopped.",
+    "next — max 15 words, the first thing to do on booting it up, ONLY if the notes imply one; otherwise an empty string.",
+    "Use their words. Never invent progress, items, characters or objectives they did not write down.",
+  ].join("\n");
+
+  return generate<AiResume>({
+    kind: "resume",
+    deviceId: input.deviceId,
+    prompt,
+    schema: RESUME_SCHEMA,
+    cacheOn: { g: input.game, n: notes },
   });
 }
 

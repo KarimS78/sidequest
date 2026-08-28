@@ -7,7 +7,9 @@ Companion gaming — "Never forget where you left off." Répond à « je joue à
 ## Décisions produit (V1)
 - **Périmètre** : web d'abord, agent desktop léger prévu en étape ultérieure.
 - **Steam** : import via SteamID64 manuel (pas d'OAuth), fetch library + playtime via Steam Web API côté serveur.
-- **IA optionnelle, et bornée** : le moteur local reste la base et le repli. L'IA (OpenAI `gpt-5-nano`, clé de Karim) vient par-dessus sur trois points — choix du pick dans la shortlist, phrase de justification, roast, et résumé des notes de session. Sans `OPENAI_API_KEY`, tout fonctionne en local. **Toute dépense passe par `lib/ai-guard.ts`** : jamais plus de 12 candidats dans un prompt, texte libre tronqué, plafond de tokens en sortie par type d'appel, quotas jour par appareil et global, budget de tokens compté sur l'`usage.total_tokens` réel du provider, cache de réponses. Un garde-fou qui saute ne produit jamais d'erreur visible : ça dégrade vers le local.
+- **IA optionnelle, et bornée** : le moteur local reste la base et le repli. L'IA (OpenAI `gpt-5-nano`, clé de Karim) vient par-dessus sur **six points** (`CallKind` dans `lib/ai-guard.ts`) — `pick` (choix dans la shortlist + phrase), `roast`, `note` (résumé de session), `search` (recherche en langage naturel sur le Shelf), `portrait` (ce que l'étagère dit du joueur, sur le profil), `resume` (relecture des vieilles notes sur Saves). Sans `OPENAI_API_KEY`, tout fonctionne en local. **Toute dépense passe par `lib/ai-guard.ts`** : jamais plus de 12 candidats dans un prompt, texte libre tronqué, plafond de tokens en sortie par type d'appel, quotas jour par appareil et global, budget compté sur l'`usage` réel du provider (**entrée et sortie séparées**, elles sont facturées à un ordre de grandeur d'écart), cache de réponses. Un garde-fou qui saute ne produit jamais d'erreur visible : ça dégrade vers le local.
+- **La recherche IA ne voit jamais la librairie.** Elle reçoit le *vocabulaire* de tags de l'étagère et répond par un **filtre** (`AiFilter`), appliqué côté client. Deux conséquences : le prompt coûte pareil pour 10 jeux et pour 900, et le modèle ne peut structurellement pas citer un jeu que le joueur ne possède pas.
+- **Le coût est affiché en dollars**, pas seulement en tokens (`getAiStatus` → panneau AI supply du profil) : dépensé aujourd'hui, et ce que coûterait une journée à plein régime. Un budget en tokens n'est lisible que par celui qui a écrit le garde-fou.
 - **Langue de l'app** : anglais (cible recruteurs remote).
 - **Accès** : démo publique (SAMPLE_LIBRARY, aucun compte requis) + auth Supabase optionnelle.
 
@@ -41,14 +43,16 @@ Ce choix rapporte deux choses qu'une UI néon ne peut pas donner :
 - Tokens et matières (`.plate`, `.panel`, `.key`, `.switch`, `.led`, `.cart`, `.spine`, `.deck-slot`) dans `app/globals.css`.
 
 ## Structure actuelle
-- `app/page.tsx` — redirige vers `/play` : le Spin **est** l'écran d'accueil, il n'y a pas de landing
+- `app/page.tsx` — **la landing** (depuis le 28/08/2026). Avant, elle redirigeait vers `/play` au motif que le produit s'explique en s'ouvrant : vrai pour qui sait déjà ce qu'est SideQuest, faux pour tout le monde d'autre, qui tombait sur des canaux numérotés sans savoir ce qu'était un *draw*. Même langage visuel que l'app (plaques, canaux, readout), pas un tour de captures d'écran. **Les chiffres imprimés dessus sont importés du code qui les applique** (`LIMITS`, `PRICE_PER_MTOK`, `SAMPLE_LIBRARY.length`) — une landing qui cite un plafond que le code n'honore plus est pire qu'une landing qui n'en cite aucun. Sections : hero + maquette de board inerte, ce qui se passe vraiment, 01/02/03, la plaque de score, la couche IA + son coût, la grille tarifaire, ce qu'il faut pour s'en servir.
+- **Pas de nav sur la landing** : `BottomNav` retourne `null` sur `/`, et le décalage desktop est conditionné en CSS à l'existence du rail (`.app-shell:has(.rail)`) — une seule chose à changer, pas deux qui peuvent diverger.
+- **Grille tarifaire** (Local board $0 / Powered $3 / Operator $6) : rien n'est facturé, il n'y a aucun formulaire de carte dans l'app, et le readout sous la grille le dit noir sur blanc. Les prix décrivent ce que la couche coûterait, pas ce qu'elle coûte.
 - `app/play/` — le deck (session + humeur → une cartouche)
 - `app/dashboard/` — Shelf (grille de cartouches)
 - `app/history/` — Saves (les pulls + les notes de session)
 - `app/profile/` — Collector : stats, roast (étiquette d'avertissement), goûts, jeux bannis, jauge de conso IA (+ `actions.ts` : `getAiStatus`)
 - `app/roast/` — conservé comme lien direct ; le roast s'affiche surtout dans le profil
 - `app/connect/` — import Steam (+ `actions.ts` : import, recherche store, enrichissement des tags)
-- `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view, history-list, profile-editor, ai-status, nav
+- `components/` — picker, roast, steam-connect, tag-enricher, add-games, library-view (+ recherche IA), history-list (+ read-back), profile-editor, portrait, ai-status, nav
 - `lib/` — `recommend.ts` (moteur), `roast.ts` (punchlines), `ai.ts` + `ai-guard.ts` (couche IA et ses plafonds), `steam.ts` (API Steam + tags), `library.ts` + `history.ts` (persistance localStorage), `device.ts` (id navigateur pour répartir le quota)
 - **PWA** : `app/manifest.ts` (manifest), `public/sw.js` (service worker écrit à la main — pas de next-pwa/workbox), `components/sw-register.tsx` (enregistrement en prod uniquement), `components/install-prompt.tsx`, `app/offline/page.tsx`, icônes générées par `scripts/generate-icons.mjs`.
 

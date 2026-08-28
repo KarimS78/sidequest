@@ -72,6 +72,19 @@ function useActiveHref() {
   );
 }
 
+/**
+ * The landing page is the front of the cabinet, not a tab of it: it carries its
+ * own top bar and a switch that opens the board. Four seats of app navigation
+ * on it would be a rail pointing into a machine the visitor hasn't started yet.
+ *
+ * The shell's desktop offset keys off this rail existing (`.app-shell:has(.rail)`
+ * in globals.css), so removing it here also removes the gutter it clears —
+ * one thing to change, not two that can disagree.
+ */
+function useChromeless() {
+  return usePathname() === "/";
+}
+
 function TabIcon({ path }: { path: React.ReactNode }) {
   return (
     <svg
@@ -111,6 +124,9 @@ function Mark() {
 
 export function BottomNav() {
   const activeHref = useActiveHref();
+  const chromeless = useChromeless();
+
+  if (chromeless) return null;
 
   return (
     <>

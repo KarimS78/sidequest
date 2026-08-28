@@ -14,6 +14,20 @@ import { getAiStatus, type AiStatus } from "@/app/profile/actions";
  * just phrases things from templates. That is the honest reading and the panel
  * says it that way.
  */
+/**
+ * Money, at the scale this app actually spends it.
+ *
+ * A day of heavy use is worth a few cents, and "$0.00" is the one rendering
+ * that would make the gauge useless — so under a cent it reads in cents, with
+ * enough decimals to move when a call lands.
+ */
+function money(usd: number): string {
+  if (usd <= 0) return "0¢";
+  if (usd < 0.01) return `${(usd * 100).toFixed(2)}¢`;
+  if (usd < 1) return `${(usd * 100).toFixed(1)}¢`;
+  return `$${usd.toFixed(2)}`;
+}
+
 export function AiStatusPanel() {
   const [status, setStatus] = useState<AiStatus | null>(null);
 
@@ -70,6 +84,24 @@ export function AiStatusPanel() {
           <p className="mt-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft">
             {status.tokens.toLocaleString("en-GB")} of{" "}
             {status.tokensLimit.toLocaleString("en-GB")} tokens · resets at midnight UTC
+          </p>
+
+          {/* The same gauge in the unit that decides whether this feature stays
+              switched on. A token budget is a number only whoever wrote the
+              guard can price; a number with a currency in front of it is the
+              one a person can hold an opinion about. */}
+          <div className="mt-3 flex items-baseline justify-between border-t border-line-soft pt-2.5 font-mono text-[10px] uppercase tracking-[0.1em]">
+            <span className="text-ink-soft">Spent today</span>
+            <b className="text-contacts">{money(status.spentUsd)}</b>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.1em]">
+            <span className="text-ink-soft">If it runs flat out</span>
+            <span className="text-label">{money(status.ceilingUsd)}</span>
+          </div>
+          <p className="mt-1.5 font-mono text-[9px] uppercase leading-relaxed tracking-[0.1em] text-[#5b6a72]">
+            {status.inputTokens.toLocaleString("en-GB")} in · {" "}
+            {status.outputTokens.toLocaleString("en-GB")} out · priced at $
+            {status.price.input.toFixed(2)}/M and ${status.price.output.toFixed(2)}/M
           </p>
         </>
       )}

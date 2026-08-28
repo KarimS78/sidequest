@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CoverArt } from "@/components/cover-art";
+import { searchShelf } from "@/app/dashboard/actions";
 import { loadLibrary, SAMPLE_LIBRARY, untaggedAppids, type StoredGame } from "@/lib/library";
+import { matchesAnyTag, SESSION_TAGS } from "@/lib/recommend";
+import type { AiFilter } from "@/lib/ai";
+import { deviceId } from "@/lib/device";
 import { unlock } from "@/lib/eggs";
 
 type Sort = "playtime" | "name";
@@ -17,11 +21,61 @@ const SEARCH_EGGS: { test: RegExp; id: "cake" | "halflife" }[] = [
   { test: /^(half.?life ?3|hl3|portal ?3)$/i, id: "halflife" },
 ];
 
+/**
+ * The shelf's own tag vocabulary, most common first.
+ *
+ * This is the only thing about the library that ever leaves the browser for a
+ * search: the words, not the games. The model answers with a filter over these
+ * words and the filtering happens here, which is why a 900-game account costs
+ * exactly the same prompt as the ten-game demo.
+ */
+function vocabularyOf(library: StoredGame[]): string[] {
+  const counts = new Map<string, number>();
+  for (const g of library) {
+    for (const t of g.tags ?? []) {
+      const tag = t.trim();
+      if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
+}
+
+/**
+ * Apply what the model asked for, hardest constraint last so it is the first
+ * thing dropped. An empty shelf is a worse answer than a slightly looser one:
+ * if the strict read finds nothing we relax, and the readout says we did.
+ */
+function applyFilter(
+  list: StoredGame[],
+  f: AiFilter
+): { games: StoredGame[]; relaxed: boolean } {
+  const byTag = f.tags.length ? list.filter((g) => matchesAnyTag(g.tags ?? [], f.tags)) : list;
+  const byPlay = f.unplayedOnly ? byTag.filter((g) => (g.playtimeMin ?? 0) === 0) : byTag;
+  const byHours =
+    f.maxHours > 0 ? byPlay.filter((g) => (g.playtimeMin ?? 0) / 60 <= f.maxHours) : byPlay;
+  const fit = f.sessionFit;
+  const bySession =
+    fit === "any"
+      ? byHours
+      : byHours.filter((g) => matchesAnyTag(g.tags ?? [], [...SESSION_TAGS[fit]]));
+
+  if (bySession.length) return { games: bySession, relaxed: false };
+  if (byHours.length) return { games: byHours, relaxed: true };
+  if (byPlay.length) return { games: byPlay, relaxed: true };
+  return { games: byTag, relaxed: byTag.length > 0 };
+}
+
 export function LibraryView() {
   const [library, setLibrary] = useState<StoredGame[] | null>(null);
   const [isSample, setIsSample] = useState(true);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("playtime");
+
+  // The AI filter is a separate axis from the name search: one narrows by what
+  // a game IS, the other by what it is CALLED, and they stack.
+  const [filter, setFilter] = useState<AiFilter | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [askNote, setAskNote] = useState<string | null>(null);
 
   useEffect(() => {
     const lib = loadLibrary();
@@ -37,15 +91,57 @@ export function LibraryView() {
     if (hit) unlock(hit.id);
   }, [query]);
 
-  const filtered = useMemo(() => {
-    if (!library) return [];
+  const result = useMemo(() => {
+    if (!library) return { games: [] as StoredGame[], relaxed: false };
+
+    const scoped = filter ? applyFilter(library, filter) : { games: library, relaxed: false };
     const q = query.trim().toLowerCase();
-    const list = q ? library.filter((g) => g.name.toLowerCase().includes(q)) : [...library];
+    // With a filter up, the typed text stops being the search and becomes a
+    // narrowing of it — so it only applies to names when it isn't the question
+    // the filter was built from.
+    const list =
+      q && !filter ? scoped.games.filter((g) => g.name.toLowerCase().includes(q)) : [...scoped.games];
+
     list.sort((a, b) =>
       sort === "name" ? a.name.localeCompare(b.name) : b.playtimeMin - a.playtimeMin
     );
-    return list;
-  }, [library, query, sort]);
+    return { games: list, relaxed: scoped.relaxed };
+  }, [library, query, sort, filter]);
+
+  async function ask() {
+    if (!library || asking) return;
+    const q = query.trim();
+    if (q.length < 3) return;
+
+    setAsking(true);
+    setAskNote(null);
+    try {
+      const res = await searchShelf({
+        deviceId: deviceId(),
+        query: q,
+        vocabulary: vocabularyOf(library),
+      });
+      if (res.ok) {
+        setFilter(res.filter);
+      } else {
+        // Never an error dialog: the shelf still searches by name, and the
+        // panel says which of the two you are looking at.
+        setFilter(null);
+        setAskNote(res.reason);
+      }
+    } catch {
+      setFilter(null);
+      setAskNote("the board didn't answer");
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  function clearAsk() {
+    setFilter(null);
+    setAskNote(null);
+    setQuery("");
+  }
 
   if (library === null) return <ShelfSkeleton />;
 
@@ -70,6 +166,7 @@ export function LibraryView() {
   }
 
   const untagged = untaggedAppids(library).length;
+  const filtered = result.games;
 
   return (
     <>
@@ -109,20 +206,73 @@ export function LibraryView() {
         </div>
       </header>
 
-      <div className="flex gap-1.5">
+      {/* Two ways to look for a game, on one line: the name you remember, or
+          the evening you want. The second one is the whole reason the shelf
+          knows its own tags. */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask();
+        }}
+        className="flex gap-1.5"
+      >
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the shelf…"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (filter) setFilter(null);
+            if (askNote) setAskNote(null);
+          }}
+          placeholder="A name, or “something short after work”…"
+          aria-label="Search the shelf by name, or describe what you're after"
           className="min-h-11 flex-1 rounded-[2px] border border-line bg-[#0b1013] px-3 text-[13px] text-label shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-colors placeholder:text-[#5b6a72] focus:border-contacts"
         />
         <button
+          type="submit"
+          disabled={asking || query.trim().length < 3}
+          title="Read the sentence and filter the shelf"
+          className="key flex min-h-11 shrink-0 items-center gap-1.5 px-3 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label disabled:opacity-40"
+        >
+          <i className={`led ${asking ? "led-on led-pulse" : ""}`} aria-hidden />
+          {asking ? "Reading" : "Ask"}
+        </button>
+        <button
+          type="button"
           onClick={() => setSort(sort === "playtime" ? "name" : "playtime")}
           className="key min-h-11 shrink-0 px-3 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label"
         >
           {sort === "playtime" ? "Most played" : "A–Z"}
         </button>
-      </div>
+      </form>
+
+      {/* What the board understood, printed where a board prints things. */}
+      {(filter || askNote) && (
+        <div className={`readout mt-2.5 ${askNote ? "readout-dim" : ""}`}>
+          {filter ? (
+            <>
+              {filter.say}
+              {filter.tags.length > 0 && (
+                <span className="text-[#8a9aa2]"> · {filter.tags.join(" / ")}</span>
+              )}
+              {filter.unplayedOnly && <span className="text-[#8a9aa2]"> · never launched</span>}
+              {filter.sessionFit !== "any" && (
+                <span className="text-[#8a9aa2]"> · {filter.sessionFit} sessions</span>
+              )}
+              {result.relaxed && (
+                <span className="text-[#8a9aa2]"> · nothing matched all of it, so it loosened</span>
+              )}
+              <button
+                onClick={clearAsk}
+                className="ml-2 underline decoration-dotted underline-offset-2 hover:text-label"
+              >
+                clear
+              </button>
+            </>
+          ) : (
+            <>Asked the board — {askNote}. Name search still works.</>
+          )}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="mt-10 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">

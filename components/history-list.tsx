@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CoverArt } from "@/components/cover-art";
+import { getResume } from "@/app/history/actions";
+import { deviceId } from "@/lib/device";
 import {
   clearHistory,
   loadHistory,
@@ -28,12 +30,56 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
+/** What the read-back says, per game. */
+type Resume =
+  | { state: "reading" }
+  | { state: "done"; where: string; next?: string }
+  | { state: "failed"; why: string };
+
 export function HistoryList() {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
+  const [resumes, setResumes] = useState<Record<number, Resume>>({});
 
   useEffect(() => {
     setEntries(loadHistory());
   }, []);
+
+  /**
+   * Every note left on a game, newest first — the raw material of a read-back.
+   *
+   * Keyed by game rather than by pull, because "where did I leave off" is a
+   * question about Hollow Knight, not about a Tuesday. Three sittings that each
+   * left a line are three lines about one save file.
+   */
+  const notesByGame = useMemo(() => {
+    const map = new Map<number, { ago: string; raw: string }[]>();
+    for (const e of entries ?? []) {
+      const raw = e.note?.raw?.trim();
+      if (!raw) continue;
+      const list = map.get(e.pick.appid) ?? [];
+      list.push({ ago: timeAgo(e.at), raw });
+      map.set(e.pick.appid, list);
+    }
+    return map;
+  }, [entries]);
+
+  async function readBack(appid: number, game: string) {
+    const notes = notesByGame.get(appid);
+    if (!notes?.length || resumes[appid]?.state === "reading") return;
+
+    setResumes((r) => ({ ...r, [appid]: { state: "reading" } }));
+    try {
+      const res = await getResume({ deviceId: deviceId(), game, notes });
+      setResumes((r) => ({
+        ...r,
+        [appid]: res.ok
+          ? { state: "done", where: res.where, next: res.next }
+          : { state: "failed", why: res.reason },
+      }));
+    } catch {
+      setResumes((r) => ({ ...r, [appid]: { state: "failed", why: "no answer" } }));
+    }
+  }
 
   if (entries === null) return <SavesSkeleton />;
 
@@ -58,6 +104,9 @@ export function HistoryList() {
   }
 
   const playedCount = entries.filter((e) => e.played).length;
+  // Only the newest pull of a game offers the read-back: the same button on
+  // three rows for one save file is three ways to spend the same call.
+  const newestSeen = new Set<number>();
 
   return (
     <>
@@ -75,6 +124,7 @@ export function HistoryList() {
           onClick={() => {
             clearHistory();
             setEntries([]);
+            setResumes({});
           }}
           className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-challenge"
         >
@@ -83,43 +133,90 @@ export function HistoryList() {
       </header>
 
       <div className="border-t border-line-soft lg:grid lg:grid-cols-2 lg:gap-x-10 lg:border-t-0">
-        {entries.map((e) => (
-          <div
-            key={e.id}
-            className="flex items-start gap-3 border-b border-line-soft py-3"
-          >
-            <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
-              <CoverArt appid={e.pick.appid} name={e.pick.name} sizes="40px" />
-            </div>
+        {entries.map((e) => {
+          const first = !newestSeen.has(e.pick.appid);
+          if (first) newestSeen.add(e.pick.appid);
+          const notes = notesByGame.get(e.pick.appid) ?? [];
+          const canResume = first && notes.length > 0;
+          const resume = resumes[e.pick.appid];
 
-            <div className="min-w-0 flex-1">
-              <b className="block font-display text-[18px] font-bold uppercase leading-none">
-                {e.pick.name}
-              </b>
-              <button
-                onClick={() => setEntries(markPlayed(e.id, !e.played))}
-                className="mt-1 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft transition-colors hover:text-label"
-              >
-                <span
-                  className={`inline-block h-1.5 w-1.5 rounded-full ${
-                    e.played ? "bg-contacts" : "bg-[#1e262b]"
-                  }`}
-                />
-                {e.played ? "played" : "skipped"} · {TIME_LABEL[e.time] ?? e.time} ·{" "}
-                {e.mood}
-              </button>
-              {e.note?.lastTime && (
-                <p className="mt-1.5 text-[13px] leading-snug text-[#b3c0c7]">
-                  {e.note.lastTime}
-                </p>
-              )}
-            </div>
+          return (
+            <div
+              key={e.id}
+              className="flex items-start gap-3 border-b border-line-soft py-3"
+            >
+              <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
+                <CoverArt appid={e.pick.appid} name={e.pick.name} sizes="40px" />
+              </div>
 
-            <span className="shrink-0 font-mono text-[9px] text-[#5b6a72]">
-              {timeAgo(e.at)}
-            </span>
-          </div>
-        ))}
+              <div className="min-w-0 flex-1">
+                <b className="block font-display text-[18px] font-bold uppercase leading-none">
+                  {e.pick.name}
+                </b>
+                <button
+                  onClick={() => setEntries(markPlayed(e.id, !e.played))}
+                  className="mt-1 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft transition-colors hover:text-label"
+                >
+                  <span
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      e.played ? "bg-contacts" : "bg-[#1e262b]"
+                    }`}
+                  />
+                  {e.played ? "played" : "skipped"} · {TIME_LABEL[e.time] ?? e.time} ·{" "}
+                  {e.mood}
+                </button>
+                {e.note?.lastTime && (
+                  <p className="mt-1.5 text-[13px] leading-snug text-[#b3c0c7]">
+                    {e.note.lastTime}
+                  </p>
+                )}
+
+                {/* The read-back. This is the product's own sentence — "never
+                    forget where you left off" — at the one moment it is worth
+                    anything: weeks later, looking at your own shorthand. */}
+                {canResume && !resume && (
+                  <button
+                    onClick={() => readBack(e.pick.appid, e.pick.name)}
+                    className="key mt-2 inline-flex min-h-8 items-center gap-1.5 px-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft transition-colors hover:text-label"
+                  >
+                    <i className="led" aria-hidden />
+                    Where was I
+                    {notes.length > 1 && (
+                      <span className="text-[#5b6a72]">· {notes.length} notes</span>
+                    )}
+                  </button>
+                )}
+
+                {resume?.state === "reading" && (
+                  <p className="readout readout-dim mt-2">Reading your notes back…</p>
+                )}
+
+                {resume?.state === "done" && (
+                  <div className="readout mt-2">
+                    {resume.where}
+                    {resume.next && (
+                      <>
+                        <br />
+                        <span className="text-[#8a9aa2]">Next: {resume.next}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {resume?.state === "failed" && (
+                  <p className="readout readout-dim mt-2">
+                    Couldn’t read it back — {resume.why}. Your own note is above,
+                    which is the copy that matters.
+                  </p>
+                )}
+              </div>
+
+              <span className="shrink-0 font-mono text-[9px] text-[#5b6a72]">
+                {timeAgo(e.at)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </>
   );

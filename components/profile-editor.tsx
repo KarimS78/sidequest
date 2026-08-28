@@ -16,6 +16,7 @@ import {
   type StoredGame,
 } from "@/lib/library";
 import { BacklogRoast } from "@/components/roast";
+import { ShelfPortrait } from "@/components/portrait";
 import { AiStatusPanel } from "@/components/ai-status";
 
 export function ProfileEditor() {
@@ -126,6 +127,10 @@ export function ProfileEditor() {
       </div>
 
       <div className="mt-8 lg:mt-0">
+      {stats.total > 0 && (
+        <ShelfPortrait library={library} stats={stats} stated={genres} />
+      )}
+
       {stats.total > 0 && <BacklogRoast stats={stats} />}
 
       {hidden.length > 0 && (

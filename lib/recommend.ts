@@ -125,6 +125,18 @@ const SHORT_SESSION_TAGS = [
 /** Games that punish being played in 30-minute slices. */
 const LONG_SESSION_TAGS = ["Open World", "CRPG", "MMO", "4X", "Grand Strategy"];
 
+/**
+ * The same two lists, for screens outside the deck.
+ *
+ * The shelf's plain-language search resolves "something short" against these —
+ * the alternative was a second, quietly different idea of what "short" means,
+ * living in a component. One definition, two readers.
+ */
+export const SESSION_TAGS = {
+  short: SHORT_SESSION_TAGS,
+  long: LONG_SESSION_TAGS,
+} as const;
+
 // ===================== Scoring weights =====================
 // Kept together so the engine's behaviour can be tuned in one place.
 
@@ -167,6 +179,16 @@ function tagHits(gameTags: string[], needle: string): string | null {
     if (t.includes(n) || n.includes(t)) return tag;
   }
   return null;
+}
+
+/**
+ * Does this game answer to any of these tags? The engine's matching rule, made
+ * public so the shelf filters by the same reading of a tag that the deck scores
+ * by — "Rogue" catching "Roguelike" in one place and not the other would be a
+ * bug you could only find by staring at both files.
+ */
+export function matchesAnyTag(gameTags: string[], needles: string[]): boolean {
+  return needles.some((n) => tagHits(gameTags, n) !== null);
 }
 
 /** Every needle that matched, with the game tag that matched it. */

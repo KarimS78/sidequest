@@ -731,7 +731,10 @@ body {
   .has-nav {
     padding-bottom: 3.5rem;
   }
-  .app-shell {
+  /* The gutter exists to clear the service rail, so it is conditioned on the
+     rail actually being there. The landing page drops the rail and gets its
+     full width back without a second flag that could disagree with the first. */
+  .app-shell:has(.rail) {
     padding-left: 5.25rem;
   }
 }
@@ -861,6 +864,11 @@ body {
 /* ---------- the install dock ---------------------------------- */
 .install-dock {
   bottom: calc(62px + env(safe-area-inset-bottom) + 0.75rem);
+}
+/* Same rule as the desktop gutter: the 62px is the bottom nav's height, so on a
+   screen without one the dock sits on the edge instead of floating above a gap. */
+.app-shell:not(:has(.rail)) .install-dock {
+  bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
 }
 @media (min-width: 1024px) {
   .install-dock {
