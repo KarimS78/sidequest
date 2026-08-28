@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { CoverArt } from "@/components/cover-art";
+import { useEffect, useState } from "react";
 import { TrophyCase } from "@/components/eggs";
 import {
   computeBacklogStats,
   GENRE_OPTIONS,
+  headerFor,
   loadBlacklist,
   loadLibrary,
   loadProfile,
@@ -18,19 +19,35 @@ import {
 import { BacklogRoast } from "@/components/roast";
 import { ShelfPortrait } from "@/components/portrait";
 import { AiStatusPanel } from "@/components/ai-status";
+import { useI18n } from "@/i18n/context";
 
+/**
+ * The profile.
+ *
+ * Rebuilt because the old one was unreadable, and the reason it was unreadable
+ * was not styling: it was seven blocks of equal weight with no statement about
+ * what any of them were for. A stat tile, a genre picker, a token gauge and a
+ * list of locked trophies all looked like the same kind of thing.
+ *
+ * So the page now makes one claim and sorts everything under it. There are two
+ * kinds of thing here: what the app WORKED OUT about you from your shelf, and
+ * what you TELL it. Each gets a heading that says so. The AI gauge belongs to
+ * neither, so it sits last, on its own, as machine housekeeping.
+ */
 export function ProfileEditor() {
+  const { d } = useI18n();
   const [genres, setGenres] = useState<string[]>([]);
   const [library, setLibrary] = useState<StoredGame[] | null>(null);
   const [blacklist, setBlacklist] = useState<number[]>([]);
   const [isSample, setIsSample] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
+  const t = d.profile;
 
   useEffect(() => {
     const lib = loadLibrary();
     setGenres(loadProfile().favoriteGenres);
-    // Same fallback as the deck and the shelf: without it a first-time visitor
-    // sees zeroed stats here while every other screen shows the sample shelf.
+    // Same fallback as the draw and the shelf: without it a first-time visitor
+    // sees zeroed stats here while every other screen shows the demo shelf.
     setLibrary(lib ?? SAMPLE_LIBRARY);
     setIsSample(!lib);
     setBlacklist(loadBlacklist());
@@ -40,7 +57,7 @@ export function ProfileEditor() {
     setGenres(next);
     saveProfile({ favoriteGenres: next });
     setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 1200);
+    window.setTimeout(() => setSavedFlash(false), 1400);
   }
 
   if (library === null) return <ProfileSkeleton />;
@@ -51,156 +68,148 @@ export function ProfileEditor() {
   const hidden = library.filter((g) => blacklistSet.has(g.appid));
 
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-gradient-to-b from-ground from-[72%] to-transparent pb-3 pt-[18px] lg:static lg:pb-6 lg:pt-9">
-        <h1 className="font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] lg:text-[54px]">
-          Collector
-        </h1>
+    <div className="wrap has-tabs flex flex-col gap-12 py-8 lg:gap-16 lg:py-12">
+      {/* ================= who ================= */}
+      <header className="flex flex-col gap-4">
+        <span className="eyebrow">{t.eyebrow}</span>
+        <h1 className="poster text-[clamp(2.2rem,6vw,3.6rem)]">{t.title}</h1>
+        <p className="max-w-xl text-[15.5px] leading-relaxed text-muted">{t.lede}</p>
+
+        <dl className="mt-2 grid gap-3 sm:grid-cols-3">
+          <Stat value={String(stats.total)} label={t.numbers.total} />
+          <Stat value={`${stats.totalHours}`} label={t.numbers.hours} />
+          <Stat value={`${sealed}%`} label={t.numbers.sealed} />
+        </dl>
+
+        {isSample && (
+          <p className="mono text-[10.5px] uppercase tracking-[0.1em] text-subtle">
+            {t.sampleNote}{" "}
+            <Link href="/connect" className="text-accent-soft hover:text-fg">
+              {t.sampleCta} →
+            </Link>
+          </p>
+        )}
       </header>
 
-      {/* Desktop: who you are on the left, what the shelf says about you on
-          the right. Phone: the same order, stacked. */}
-      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
-      <div>
-      <div className="flex items-center gap-3 pb-1">
-        <span className="grid h-[52px] w-[52px] place-items-center rounded-[3px] bg-gradient-to-br from-shell to-shell-dark font-display text-[26px] font-extrabold text-ink">
-          K
-        </span>
-        <div>
-          <b className="block font-display text-[26px] font-extrabold uppercase leading-none">
-            Karim
-          </b>
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft">
-            {isSample ? "Demo shelf" : `${library.length} carts`}
-          </span>
-        </div>
-      </div>
-
-      <p className="rule">The numbers</p>
-      <div className="grid grid-cols-3 border border-line">
-        <Stat value={String(stats.total)} label="Carts" />
-        <Stat value={`${stats.totalHours}h`} label="Played" />
-        <Stat value={`${sealed}%`} label="Sealed" warn />
-      </div>
-
-      {isSample && (
-        <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[#5b6a72]">
-          These are sample numbers ·{" "}
-          <Link href="/connect" className="text-ink-soft hover:text-label">
-            connect your Steam
-          </Link>
-        </p>
+      {/* ================= what it makes of you ================= */}
+      {stats.total > 0 && (
+        <section className="flex flex-col gap-5">
+          <SectionHead title={t.readings.title} lede={t.readings.lede} />
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <ShelfPortrait library={library} stats={stats} stated={genres} />
+            <BacklogRoast stats={stats} />
+          </div>
+        </section>
       )}
 
-      <div className="mt-6 flex items-baseline justify-between">
-        <p className="rule mb-0 flex-1">Your taste</p>
-        <span
-          className={`ml-3 font-mono text-[9px] uppercase tracking-[0.1em] text-contacts transition-opacity ${
-            savedFlash ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          Saved
-        </span>
-      </div>
-      <div className="mt-1 flex flex-wrap gap-1.5">
-        {GENRE_OPTIONS.map((g) => {
-          const active = genres.includes(g);
-          return (
-            <button
-              key={g}
-              aria-pressed={active}
-              onClick={() =>
-                persist(active ? genres.filter((x) => x !== g) : [...genres, g])
-              }
-              className={`min-h-9 rounded-[2px] border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors duration-[var(--fast)] ${
-                active
-                  ? "border-contacts text-label shadow-[inset_0_0_0_1px_rgba(255,176,32,.22)]"
-                  : "border-line text-ink-soft hover:border-[#3d4a51] hover:text-label"
+      {/* ================= what you tell it ================= */}
+      <section className="flex flex-col gap-5">
+        <SectionHead title={t.settings.title} lede={t.settings.lede} />
+
+        <div className="card p-5 lg:p-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h3 className="poster text-[1.05rem]">{t.taste.title}</h3>
+            <span
+              className={`mono text-[10px] uppercase tracking-[0.12em] text-accent-soft transition-opacity duration-[var(--t-base)] ${
+                savedFlash ? "opacity-100" : "opacity-0"
               }`}
             >
-              {g}
-            </button>
-          );
-        })}
-      </div>
-
-      </div>
-
-      <div className="mt-8 lg:mt-0">
-      {stats.total > 0 && (
-        <ShelfPortrait library={library} stats={stats} stated={genres} />
-      )}
-
-      {stats.total > 0 && <BacklogRoast stats={stats} />}
-
-      {hidden.length > 0 && (
-        <>
-          <p className="rule mt-6">Never suggest</p>
-          <div className="grid gap-2">
-            {hidden.map((g) => (
-              <div
-                key={g.appid}
-                className="flex items-center gap-3 border border-line-soft p-2"
-              >
-                <div className="relative aspect-[3/4] w-8 shrink-0 overflow-hidden rounded-[2px] bg-[#10161a]">
-                  <CoverArt appid={g.appid} name={g.name} sizes="32px" />
-                </div>
-                <span className="min-w-0 flex-1 truncate font-display text-[16px] font-bold uppercase leading-none">
-                  {g.name}
-                </span>
-                <button
-                  onClick={() => setBlacklist(removeFromBlacklist(g.appid))}
-                  className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-label"
-                >
-                  Put back
-                </button>
-              </div>
-            ))}
+              {t.taste.saved}
+            </span>
           </div>
-        </>
-      )}
+          <p className="mt-1.5 max-w-prose text-[14px] leading-relaxed text-muted">
+            {t.taste.line}
+          </p>
 
-      <AiStatusPanel />
+          <div className="mt-4 flex flex-wrap gap-2">
+            {GENRE_OPTIONS.map((g) => {
+              const active = genres.includes(g);
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    persist(active ? genres.filter((x) => x !== g) : [...genres, g])
+                  }
+                  className="chip !min-h-9 text-[13px]"
+                >
+                  {g}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      <TrophyCase />
-      </div>
-      </div>
-    </>
+        <div className="card p-5 lg:p-6">
+          <h3 className="poster text-[1.05rem]">{t.hidden.title}</h3>
+          {hidden.length === 0 ? (
+            <p className="mt-2 text-[14px] text-muted">{t.hidden.empty}</p>
+          ) : (
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+              {hidden.map((g) => (
+                <li key={g.appid} className="tile flex items-center gap-3 pr-3">
+                  <span className="relative h-[52px] w-[112px] shrink-0 overflow-hidden">
+                    <Image
+                      src={headerFor(g.appid)}
+                      alt=""
+                      fill
+                      sizes="112px"
+                      className="object-cover opacity-55"
+                    />
+                  </span>
+                  <span className="poster min-w-0 flex-1 truncate text-[14px] text-muted">
+                    {g.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBlacklist(removeFromBlacklist(g.appid))}
+                    className="mono shrink-0 text-[10px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+                  >
+                    {t.hidden.restore}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {/* ================= housekeeping ================= */}
+      <section className="flex flex-col gap-4">
+        <AiStatusPanel />
+        <TrophyCase />
+      </section>
+    </div>
   );
 }
 
-function Stat({
-  value,
-  label,
-  warn = false,
-}: {
-  value: string;
-  label: string;
-  warn?: boolean;
-}) {
+function SectionHead({ title, lede }: { title: string; lede: string }) {
   return (
-    <div className="border-r border-line px-3 py-3.5 last:border-r-0">
-      <b
-        className={`block font-display text-[30px] font-extrabold leading-[0.9] ${
-          warn ? "text-challenge" : ""
-        }`}
-      >
-        {value}
-      </b>
-      <span className="mt-1.5 block font-mono text-[8px] uppercase tracking-[0.12em] text-ink-soft">
+    <div className="flex flex-col gap-2 border-t border-line pt-6">
+      <h2 className="poster text-[clamp(1.4rem,3vw,1.9rem)]">{title}</h2>
+      <p className="max-w-2xl text-[14.5px] leading-relaxed text-muted">{lede}</p>
+    </div>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="card-quiet p-4">
+      <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
         {label}
-      </span>
+      </dt>
+      <dd className="mono mt-1.5 text-[2rem] leading-none">{value}</dd>
     </div>
   );
 }
 
 function ProfileSkeleton() {
   return (
-    <div className="pt-[18px]">
-      <div className="sweep h-8 w-40 bg-plank" />
-      <div className="sweep mt-5 h-[52px] w-full bg-plank" />
-      <div className="sweep mt-5 h-20 w-full bg-plank" />
-      <div className="sweep mt-5 h-40 w-full bg-plank" />
+    <div className="wrap has-tabs flex flex-col gap-6 py-8">
+      <div className="card h-24 animate-pulse" />
+      <div className="card h-40 animate-pulse" />
+      <div className="card h-64 animate-pulse" />
     </div>
   );
 }

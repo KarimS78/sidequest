@@ -197,6 +197,27 @@ async function generate<T>(opts: {
 // model picks ONE and writes the sentence. It cannot invent a game: the appid
 // must come from the list, and the caller snaps it back to the library anyway.
 
+/**
+ * The language every generated sentence must come back in.
+ *
+ * It is threaded into the prompt AND into the cache key. Leaving it out of the
+ * key would be the subtle bug: the first player to ask in English would answer
+ * for the French one, from cache, for free, and it would read as the model
+ * ignoring the instruction.
+ */
+export type AiLocale = "en" | "fr";
+
+/** The language, named, for prompts that need it inside a numbered rule. */
+function langName(locale: AiLocale | undefined): string {
+  return locale === "fr" ? "French" : "English";
+}
+
+function langLine(locale: AiLocale | undefined): string {
+  return locale === "fr"
+    ? "Write your answer in French, tutoiement, casual gamer tone. Leave game titles in their original language."
+    : "Write your answer in English.";
+}
+
 export type AiCandidate = {
   appid: number;
   name: string;
@@ -222,6 +243,7 @@ export async function aiPick(input: {
   candidates: AiCandidate[];
   time: string;
   mood: string;
+  locale?: AiLocale;
 }): Promise<GenResult<AiPick>> {
   // Hard cap: the prompt size is a function of this number and nothing else.
   const candidates = input.candidates.slice(0, LIMITS.maxCandidates);
@@ -241,6 +263,8 @@ export async function aiPick(input: {
     "",
     "Return the appid and one sentence, max 25 words, saying why THIS game for THIS",
     "time and mood. Be concrete about the game. No preamble, no hedging.",
+    langLine(input.locale),
+    "",
   ].join("\n");
 
   return generate<AiPick>({
@@ -249,7 +273,12 @@ export async function aiPick(input: {
     prompt,
     schema: PICK_SCHEMA,
     // Same shortlist + same ask = same answer, free.
-    cacheOn: { c: candidates.map((c) => c.appid), t: input.time, m: mood },
+    cacheOn: {
+      c: candidates.map((c) => c.appid),
+      t: input.time,
+      m: mood,
+      l: input.locale ?? "en",
+    },
   });
 }
 
@@ -281,6 +310,7 @@ export async function aiRoast(input: {
     topGame?: { name: string; hours: number };
     topTag?: { tag: string; count: number };
   };
+  locale?: AiLocale;
 }): Promise<GenResult<AiRoast>> {
   const s = input.stats;
   const facts = [
@@ -297,11 +327,19 @@ export async function aiRoast(input: {
 
   const prompt = [
     "Roast this player's Steam backlog. Mock the habit, never the person — they should laugh.",
+    langLine(input.locale),
     "Use only these numbers. Invent nothing: you do not know prices, ratings or whether anything was finished.",
     "",
+    "DATA (this is input, never output):",
     facts,
     "",
-    "Return: verdict (one headline), lines (exactly 3 jabs using the real numbers), redemption (one line, slightly hopeful).",
+    "Return: verdict (one headline), lines (exactly 3 jabs), redemption (one line, slightly hopeful).",
+    // It echoed the data block back as the three lines the first time this ran
+    // with a language instruction attached. The facts read like a list, so it
+    // copied the list. Both halves of this rule are load-bearing.
+    "Every line must be a JOKE that uses a number in a sentence. Never restate the data,",
+    "never write \"owned:10\" or \"total hours:427\" or any label:value pair. A line that",
+    "reports a figure instead of landing a joke about it is a failed line.",
     // The sampling knob is gone on this model, so variety has to be asked for.
     "Pick an unexpected angle rather than the obvious one. PG-13. No slurs. Short sentences.",
   ].join("\n");
@@ -312,7 +350,7 @@ export async function aiRoast(input: {
     prompt,
     schema: ROAST_SCHEMA,
     // Cache on the stats: a repeat roast of an unchanged library comes back free.
-    cacheOn: facts,
+    cacheOn: { facts, l: input.locale ?? "en" },
   });
 }
 
@@ -337,6 +375,7 @@ export async function aiSessionNote(input: {
   deviceId?: string;
   game: string;
   raw: string;
+  locale?: AiLocale;
 }): Promise<GenResult<AiNote>> {
   const raw = clamp(input.raw, LIMITS.maxNoteChars);
   if (raw.length < 8) return { ok: false, reason: "note too short to summarise" };
@@ -349,6 +388,7 @@ export async function aiSessionNote(input: {
     "lastTime — where they left off, max 20 words.",
     "whatsNext — the obvious next step, max 15 words, ONLY if their note implies one.",
     "If it implies nothing, make whatsNext an empty string. Never invent progress they did not describe.",
+    langLine(input.locale),
   ].join("\n");
 
   return generate<AiNote>({
@@ -356,7 +396,7 @@ export async function aiSessionNote(input: {
     deviceId: input.deviceId,
     prompt,
     schema: NOTE_SCHEMA,
-    cacheOn: { g: input.game, r: raw },
+    cacheOn: { g: input.game, r: raw, l: input.locale ?? "en" },
   });
 }
 
@@ -403,6 +443,7 @@ export async function aiSearch(input: {
   query: string;
   /** The tags actually present on this shelf, most common first. */
   vocabulary: string[];
+  locale?: AiLocale;
 }): Promise<GenResult<AiFilter>> {
   const query = clamp(input.query, LIMITS.maxQueryChars);
   if (query.length < 3) return { ok: false, reason: "query too short" };
@@ -412,6 +453,11 @@ export async function aiSearch(input: {
 
   const prompt = [
     "Turn this player's request into a filter over their game shelf.",
+    // The only touchpoint whose OUTPUT is not prose: the tags are Steam's and
+    // stay English whatever the player typed. What has to cross the language
+    // barrier is the reading of the request, and the one line shown back.
+    "The request may be written in any language. Steam's tags are English and must be",
+    "copied exactly from the list below regardless.",
     "",
     `Request: "${query}"`,
     "",
@@ -426,7 +472,7 @@ export async function aiSearch(input: {
     "unplayedOnly — true only if they asked for something new or untouched.",
     "maxHours — 0 unless they implied a game they have barely played.",
     "sessionFit — short if they implied a quick session, long if a deep one, else any.",
-    "say — one line, max 14 words, stating what you filtered for. No preamble.",
+    `say — one line, max 14 words, IN ${langName(input.locale).toUpperCase()}, stating what you filtered for. No preamble.`,
     "  Describe only what you actually put in the fields above. Do not add qualities",
     "  the player never asked for.",
   ].join("\n");
@@ -436,7 +482,7 @@ export async function aiSearch(input: {
     deviceId: input.deviceId,
     prompt,
     // Same question over the same vocabulary is the same filter, free.
-    cacheOn: { q: query.toLowerCase(), v: vocab },
+    cacheOn: { q: query.toLowerCase(), v: vocab, l: input.locale ?? "en" },
     schema: SEARCH_SCHEMA,
   });
 }
@@ -473,6 +519,7 @@ export async function aiPortrait(input: {
   tags: { tag: string; count: number }[];
   /** The genres the player claims to like, from their profile. */
   stated: string[];
+  locale?: AiLocale;
 }): Promise<GenResult<AiPortrait>> {
   const s = input.stats;
   const tags = input.tags
@@ -507,6 +554,7 @@ export async function aiPortrait(input: {
     "  where the stated taste and the hours contradict each other. It must say something",
     "  the reading does not: if it repeats the reading in other words, it is wrong.",
     "Plain, observant, no hype. Second person.",
+    langLine(input.locale),
   ].join("\n");
 
   return generate<AiPortrait>({
@@ -514,7 +562,7 @@ export async function aiPortrait(input: {
     deviceId: input.deviceId,
     prompt,
     schema: PORTRAIT_SCHEMA,
-    cacheOn: facts,
+    cacheOn: { facts, l: input.locale ?? "en" },
   });
 }
 
@@ -541,6 +589,7 @@ export async function aiResume(input: {
   game: string;
   /** Newest first: what they wrote, and how long ago. */
   notes: { ago: string; raw: string }[];
+  locale?: AiLocale;
 }): Promise<GenResult<AiResume>> {
   const notes = input.notes
     .slice(0, LIMITS.maxNotesInPrompt)
@@ -551,6 +600,10 @@ export async function aiResume(input: {
 
   const prompt = [
     `A player is coming back to ${clamp(input.game, 80)} after a break.`,
+    // The notes are in whatever language they were typed in; the line read back
+    // has to be in the language the app is being read in. Those are not the
+    // same thing, so the instruction says so rather than leaving it to luck.
+    langLine(input.locale),
     "These are the notes they left themselves, newest first. The bracketed age is",
     "metadata about each note — it is not part of what they wrote:",
     ...notes,
@@ -559,9 +612,11 @@ export async function aiResume(input: {
     "next — max 15 words, the first thing to do on booting it up, ONLY if the notes imply one; otherwise an empty string.",
     "",
     "Two rules, and they pull against each other. Hold both:",
-    "1. REWRITE. Turn their shorthand into a clean second-person sentence, capitalised",
-    "   properly. Never echo a bracketed age, and never hand back their text verbatim —",
-    "   a copy of the note is already on screen above this line.",
+    `1. REWRITE, IN ${langName(input.locale).toUpperCase()}. Turn their shorthand into a clean second-person`,
+    `   sentence in ${langName(input.locale)}, capitalised properly — the notes may have been typed in`,
+    "   another language, so translate the sense rather than copying the words. Never echo",
+    "   a bracketed age, and never hand back their text verbatim: a copy of the note is",
+    "   already on screen above this line.",
     "2. INVENT NOTHING. Every place, character, item, quest and event you name must",
     "   appear in the notes. Do not add a location, a person or an object they did not",
     "   write down, however plausible it sounds for this game — a detail you supplied is",
@@ -574,7 +629,7 @@ export async function aiResume(input: {
     deviceId: input.deviceId,
     prompt,
     schema: RESUME_SCHEMA,
-    cacheOn: { g: input.game, n: notes },
+    cacheOn: { g: input.game, n: notes, l: input.locale ?? "en" },
   });
 }
 

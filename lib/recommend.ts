@@ -35,21 +35,82 @@ export type RecommendInput = {
   recentAppids?: number[];
 };
 
-/** One badge-sized justification, generated from a scoring component. */
-export type Reason = { icon: string; label: string };
+/**
+ * One badge-sized justification, generated from a scoring component.
+ *
+ * `label` is English and stays English: it is what the AI layer is shown and
+ * what a history entry stores — data, not interface. `key` + `data` are what
+ * the UI renders, which is how the same component reads in either language
+ * without the engine ever knowing a language exists.
+ */
+export type ReasonKey =
+  | "mood"
+  | "custom"
+  | "shortFit"
+  | "longFit"
+  | "momentum"
+  | "never"
+  | "stale"
+  | "taste";
+
+export type Reason = {
+  icon: string;
+  label: string;
+  key: ReasonKey;
+  data?: { tag?: string; hours?: number; text?: string };
+};
+
+/**
+ * A reason with the arithmetic behind it. The verdict badges print `31/40`,
+ * and a badge that showed a number the engine did not compute would be the one
+ * lie in an app whose whole pitch is that the maths is visible.
+ */
+export type ScoredReason = Reason & { points: number; max: number };
+
+/**
+ * The ceiling each component can reach, so a badge has a denominator.
+ *
+ * Exported because the UI rebuilds a pick when the model chooses a different
+ * game from the shortlist, and a denominator guessed at the call site is how
+ * "15/15 momentum" became "15/40".
+ */
+export const REASON_MAX: Record<ReasonKey, number> = {
+  mood: 40,
+  custom: 40,
+  shortFit: 20,
+  longFit: 20,
+  momentum: 15,
+  never: 15,
+  stale: 15,
+  taste: 10,
+};
+
+/** The tags a draw is matching on, plus how to name the match afterwards. */
+type NeedleSet = {
+  list: string[];
+  icon: string;
+  label: string;
+  key: Extract<ReasonKey, "mood" | "custom">;
+  /** The player's own words, when they typed instead of picking a mood. */
+  text?: string;
+};
 
 export type RecommendPick = {
   appid: number;
   name: string;
-  /** Prose summary of `reasons`, for the existing pick card copy. */
+  /** Prose summary of `reasons`, in English — what the AI layer is shown. */
   reason: string;
-  reasons: Reason[];
+  reasons: ScoredReason[];
 };
 
 export type Recommendation = {
   pick: RecommendPick;
-  /** 1-2 runner-up games, each with a one-line justification. */
-  alternatives: { appid: number; name: string; reason: string }[];
+  /**
+   * 1-2 runner-ups. `reason` is the English label (what gets stored and what
+   * the model is shown); `hint` is the same thing structured, so the UI can
+   * say it in whichever language is on screen.
+   */
+  alternatives: { appid: number; name: string; reason: string; hint?: Reason }[];
 };
 
 export type RecommendResult =
@@ -251,7 +312,7 @@ const MOOD_ICON: Record<PickerMood, string> = {
 function scoreGame(
   game: PickerGame,
   input: RecommendInput,
-  needles: { list: string[]; icon: string; label: string } | null,
+  needles: NeedleSet | null,
   recent: Set<number>
 ): Scored {
   const tags = game.tags ?? [];
@@ -269,6 +330,8 @@ function scoreGame(
         reason: {
           icon: needles.icon,
           label: `${hits[0].tag} — ${needles.label}`,
+          key: needles.key,
+          data: { tag: hits[0].tag, text: needles.text },
         },
       });
     }
@@ -282,16 +345,17 @@ function scoreGame(
 
     let points: number = W.timeBase;
     let label: string | null = null;
+    let key: Extract<ReasonKey, "shortFit" | "longFit"> | null = null;
 
     if (input.time === "short") {
       points +=
         cap(shortHits) * W.timeBonusPerTag - cap(longHits) * W.timeMalusPerTag;
-      if (shortHits) label = "Made for short bursts";
+      if (shortHits) { label = "Made for short bursts"; key = "shortFit"; }
       else if (longHits) label = "Wants more room than you have";
     } else if (input.time === "long") {
       points +=
         cap(longHits) * W.timeBonusPerTag - cap(shortHits) * W.timeMalusPerTag;
-      if (longHits) label = "Rewards a long sitting";
+      if (longHits) { label = "Rewards a long sitting"; key = "longFit"; }
       else if (shortHits) label = "Over before the evening is";
     }
     // `medium` stays at the neutral base — almost anything fits 1–2 hours.
@@ -301,8 +365,12 @@ function scoreGame(
       key: "time",
       points,
       reason:
-        points > W.timeBase && label
-          ? { icon: "🕐", label: `${label} — fits ${TIME_LABEL[input.time]}` }
+        points > W.timeBase && label && key
+          ? {
+              icon: "🕐",
+              label: `${label} — fits ${TIME_LABEL[input.time]}`,
+              key,
+            }
           : undefined,
     });
   }
@@ -321,6 +389,8 @@ function scoreGame(
       reason: {
         icon: "🔥",
         label: `${Math.max(1, Math.round(hours))}h in the last 2 weeks — you're mid-run`,
+        key: "momentum",
+        data: { hours: Math.max(1, Math.round(hours)) },
       },
     });
   }
@@ -332,7 +402,11 @@ function scoreGame(
     components.push({
       key: "rediscovery",
       points: W.rediscoveryNever,
-      reason: { icon: "💤", label: "Never launched — still in its wrapper" },
+      reason: {
+        icon: "💤",
+        label: "Never launched — still in its wrapper",
+        key: "never",
+      },
     });
   } else if (game.playtimeMin < W.staleUnderMin && recentMin === 0) {
     components.push({
@@ -341,6 +415,8 @@ function scoreGame(
       reason: {
         icon: "💤",
         label: `Only ${Math.round(game.playtimeMin / 60)}h in — you never gave it a real shot`,
+        key: "stale",
+        data: { hours: Math.round(game.playtimeMin / 60) },
       },
     });
   }
@@ -356,6 +432,8 @@ function scoreGame(
         reason: {
           icon: "🎯",
           label: `${hits[0].tag} — one of your favourite genres`,
+          key: "taste",
+          data: { tag: hits[0].tag },
         },
       });
     }
@@ -426,7 +504,7 @@ export function recommendGame(input: RecommendInput): RecommendResult {
   // beats silently scoring on a word nobody tagged.
   const custom = input.customMood?.trim();
   let note: string | undefined;
-  let needles: { list: string[]; icon: string; label: string } | null = null;
+  let needles: NeedleSet | null = null;
 
   if (custom) {
     const tokens = moodTokens(custom);
@@ -434,7 +512,13 @@ export function recommendGame(input: RecommendInput): RecommendResult {
       pool.some((g) => tagHits(g.tags ?? [], t))
     );
     if (lands) {
-      needles = { list: tokens, icon: "✨", label: `matches “${custom}”` };
+      needles = {
+        list: tokens,
+        icon: "✨",
+        label: `matches “${custom}”`,
+        key: "custom",
+        text: custom,
+      };
     } else {
       note = `Nothing in your library is tagged anything like “${custom}”, so I picked on time and playtime instead. Try a genre word — “roguelike”, “cozy”, “story”.`;
     }
@@ -443,6 +527,7 @@ export function recommendGame(input: RecommendInput): RecommendResult {
       list: MOOD_TAGS[input.mood],
       icon: MOOD_ICON[input.mood],
       label: "your mood",
+      key: "mood",
     };
   }
 
@@ -458,11 +543,18 @@ export function recommendGame(input: RecommendInput): RecommendResult {
 
   // Reasons: the components that actually earned points, best first, capped at
   // four so the card stays readable.
-  const reasons = winner.components
+  const reasons: ScoredReason[] = winner.components
     .filter((c) => c.points > 0 && c.reason)
     .sort((a, b) => b.points - a.points)
     .slice(0, 4)
-    .map((c) => c.reason as Reason);
+    .map((c) => {
+      const reason = c.reason as Reason;
+      return {
+        ...reason,
+        points: Math.round(c.points),
+        max: REASON_MAX[reason.key],
+      };
+    });
 
   const alternatives = shortlist
     .filter((s) => s.game.appid !== winner.game.appid)
@@ -475,6 +567,7 @@ export function recommendGame(input: RecommendInput): RecommendResult {
         appid: s.game.appid,
         name: s.game.name,
         reason: top?.reason?.label ?? `Also fits ${TIME_LABEL[input.time]}.`,
+        hint: top?.reason,
       };
     });
 
@@ -525,10 +618,21 @@ export function shortlist(
 export function explain(input: RecommendInput) {
   const recent = new Set(input.recentAppids ?? []);
   const custom = input.customMood?.trim();
-  const needles = custom
-    ? { list: moodTokens(custom), icon: "✨", label: `matches “${custom}”` }
+  const needles: NeedleSet | null = custom
+    ? {
+        list: moodTokens(custom),
+        icon: "✨",
+        label: `matches “${custom}”`,
+        key: "custom",
+        text: custom,
+      }
     : input.mood
-      ? { list: MOOD_TAGS[input.mood], icon: MOOD_ICON[input.mood], label: "your mood" }
+      ? {
+          list: MOOD_TAGS[input.mood],
+          icon: MOOD_ICON[input.mood],
+          label: "your mood",
+          key: "mood",
+        }
       : null;
 
   return input.library

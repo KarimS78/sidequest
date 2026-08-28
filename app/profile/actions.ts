@@ -1,6 +1,6 @@
 "use server";
 
-import { aiPortrait, aiStatus, budgetSnapshot, type AiPortrait } from "@/lib/ai";
+import { aiPortrait, aiStatus, budgetSnapshot, type AiLocale, type AiPortrait } from "@/lib/ai";
 import { PRICE_PER_MTOK } from "@/lib/ai-guard";
 
 export type AiStatus = {
@@ -81,6 +81,7 @@ export async function getAiPortrait(req: {
   };
   tags: { tag: string; count: number }[];
   stated: string[];
+  locale: AiLocale;
 }): Promise<PortraitResult> {
   const res = await aiPortrait(req);
   if (!res.ok) return { ok: false, reason: res.reason };

@@ -1,945 +1,695 @@
 @import "tailwindcss";
 
 /* ============================================================
-   SideQuest — THE SERVICE PANEL
+   SideQuest — STUDIO NUIT
    ------------------------------------------------------------
-   Not the attract screen. The back of the cabinet: the door the
-   operator opens, with the board inside and the carts racked on it.
-   An MVS — the arcade whose games are cartridges — which is why a
-   service panel and a shelf of carts are the same object here.
+   A dark board, dense but calm, with poster typography and one
+   cinematic verdict laid over the game's own key art.
 
-   That choice is the whole direction, and it earns two things a
-   neon front-of-house UI cannot:
+   Two rules hold the whole thing together:
 
-   1. SOBRIETY IS NATIVE. A maintenance panel is silkscreen on steel
-      and one amber readout. No gradients for mood, no glow for
-      decoration. Amber means LIVE and nothing else, so when it
-      appears you look at it.
-   2. THE UI STATES ITSELF. Machines built to be serviced tell you
-      which channel is set, what is missing, and what happens next.
-      That is not a layer added on top of this design — it IS the
-      design: numbered channels, filled segments, and a readout that
-      always names the next move.
+   1. ONE VIOLET, AND IT MEANS "THIS IS THE ANSWER". The glow is
+      spent on exactly two things — the primary call to action and
+      the mark. Everywhere else the interface is steel and type. A
+      glow on every card is wallpaper; a glow on one thing is a
+      pointer.
+   2. NOTHING IS FLAT. A page of pure #0d1114 reads as an unpainted
+      div, so the ground carries 3% grain and every surface sits one
+      step out of it. No glass, no page-wide gradients: a single
+      violet pool behind the hero and nothing else.
 
-   Materials: brushed steel, engraved grooves, silkscreened labels,
-   an inset CRT strip, indicator LEDs. Nothing rounds much; nothing
-   bounces; nothing shines except what is powered.
+   Type is three families and no more. Clash Display carries the
+   posters, Instrument Sans carries the reading, Geist Mono carries
+   anything the engine computed — a score, an hour count, a session
+   length. Mono is how you can tell a number came from the maths.
    ============================================================ */
 
 :root {
-  /* ---- the cabinet ---- */
-  --ground: #0d1114;      /* inside the cabinet — cold, never a warm black */
-  --plank: #161c20;       /* a raised plate bolted to it */
-  --plank-edge: #05080a;  /* the groove around every plate */
-  --panel-hi: #2a343b;    /* the lit top edge of brushed steel */
-  --line: #2b353b;        /* engraved hairline, control borders */
-  --line-soft: #1e262b;   /* the quieter divider */
+  /* ---- ground and surfaces ---- */
+  --background: #0d1114;
+  --surface: #141922;
+  --surface-2: #0b0e13;
 
-  /* ---- moulded cart plastic (MVS: dark, not cream) ---- */
-  --shell: #39424a;
-  --shell-dark: #232a30;
-  --shell-cream: #4c5760;  /* the second shell run — a rack is never one batch */
-  --contacts: #ffb020;     /* amber. LIVE, and only ever LIVE */
-  --contacts-dim: #6b4a10; /* an indicator that exists but is not powered */
+  --border: #242c3a;
+  --border-strong: #2c3442;
 
-  /* ---- silkscreen ---- */
-  --label: #dfe6ea;       /* printed ink on steel, and the cart label stock */
-  --ink: #0d1114;         /* type ON that label stock */
-  --ink-soft: #7c8b93;    /* secondary, cool — the same grey as the panel print */
-  --paper: #10161a;       /* the window a cover sits in: a screen, not paper */
-  --crt: #080c0e;         /* the readout well */
+  --foreground: #e8ecf4;
+  --muted: #99a3b3;
+  --subtle: #6d7686;
 
-  /* ---- one indicator LED per mood ---- */
-  --story: #4a8fd4;
-  --chill: #34b3a0;
-  --challenge: #e34a2f;
-  --quick: #f0c020;
+  /* ---- the one accent ---- */
+  --accent: #7c5cff;
+  --accent-soft: #a794ff;
+  --accent-dim: rgba(124, 92, 255, 0.14);
+  --accent-line: rgba(124, 92, 255, 0.38);
 
-  --r-cart: 8px;          /* a moulded shell corner */
-  --r-label: 2px;         /* a printed sticker barely rounds */
+  /* The signature glow. Primary CTA and the mark. Nowhere else. */
+  --glow: 0 0 24px rgba(124, 92, 255, 0.35);
+  --glow-strong: 0 0 34px rgba(124, 92, 255, 0.5);
 
-  /* Mechanical motion: things travel and stop. No spring easing anywhere —
-     that restraint is the direction, not an oversight. */
-  --fast: 120ms;
-  --slow: 260ms;
-  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
-  --seat: cubic-bezier(0.85, 0, 0.9, 1);
+  /* ---- fixed radii, no in-between values ---- */
+  --r-btn: 8px;
+  --r-input: 10px;
+  --r-card: 16px;
 
-  --spin-ms: 2500ms;
-  --settle-ms: 300ms;
+  /* ---- motion ---- */
+  --ease-out-quest: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 180ms;
+  --t-base: 300ms;
+  --t-slow: 520ms;
 
-  /* Brushed steel. One angle for the whole app, so every plate reads as
-     cut from the same sheet. */
-  --steel: linear-gradient(
-    177deg,
-    #232c32 0%,
-    #1a2126 38%,
-    #141a1e 72%,
-    #10161a 100%
-  );
-  --grain: repeating-linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.014) 0 1px,
-    transparent 1px 3px
-  );
+  --view-exit: 150ms;
+  --view-enter: 220ms;
 }
 
 @theme inline {
-  --color-ground: var(--ground);
-  --color-plank: var(--plank);
-  --color-plank-edge: var(--plank-edge);
-  --color-panel-hi: var(--panel-hi);
-  --color-line: var(--line);
-  --color-line-soft: var(--line-soft);
+  --color-base: var(--background);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface-2);
 
-  --color-shell: var(--shell);
-  --color-shell-dark: var(--shell-dark);
-  --color-shell-cream: var(--shell-cream);
-  --color-contacts: var(--contacts);
-  --color-contacts-dim: var(--contacts-dim);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
 
-  --color-label: var(--label);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-paper: var(--paper);
-  --color-crt: var(--crt);
+  --color-fg: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
 
-  --color-story: var(--story);
-  --color-chill: var(--chill);
-  --color-challenge: var(--challenge);
-  --color-quick: var(--quick);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-line: var(--accent-line);
 
-  --radius-cart: var(--r-cart);
-  --radius-label: var(--r-label);
+  --radius-btn: var(--r-btn);
+  --radius-input: var(--r-input);
+  --radius-card: var(--r-card);
 
-  --font-display: var(--font-big-shoulders);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
+/* ============================================================
+   BASE
+   ============================================================ */
+
 html {
-  background: var(--ground);
+  background: var(--background);
   color-scheme: dark;
 }
 
 body {
-  background:
-    /* a faint pool of light from the open cabinet door, top-left */
-    radial-gradient(120% 70% at 12% -10%, rgba(120, 160, 180, 0.05), transparent 60%),
-    var(--ground);
-  color: var(--label);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The grain. Three percent of noise is the difference between a dark
+   interface and a dark rectangle: it is what stops a large flat fill from
+   reading as an unpainted div. Fixed, so it does not travel with scroll. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 ::selection {
-  background: var(--contacts);
-  color: var(--ink);
+  background: var(--accent);
+  color: #fff;
 }
 
-/* ---------- the app column ----------------------------------
-   The phone measure: one hand, one column. Screens that are genuinely
-   narrow by nature (connecting an account, the offline card) keep it at
-   every size; the rest use .room and open up on a desktop. */
-.column {
+/* Every interactive thing, one ring, no exceptions. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+  border-radius: var(--r-btn);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.06;
+}
+
+/* ============================================================
+   MEASURE
+   ============================================================ */
+
+.wrap {
   width: 100%;
-  max-width: 28rem;
-  margin: 0 auto;
+  max-width: 76rem;
+  margin-inline: auto;
   padding-inline: 1.25rem;
 }
 
-.has-nav {
-  padding-bottom: calc(62px + env(safe-area-inset-bottom) + 1.5rem);
+@media (min-width: 1024px) {
+  .wrap {
+    padding-inline: 2rem;
+  }
+}
+
+/* The narrow measure, for a screen that is a form and nothing else. */
+.wrap-narrow {
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+/* Clears the phone tab bar. Desktop wears a top bar instead, so it is a no-op. */
+.has-tabs {
+  padding-bottom: calc(66px + env(safe-area-inset-bottom) + 2rem);
+}
+
+@media (min-width: 1024px) {
+  .has-tabs {
+    padding-bottom: 4rem;
+  }
 }
 
 /* ============================================================
-   PANEL MATERIALS
+   TYPE ROLES
    ============================================================ */
 
-/* A plate bolted to the cabinet. Unlike the old furniture this is not
-   desktop-only: on a phone the panel IS the screen, so the plate has to
-   hold at 380px too. */
-.plate {
-  position: relative;
-  background: var(--steel), var(--grain);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
-    0 12px 24px -18px rgba(0, 0, 0, 0.95);
+/* Anything the engine computed. Mono is the tell. */
+.mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-/* The four bolts. Only the identity plate wears them — a panel covered
-   in screws is a texture, not a machine. */
-.bolted::before,
-.bolted::after {
-  content: "";
-  position: absolute;
-  top: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background:
-    linear-gradient(90deg, transparent 44%, rgba(0, 0, 0, 0.55) 44% 56%, transparent 56%),
-    radial-gradient(circle at 35% 30%, #4a555c, #1b2226 70%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 1px rgba(0, 0, 0, 0.6);
-}
-.bolted::before { left: 8px; }
-.bolted::after  { right: 8px; }
-
-/* ---------- silkscreened section label -----------------------
-   A printed caption, then an engraved groove running to the edge.
-   Heads every block in the app. */
-.rule {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  margin: 0.75rem 0 0.4375rem;
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
-}
-.rule::after {
-  content: "";
-  flex: 1;
-  height: 2px;
-  border-radius: 1px;
-  /* engraved: a dark cut with a lit lower lip */
-  background: linear-gradient(180deg, var(--plank-edge) 0 1px, rgba(255, 255, 255, 0.05) 1px 2px);
-}
-
-/* ============================================================
-   THE CHANNEL RAIL — the signature
-   ------------------------------------------------------------
-   Every setting is a numbered channel on the board, and its segments
-   fill as you set it. The numbering is not decoration: 01 and 02 are
-   inputs, 03 is the output, and you genuinely cannot run 03 without
-   the two above it. Looking at the rail tells you where you are
-   without a single sentence of instruction.
-   ============================================================ */
-
-.chan {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.4375rem 0 0.3125rem;
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 10px;
+/* The small violet line above a headline. */
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.chan-no {
-  color: var(--contacts-dim);
-  font-variant-numeric: tabular-nums;
-  transition: color var(--slow) var(--ease);
-}
-.chan-set .chan-no {
-  color: var(--contacts);
-}
-.chan-name {
-  flex: 1;
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
-}
-.chan-value {
-  color: var(--label);
-  letter-spacing: 0.1em;
+  color: var(--accent-soft);
 }
 
-/* The fill meter. Three cells, lit left to right — the shape an operator
-   reads at a glance from across the room. */
-.seg {
-  display: flex;
-  gap: 2px;
-}
-.seg i {
-  width: 9px;
-  height: 7px;
-  border-radius: 1px;
-  background: #10171b;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-  transition: background var(--slow) var(--ease), box-shadow var(--slow) var(--ease);
-}
-.seg i[data-on] {
-  background: var(--lit, var(--contacts));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 0 7px -1px var(--lit, var(--contacts));
-}
-/* Channel 03 while the draw runs: the cells chase, so the wait reads as the
-   machine working rather than the app hanging. */
-.seg-run i {
-  animation: seg-run 900ms steps(1) infinite;
-}
-.seg-run i:nth-child(2) { animation-delay: 300ms; }
-.seg-run i:nth-child(3) { animation-delay: 600ms; }
-@keyframes seg-run {
-  0%, 32% {
-    background: var(--contacts);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 7px -1px var(--contacts);
-  }
-  33%, 100% {
-    background: #10171b;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-  }
+.eyebrow-quiet {
+  color: var(--subtle);
 }
 
-/* ============================================================
-   THE READOUT — the second signature
-   ------------------------------------------------------------
-   An inset CRT strip along the bottom of the panel. It is the only
-   place in the app that speaks in full sentences, and it has exactly
-   one job: say what just happened and what to do next. If the readout
-   is ever vague, the screen has a bug.
-   ============================================================ */
-
-.readout {
-  position: relative;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--crt);
-  box-shadow:
-    inset 0 2px 6px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgba(255, 176, 32, 0.07);
-  padding: 0.5rem 0.75rem;
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  letter-spacing: 0.02em;
-  color: var(--contacts);
-  text-shadow: 0 0 8px rgba(255, 176, 32, 0.4);
-}
-/* Scanlines, and only here. A phosphor screen has them; brushed steel
-   does not, and putting them everywhere would make the app a costume. */
-.readout::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.28) 0 1px,
-    transparent 1px 3px
-  );
-}
-/* The lines crawl. A phosphor screen is never perfectly still, and this is the
-   one place in the app allowed to be alive while nothing is happening. */
-.readout::after {
-  inset: -4px 0;
-  animation: scanline-drift 7s linear infinite;
-}
-@keyframes scanline-drift {
-  from { transform: translateY(0); }
-  to { transform: translateY(3px); }
-}
-.readout-dim {
-  color: #8a9aa2;
-  text-shadow: none;
-}
-/* The cursor block: one square, steady rhythm, no fade. */
-.caret {
-  display: inline-block;
-  width: 6px;
-  height: 11px;
-  margin-left: 3px;
-  vertical-align: -1px;
-  background: var(--contacts);
-  animation: caret 1s steps(1) infinite;
-}
-@keyframes caret {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-/* ============================================================
-   POWER-ON SELF TEST
-   ------------------------------------------------------------
-   The orchestrated moment, and the only page-load animation in the
-   app. An arcade board does not fade in — it comes up one subsystem
-   at a time and the operator watches the order, which is exactly the
-   order the rail wants you to read: 01, then 02, then 03, then the
-   readout says what it found. It runs once, on mount.
-
-   The reveal is a top-down wipe, never a fade: everything printed in
-   this app arrives by a silkscreen pass (see .print).
-   ============================================================ */
-
-.post > * {
-  animation: post-in 300ms var(--ease) both;
-}
-.post > *:nth-child(1) { animation-delay: 60ms; }
-.post > *:nth-child(2) { animation-delay: 200ms; }
-.post > *:nth-child(3) { animation-delay: 340ms; }
-.post > *:nth-child(4) { animation-delay: 480ms; }
-@keyframes post-in {
-  from { clip-path: inset(0 0 100% 0); opacity: 0.35; }
-  to { clip-path: inset(0 0 0 0); opacity: 1; }
-}
-
-/* ============================================================
-   SILKSCREENED SERVICE MARKINGS
-   ------------------------------------------------------------
-   The legends a real cabinet carries: a warning, a revision, a
-   service code. They are printed ON the steel — recessed ink, no
-   box around them — so they read as part of the machine rather than
-   as another UI element competing with the rail.
-   ============================================================ */
-
-.legend {
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
-  letter-spacing: 0.2em;
+/* Poster type. Capitals, tight leading, barely-there tracking. */
+.poster {
+  font-family: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 600;
   text-transform: uppercase;
-  color: #4e5c64;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: color var(--slow) var(--ease);
-}
-.legend:hover {
-  color: #7c8b93;
-}
-/* The one marking that is a warning gets the one colour a warning gets. */
-.legend-warn {
-  color: #8a5a3a;
-}
-.legend-warn:hover {
-  color: #c8724a;
+  letter-spacing: 0.01em;
+  /* 1.03 is the poster figure and it is right for English capitals. French
+     capitals carry accents — È, À, Ç — and at 1.03 the first line's accents
+     collide with whatever sits above. 1.06 buys the two pixels they need and
+     is still tighter than any default. */
+  line-height: 1.06;
+  text-wrap: balance;
 }
 
 /* ============================================================
-   THE MAIN SWITCH
-   The one heavy control on the panel. Steel bezel, amber face, a real
-   travel of 3px. Everything else in the app is flat so this reads as
-   the only thing you press.
+   SURFACES
    ============================================================ */
 
-.switch {
-  position: relative;
-  width: 100%;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #ffc14a 0%, #f0a010 52%, #c67f06 100%);
-  color: #1a1105;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
-    0 3px 0 #7d4f04,
-    0 12px 22px -10px rgba(255, 176, 32, 0.25);
-  transition: transform var(--fast) var(--seat), box-shadow var(--fast) var(--ease);
-}
-.switch:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.35),
-    0 0 0 #7d4f04;
-}
-/* Running: the switch is held down and the panel is busy. */
-.switch:disabled {
-  background: linear-gradient(180deg, #46484a 0%, #34383a 100%);
-  color: #8d949a;
-  box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.55),
-    0 0 0 #000;
-  transform: translateY(3px);
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
 }
 
-/* A secondary control: engraved into the plate, not raised off it. */
-.key {
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: linear-gradient(180deg, #202830 0%, #171d22 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 2px 0 #0a0e11;
-  transition: transform var(--fast) var(--seat), border-color var(--fast) var(--ease);
-}
-.key:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-.key[aria-pressed="true"] {
-  border-color: var(--lit, var(--contacts));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 0 1px color-mix(in srgb, var(--lit, var(--contacts)) 22%, transparent),
-    0 2px 0 #0a0e11;
-}
-
-/* ---------- indicator LED ------------------------------------
-   Off is not invisible: a dead LED is still a lens in a bezel. That is
-   how you can see there is a channel there to light. */
-.led {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #131a1e;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  transition: background var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
-}
-.led-on {
-  background: var(--lit, var(--contacts));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 0 8px -1px var(--lit, var(--contacts)),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-.led-pulse {
-  animation: led-pulse 2.4s var(--ease) infinite;
-}
-@keyframes led-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+.card-quiet {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
 }
 
 /* ============================================================
-   THE CARTRIDGE
-   The signature object, now on a board instead of a shelf: an MVS
-   cart is dark plastic with a big silkscreened label. Everything else
-   is quiet steel so this can carry.
+   CONTROLS
    ============================================================ */
 
-.cart {
-  position: relative;
-  background: linear-gradient(160deg, var(--shell) 0%, var(--shell-dark) 100%);
-  border-radius: var(--r-cart) var(--r-cart) 2px 2px;
-  padding: 11px 11px 0;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-    0 18px 30px -14px rgba(0, 0, 0, 0.9);
-  transition: transform var(--slow) var(--ease);
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.15rem;
+  border-radius: var(--r-btn);
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out-quest),
+    background-color var(--t-fast) var(--ease-out-quest),
+    border-color var(--t-fast) var(--ease-out-quest),
+    box-shadow var(--t-fast) var(--ease-out-quest),
+    color var(--t-fast) var(--ease-out-quest);
 }
-/* moulded grip ridges along the top shoulder */
-.cart::before {
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The one thing on the screen wearing the glow. */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--glow);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--glow-strong);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* The arrow leaves ahead of the button. */
+.btn-primary .arrow {
+  display: inline-block;
+  transition: transform var(--t-base) var(--ease-out-quest);
+}
+
+.btn-primary:hover .arrow {
+  transform: translateX(4px);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--accent-dim);
+}
+
+.btn-quiet {
+  background: transparent;
+  color: var(--muted);
+  min-height: 38px;
+  padding: 0 0.75rem;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  color: var(--foreground);
+}
+
+/* Magnetic CTA: JS writes --mx/--my, never more than 4px. */
+.magnetic {
+  transform: translate(var(--mx, 0px), var(--my, 0px));
+  transition: transform var(--t-base) var(--ease-out-quest);
+}
+
+input[type="text"],
+input[type="search"],
+textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+  color: var(--foreground);
+  padding: 0.7rem 0.85rem;
+  font-size: 14px;
+  transition: border-color var(--t-fast) var(--ease-out-quest);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--subtle);
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--accent-line);
+}
+
+/* ---------- segmented control: the background slides ---------- */
+
+.seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+}
+
+.seg::before {
   content: "";
   position: absolute;
-  top: 4px;
-  left: 14px;
-  right: 14px;
-  height: 5px;
-  border-radius: 2px;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.3) 0 2px,
-    rgba(255, 255, 255, 0.05) 2px 5px
-  );
+  inset: 4px auto 4px 4px;
+  width: calc((100% - 8px) / var(--seg-n, 3));
+  border-radius: 7px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-line);
+  transform: translateX(calc(var(--seg-i, 0) * 100%));
+  transition: transform var(--t-base) var(--ease-out-quest);
 }
 
-/* the second shell run — a rack is never one batch */
-.cart-cream {
-  background: linear-gradient(160deg, var(--shell-cream) 0%, #2d353c 100%);
-}
-
-.cart-out {
-  transform: translateY(-26px) rotate(-1.2deg);
-}
-.cart-seating {
-  transform: translateY(0) rotate(0);
-  transition: transform 180ms var(--seat);
-}
-.cart-seated {
-  animation: seat-knock 90ms steps(2) 1;
-}
-@keyframes seat-knock {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(2px); }
-  100% { transform: translateY(0); }
-}
-
-/* the edge connector, only bared while the cart is out of the slot */
-.cart-contacts {
-  height: 12px;
-  margin: 9px -11px 0;
-  opacity: 0;
-  transition: opacity var(--fast) var(--ease);
-  background: repeating-linear-gradient(
-    90deg,
-    var(--contacts) 0 6px,
-    #8f6210 6px 9px
-  );
-}
-.cart-out .cart-contacts {
-  opacity: 1;
-}
-
-/* the slot it drops into */
-.deck-slot {
-  height: 14px;
-  border-radius: 2px;
-  background: var(--plank-edge);
-  box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.9),
-    0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.deck-led {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #1b2429;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.8);
-}
-.is-reading .deck-led {
-  animation: led 420ms steps(1) infinite;
-}
-.is-reading .deck-led:nth-child(2) { animation-delay: 140ms; }
-.is-reading .deck-led:nth-child(3) { animation-delay: 280ms; }
-@keyframes led {
-  0%, 49% { background: var(--contacts); box-shadow: 0 0 7px var(--contacts); }
-  50%, 100% { background: #1b2429; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.8); }
-}
-
-/* the label prints in with a wipe — a silkscreen pass, not a fade */
-.print {
-  animation: print 380ms var(--ease) both;
-}
-@keyframes print {
-  0% { clip-path: inset(0 100% 0 0); }
-  100% { clip-path: inset(0 0 0 0); }
-}
-
-/* ---------- the rack of spines --------------------------------
-   Carts stood on end in the cabinet, each with its mood LED band. */
-.spine {
+.seg > button {
   position: relative;
-  flex: 0 0 auto;
-  width: 13px;
-  height: var(--h, 48px);
-  border-radius: 2px 2px 0 0;
-  background: linear-gradient(180deg, var(--shell) 0%, var(--shell-dark) 100%);
-  box-shadow:
-    inset -1px 0 0 rgba(0, 0, 0, 0.45),
-    inset 1px 0 0 rgba(255, 255, 255, 0.1);
-  transition: transform var(--slow) var(--ease);
-}
-.spine::after {
-  content: "";
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  top: 11px;
-  height: 26px;
-  border-radius: 1px;
-  background: var(--tint, var(--story));
-  opacity: 0.85;
-}
-.spine-cream {
-  background: linear-gradient(180deg, var(--shell-cream) 0%, #2d353c 100%);
-}
-.spine:hover {
-  transform: translateY(-6px);
-}
-/* While the deck scans, a light runs the length of the rack — the same light
-   the reel is following. Without it the reel spins in one corner and the rack
-   sits there dead, and they read as two unrelated widgets instead of one
-   machine doing one thing. The delay is the spine's own index, so the light
-   travels rather than blinking everything at once. */
-.rack-live .spine::after {
-  animation: rack-chase 1100ms linear infinite;
-  animation-delay: calc(var(--i, 0) * 26ms);
-}
-@keyframes rack-chase {
-  0%, 82%, 100% {
-    filter: none;
-  }
-  88% {
-    filter: brightness(2.2) saturate(1.3);
-  }
-}
-/* the hole left by the cartridge that was pulled */
-.spine-gap {
-  background: none;
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.8);
-  pointer-events: none;
-}
-.spine-gap::after {
-  display: none;
+  z-index: 1;
+  min-height: 40px;
+  border-radius: 7px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--t-base) var(--ease-out-quest);
 }
 
-/* ---------- skeleton sweep ------------------------------------ */
-.sweep {
+.seg > button[aria-pressed="true"] {
+  color: var(--foreground);
+}
+
+/* ---------- chips: the fill wipes in, it does not blink on ---------- */
+
+.chip {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition:
+    color var(--t-base) var(--ease-out-quest),
+    border-color var(--t-base) var(--ease-out-quest);
 }
-.sweep::after {
+
+.chip::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.05),
-    transparent
-  );
-  animation: sweep 1.4s linear infinite;
-}
-@keyframes sweep {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(100%); }
+  z-index: -1;
+  background: var(--accent-dim);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-base) var(--ease-out-quest);
 }
 
-/* ---------- scrollbars ---------------------------------------- */
-.no-bar {
-  scrollbar-width: none;
-}
-.no-bar::-webkit-scrollbar {
-  display: none;
+.chip:hover {
+  color: var(--foreground);
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+.chip[aria-pressed="true"] {
+  color: var(--foreground);
+  border-color: var(--accent-line);
 }
-::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border: 2px solid var(--ground);
+
+.chip[aria-pressed="true"]::before {
+  transform: scaleX(1);
+}
+
+/* ---------- badges ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.6rem;
   border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: rgba(11, 14, 19, 0.62);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
+
+.badge b {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* ============================================================
+   THE VERDICT PANEL
+   The one place a game gets to be the whole frame.
+   ============================================================ */
+
+.verdict {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  isolation: isolate;
+}
+
+/* The art layer. Blurs and skews while the draw is rolling. */
+.verdict-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition:
+    filter var(--t-slow) var(--ease-out-quest),
+    transform var(--t-slow) var(--ease-out-quest);
+}
+
+.verdict.is-rolling .verdict-art {
+  filter: blur(6px) saturate(0.75);
+  transform: skewY(-1.2deg) scale(1.06);
+}
+
+/* Key art is bright and busy; type needs its own ground under it. */
+.verdict-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    var(--background) 4%,
+    rgba(13, 17, 20, 0.94) 26%,
+    rgba(13, 17, 20, 0.55) 52%,
+    rgba(13, 17, 20, 0.22) 100%
+  );
+}
+
+.verdict-body {
+  position: relative;
+  z-index: 2;
+}
+
+/* The seat: one flash of violet around the frame when the winner lands. */
+.verdict.is-seating {
+  animation: seat-flash 400ms var(--ease-out-quest) 1;
+}
+
+@keyframes seat-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0);
+    border-color: var(--border);
+  }
+  35% {
+    box-shadow: 0 0 34px 2px rgba(124, 92, 255, 0.45);
+    border-color: var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0);
+    border-color: var(--border);
+  }
+}
+
+/* Each rolled cover arrives from below. JS writes the duration, so the strip
+   visibly decelerates instead of ticking at a constant rate. */
+.reel-frame {
+  animation: reel-in var(--reel-ms, 120ms) linear both;
+}
+
+@keyframes reel-in {
+  /* Scaled past the frame on purpose: a cover that only translates leaves a
+     bare strip at the top of the panel on every single frame, and 24 of those
+     in two seconds reads as flicker rather than motion. */
+  from {
+    transform: translateY(24%) scale(1.6);
+  }
+  to {
+    transform: translateY(0) scale(1.6);
+  }
+}
+
+/* The winner settles rather than stops dead. */
+.seated {
+  animation: seated 520ms var(--spring) both;
+}
+
+@keyframes seated {
+  from {
+    transform: translateY(14px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* "Not this one": the card leaves left with a tilt, the next enters right. */
+.deal-out {
+  animation: deal-out 260ms var(--ease-out-quest) both;
+}
+
+.deal-in {
+  animation: deal-in 380ms var(--ease-out-quest) both;
+}
+
+@keyframes deal-out {
+  to {
+    transform: translateX(-14%) rotate(-2deg);
+    opacity: 0;
+  }
+}
+
+@keyframes deal-in {
+  from {
+    transform: translateX(12%) rotate(1.4deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) rotate(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   ENTRANCES
+   One cascade on mount. It does not re-fire on scroll — a page that
+   keeps animating while you read it is a page you cannot read.
+   ============================================================ */
+
+.rise {
+  animation: rise var(--t-slow) var(--ease-out-quest) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The winner's title, letter by letter. */
+.letters > span {
+  display: inline-block;
+  white-space: pre;
+  animation: rise 380ms var(--ease-out-quest) both;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+
+/* ============================================================
+   ART TILES
+   ============================================================ */
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-btn);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition:
+    transform var(--t-base) var(--ease-out-quest),
+    border-color var(--t-base) var(--ease-out-quest),
+    box-shadow var(--t-base) var(--ease-out-quest);
+}
+
+/* The glow lives on the hovered tile and on no other. */
+@media (hover: hover) {
+  .tile:hover {
+    transform: scale(1.03);
+    border-color: var(--accent-line);
+    box-shadow: var(--glow);
+    z-index: 2;
+  }
+}
+
+/* ============================================================
+   VIEW TRANSITIONS
+   Fade plus eight pixels. Anything more is a slideshow.
+   ============================================================ */
+
+::view-transition-old(.page) {
+  animation: var(--view-exit) ease-out both page-fade reverse;
+}
+
+::view-transition-new(.page) {
+  animation:
+    var(--view-enter) ease-in var(--view-exit) both page-fade,
+    var(--t-base) var(--ease-out-quest) both page-slide;
+}
+
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes page-slide {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   Everything above is transform and opacity, so switching it off
+   costs nothing but the flourish.
+   ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .verdict.is-rolling .verdict-art {
+    filter: none;
+    transform: none;
+  }
+
+  .magnetic {
+    transform: none !important;
   }
 }
-
-/* ============================================================
-   THE CABINET — desktop
-   The phone app is one plate held in the hand. On a large screen the
-   door swings open: the control plate on the left, the board and its
-   slot in the middle, the rack running the full width underneath.
-   Nothing is stretched — things are placed.
-   ============================================================ */
-
-.room {
-  width: 100%;
-  max-width: 28rem;
-  margin: 0 auto;
-  padding-inline: 1.25rem;
-}
-
-@media (min-width: 1024px) {
-  .room {
-    max-width: 82rem;
-    padding-inline: 2.5rem;
-  }
-  .has-nav {
-    padding-bottom: 3.5rem;
-  }
-  /* The gutter exists to clear the service rail, so it is conditioned on the
-     rail actually being there. The landing page drops the rail and gets its
-     full width back without a second flag that could disagree with the first. */
-  .app-shell:has(.rail) {
-    padding-left: 5.25rem;
-  }
-}
-/* A 27-inch screen is not a tall phone. Past this the cabinet keeps opening
-   rather than the column staying put with margins either side — but it stops
-   at 100rem, because a rail of controls stretched to 2560px is a spreadsheet. */
-@media (min-width: 1536px) {
-  .room {
-    max-width: 100rem;
-    padding-inline: 3.5rem;
-  }
-}
-
-/* ---------- the bench ----------------------------------------
-   The desktop working surface: controls, board, log. Three real
-   columns from lg up — not a two-column layout with a leftover strip,
-   which is what a phone layout looks like when you widen it. */
-@media (min-width: 1024px) {
-  .bench {
-    display: grid;
-    grid-template-columns: 20rem 19rem minmax(0, 1fr);
-    gap: 1.75rem;
-    align-items: start;
-  }
-}
-@media (min-width: 1280px) {
-  .bench {
-    grid-template-columns: 22rem 21rem minmax(0, 1fr);
-    gap: 2.5rem;
-  }
-}
-@media (min-width: 1536px) {
-  .bench {
-    grid-template-columns: 24rem 23rem minmax(0, 1fr);
-    gap: 3.5rem;
-  }
-}
-
-/* The control plate and the board. Same steel, different jobs: one
-   carries switches, the other carries the slot. */
-.panel {
-  position: relative;
-  background: var(--steel), var(--grain);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
-    0 14px 26px -20px rgba(0, 0, 0, 0.95);
-  /* the top pad clears the bolts */
-  padding: 1.5rem 1.125rem 1.125rem;
-}
-
-/* The board the slot is cut into. It needs a real edge, or the cart reads as
-   floating on the cabinet floor instead of sitting in a machine. */
-.plank-top {
-  position: relative;
-  background:
-    radial-gradient(90% 60% at 50% 0%, rgba(255, 176, 32, 0.05), transparent 70%),
-    var(--steel), var(--grain);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(0, 0, 0, 0.45),
-    0 22px 40px -28px rgba(0, 0, 0, 0.95);
-  padding: 1.25rem;
-}
-/* The board is live while the deck reads: the pool of light above the slot
-   comes up, and only then. */
-.is-reading .plank-top {
-  background:
-    radial-gradient(90% 60% at 50% 0%, rgba(255, 176, 32, 0.14), transparent 72%),
-    var(--steel), var(--grain);
-}
-
-/* ---------- the rail -----------------------------------------
-   Desktop navigation: the edge of the cabinet, with four seats. The
-   active one is marked by the same amber as a powered indicator. */
-.rail {
-  background: var(--steel), var(--grain);
-  border-right: 1px solid var(--line);
-}
-
-@media (min-width: 1024px) {
-  /* The rack has to hold both ends of the range: a 10-game demo and a
-     150-game library, in the same row, without overflowing the cabinet.
-     So the spines flex — capped at 22px so a short rack still reads as
-     cartridges rather than a bar chart, and floored at 6px so a full one
-     still reads as separate carts. A rack that does not fill the width is
-     not a layout bug; it is a rack with room on it. */
-  /* The rack is exactly as wide as the carts on it, capped by the cabinet.
-     Derived from the count rather than left to fit-content, which collapses a
-     flex row to its min-content size and turned a rack of ten into a 116px
-     smear in the corner. */
-  .rack {
-    width: min(100%, var(--rack-max, 100%));
-  }
-  .spine {
-    /* Grow to share the rack's width, shrink when a full library needs it.
-       The floor keeps a 150-cart rack readable as separate carts. */
-    flex: 1 1 0;
-    width: auto;
-    min-width: 6px;
-    height: calc(var(--h, 48px) * 1.75);
-  }
-  .spine::after {
-    top: 16px;
-    height: 44px;
-  }
-  .spine:hover {
-    transform: translateY(-10px);
-  }
-}
-
-/* ---------- the rack rail ------------------------------------- */
-.shelf-board {
-  height: 7px;
-  background: linear-gradient(180deg, #232c32, #10161a);
-  border-radius: 0 0 2px 2px;
-  box-shadow:
-    0 1px 0 var(--plank-edge),
-    0 10px 20px -14px rgba(0, 0, 0, 0.95);
-}
-
-/* ---------- the install dock ---------------------------------- */
-.install-dock {
-  bottom: calc(62px + env(safe-area-inset-bottom) + 0.75rem);
-}
-/* Same rule as the desktop gutter: the 62px is the bottom nav's height, so on a
-   screen without one the dock sits on the edge instead of floating above a gap. */
-.app-shell:not(:has(.rail)) .install-dock {
-  bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-}
-@media (min-width: 1024px) {
-  .install-dock {
-    bottom: 1.5rem;
-  }
-}
-
-/* ---------- keyboard focus -----------------------------------
-   Amber, like everything else that is live. Never removed, only shaped. */
-:focus-visible {
-  outline: 2px solid var(--contacts);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* ============================================================
-   EASTER EGGS
-   Every one is a physical joke about the machine, or a line this
-   audience has read a hundred times. They cost nothing until found.
-   ============================================================ */
-
-/* Konami: thirty lives. The whole rack goes live for half a minute. */
-[data-konami] .spine::after {
-  background: var(--contacts) !important;
-  box-shadow: 0 0 12px rgba(255, 176, 32, 0.5);
-}
-[data-konami] .cart-contacts {
-  opacity: 1;
-}
-
-/* Do a barrel roll. */
-.barrel-roll {
-  animation: barrel-roll 1100ms var(--ease) 1;
-}
-@keyframes barrel-roll {
-  from { transform: rotate(0); }
-  to { transform: rotate(360deg); }
-}
-
-/* Three red lights: the console everyone owned twice. */
-.rrod .deck-led {
-  background: #e34a2f !important;
-  box-shadow: 0 0 9px rgba(227, 74, 47, 0.85);
-  animation: none !important;
-}
-
-/* The blow-on-the-contacts ritual — dust off the label. */
-.blown {
-  animation: blown 620ms var(--ease) 1;
-}
-@keyframes blown {
-  0% { filter: brightness(1); }
-  30% { filter: brightness(1.3) contrast(1.05); }
-  100% { filter: brightness(1); }
-}
-
-/* ---------- the trophy card ----------------------------------
-   Unlocks arrive as a memory-card write: the card slides in, the
-   contact strip fills left to right, then it parks. */
-.trophy {
-  animation: trophy-in 260ms var(--ease) both;
-}
-@keyframes trophy-in {
-  from { transform: translateX(18px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-.trophy-write {
-  animation: trophy-write 900ms var(--ease) both;
-}
-@keyframes trophy-write {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-

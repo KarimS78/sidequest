@@ -1,90 +1,65 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef } from "react";
 import { unlock } from "@/lib/eggs";
+import { LogoContent, LOGO_WRAPPER } from "@/components/logo";
+import { useI18n } from "@/i18n/context";
+import { LOCALES, LOCALE_LABEL } from "@/i18n/locale";
 
 /**
- * Two housings for the same four seats.
+ * Two housings, four destinations.
  *
- * On a phone: the cabinet's bottom edge, four seats pinned there.
- * On a desktop: the service rail down the left, because a bar glued to the
- * bottom of a 27-inch screen is a phone app in a costume.
+ * On a phone the tab bar sits at the bottom, where a thumb is. On a desktop it
+ * becomes a top bar, because a bar glued to the bottom of a 27-inch screen is a
+ * phone app in a costume.
  *
- * Either way the active seat is marked in amber — the same amber as every
- * powered indicator in the app, so the current tab reads as the live one.
+ * The landing keeps the top bar but drops the tabs: a visitor who has not seen
+ * the product yet has nothing to navigate between. It keeps the language
+ * switch, which is the one control that has to be reachable everywhere.
  */
 const TABS = [
   {
     href: "/play",
-    label: "Draw",
-    // a cartridge above its slot
+    key: "play",
+    // a die: the draw
     path: (
       <>
-        <path d="M5 9h14v10H5z" />
-        <path d="M8 9V5h8v4" />
-        <path d="M9 19v2M15 19v2" />
+        <rect x="4" y="4" width="16" height="16" rx="4" />
+        <circle cx="9.2" cy="9.2" r="1.1" fill="currentColor" stroke="none" />
+        <circle cx="14.8" cy="14.8" r="1.1" fill="currentColor" stroke="none" />
       </>
     ),
   },
   {
     href: "/dashboard",
-    label: "Shelf",
+    key: "shelf",
     // spines standing on a board
     path: (
       <>
-        <path d="M4 4v16M9 4v16M14 4v16M19 4v16" />
+        <path d="M5 4v14M10 4v14M15 4v14M19 6v12" />
         <path d="M3 20h18" />
       </>
     ),
   },
   {
     href: "/history",
-    label: "Saves",
-    // a memory card
-    path: (
-      <>
-        <rect x="4" y="4" width="16" height="16" rx="1" />
-        <path d="M8 4v6h8V4" />
-        <path d="M8 20v-4h8v4" />
-      </>
-    ),
+    key: "saves",
+    // a bookmark: where you left off
+    path: <path d="M7 4h10v16l-5-4-5 4z" />,
   },
   {
     href: "/profile",
-    label: "You",
+    key: "you",
     path: (
       <>
-        <circle cx="12" cy="8.5" r="3.7" />
-        <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+        <circle cx="12" cy="8.5" r="3.6" />
+        <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" />
       </>
     ),
   },
-];
-
-function useActiveHref() {
-  const pathname = usePathname();
-  // /connect belongs to the library flow, so Shelf stays lit while you're in it.
-  return (
-    TABS.find((t) => pathname === t.href)?.href ??
-    (pathname.startsWith("/connect") ? "/dashboard" : null)
-  );
-}
-
-/**
- * The landing page is the front of the cabinet, not a tab of it: it carries its
- * own top bar and a switch that opens the board. Four seats of app navigation
- * on it would be a rail pointing into a machine the visitor hasn't started yet.
- *
- * The shell's desktop offset keys off this rail existing (`.app-shell:has(.rail)`
- * in globals.css), so removing it here also removes the gutter it clears —
- * one thing to change, not two that can disagree.
- */
-function useChromeless() {
-  return usePathname() === "/";
-}
+] as const;
 
 function TabIcon({ path }: { path: React.ReactNode }) {
   return (
@@ -103,98 +78,134 @@ function TabIcon({ path }: { path: React.ReactNode }) {
   );
 }
 
-/**
- * The mark at the top of the rail. Ask it nicely three times.
- *
- * It used to be "SQ" moulded into plastic. It is the real logo now — kept in
- * its own dark tile rather than knocked out onto the steel, because the mark
- * carries its own glow and its own near-black ground, and floating it on a
- * brushed panel would show every pixel of that ground as a smudge.
- */
-function Mark() {
-  const taps = useRef(0);
+function useActiveHref() {
+  const pathname = usePathname();
+  // /connect belongs to the library flow, so Shelf stays lit inside it.
   return (
-    <button
-      onClick={() => {
-        taps.current += 1;
-        if (taps.current >= 3) {
-          taps.current = 0;
-          unlock("kindly");
-        }
-      }}
-      aria-label="SideQuest"
-      className="relative h-10 w-10 overflow-hidden rounded-[5px] shadow-[0_6px_12px_-8px_rgba(0,0,0,.9),inset_0_0_0_1px_rgba(255,255,255,.06)] transition-transform duration-[var(--fast)] active:translate-y-px"
-    >
-      <Image src="/brand/mark-128.png" alt="" fill sizes="40px" priority />
-    </button>
+    TABS.find((t) => pathname === t.href)?.href ??
+    (pathname.startsWith("/connect") ? "/dashboard" : null)
   );
 }
 
-export function BottomNav() {
-  const activeHref = useActiveHref();
-  const chromeless = useChromeless();
+/** EN · FR. The language named in itself, never a flag. */
+function LanguageSwitch() {
+  const { locale, setLocale, d } = useI18n();
+  return (
+    <div
+      className="seg w-[92px]"
+      style={{ ["--seg-n" as string]: LOCALES.length, ["--seg-i" as string]: LOCALES.indexOf(locale) }}
+      role="group"
+      aria-label={d.common.langSwitch}
+    >
+      {LOCALES.map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLocale(l)}
+          aria-pressed={locale === l}
+          className="!min-h-[32px]"
+        >
+          {LOCALE_LABEL[l]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-  if (chromeless) return null;
+/** Ask it nicely three times. */
+function useTripleTap() {
+  const taps = useRef(0);
+  return () => {
+    taps.current += 1;
+    if (taps.current >= 3) {
+      taps.current = 0;
+      unlock("kindly");
+    }
+  };
+}
+
+export function AppNav() {
+  const { d } = useI18n();
+  const pathname = usePathname();
+  const activeHref = useActiveHref();
+  const tap = useTripleTap();
+  const isLanding = pathname === "/";
 
   return (
     <>
-      {/* ---------------- phone: the cabinet's bottom edge ---------------- */}
-      <nav
-        aria-label="Main"
-        className="rail fixed inset-x-0 bottom-0 z-30 border-t border-line !border-r-0 lg:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        <div className="mx-auto grid max-w-md grid-cols-4">
-          {TABS.map((tab) => {
-            const active = tab.href === activeHref;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`relative flex h-[62px] min-h-11 flex-col items-center justify-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] transition-colors duration-[var(--fast)] ${
-                  active ? "text-label" : "text-ink-soft hover:text-label"
-                }`}
-              >
-                {active && <span className="absolute top-0 h-[3px] w-10 bg-contacts" />}
-                <TabIcon path={tab.path} />
-                {tab.label}
-              </Link>
-            );
-          })}
+      {/* ---------------- the top bar ---------------- */}
+      <header className="sticky top-0 z-40 border-b border-line bg-base/85 backdrop-blur-[6px]">
+        <div className="wrap flex h-16 items-center justify-between gap-6">
+          <Link
+            href={isLanding ? "/" : "/play"}
+            aria-label={d.common.brand}
+            className={LOGO_WRAPPER}
+            onClick={tap}
+          >
+            <LogoContent />
+          </Link>
+
+          {!isLanding && (
+            <nav aria-label={d.nav.aria} className="hidden lg:block">
+              <ul className="flex items-center gap-1">
+                {TABS.map((tab) => {
+                  const active = tab.href === activeHref;
+                  return (
+                    <li key={tab.href}>
+                      <Link
+                        href={tab.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`mono flex h-9 items-center gap-2 rounded-btn px-3 text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--t-base)] ${
+                          active
+                            ? "bg-accent-dim text-fg"
+                            : "text-subtle hover:text-fg"
+                        }`}
+                      >
+                        <TabIcon path={tab.path} />
+                        {d.nav.tabs[tab.key]}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
+
+          <LanguageSwitch />
         </div>
-      </nav>
+      </header>
 
-      {/* ---------------- desktop: the service rail ---------------- */}
-      <nav
-        aria-label="Main"
-        className="rail fixed inset-y-0 left-0 z-30 hidden w-[84px] flex-col items-center py-5 lg:flex"
-      >
-        <Mark />
-
-        <div className="mt-9 flex w-full flex-col">
-          {TABS.map((tab) => {
-            const active = tab.href === activeHref;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`relative flex h-[68px] flex-col items-center justify-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] transition-colors duration-[var(--fast)] ${
-                  active ? "text-label" : "text-ink-soft hover:text-label"
-                }`}
-              >
-                {active && <span className="absolute left-0 h-9 w-[3px] bg-contacts" />}
-                <TabIcon path={tab.path} />
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Power. It is on. That is the whole message. */}
-        <i className="deck-led mt-auto !bg-contacts opacity-70" aria-hidden />
-      </nav>
+      {/* ---------------- the phone tab bar ---------------- */}
+      {!isLanding && (
+        <nav
+          aria-label={d.nav.aria}
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base/95 backdrop-blur-[6px] lg:hidden"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <ul className="mx-auto grid max-w-md grid-cols-4">
+            {TABS.map((tab) => {
+              const active = tab.href === activeHref;
+              return (
+                <li key={tab.href}>
+                  <Link
+                    href={tab.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`relative flex h-[66px] min-h-11 flex-col items-center justify-center gap-1.5 text-[10px] transition-colors duration-[var(--t-base)] ${
+                      active ? "text-fg" : "text-subtle"
+                    }`}
+                  >
+                    {active && (
+                      <span className="absolute top-0 h-[2px] w-9 rounded-full bg-accent" />
+                    )}
+                    <TabIcon path={tab.path} />
+                    {d.nav.tabs[tab.key]}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
     </>
   );
 }

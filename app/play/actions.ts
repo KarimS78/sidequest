@@ -1,6 +1,6 @@
 "use server";
 
-import { aiPick, aiSessionNote, type AiCandidate } from "@/lib/ai";
+import { aiPick, aiSessionNote, type AiCandidate, type AiLocale } from "@/lib/ai";
 
 export type AiPickResult =
   | { ok: true; appid: number; reason: string; cached: boolean }
@@ -17,6 +17,7 @@ export async function getAiPick(req: {
   candidates: AiCandidate[];
   time: string;
   mood: string;
+  locale: AiLocale;
 }): Promise<AiPickResult> {
   const res = await aiPick(req);
   if (!res.ok) return { ok: false, reason: res.reason };
@@ -39,6 +40,7 @@ export async function summariseNote(req: {
   deviceId: string;
   game: string;
   raw: string;
+  locale: AiLocale;
 }): Promise<{ lastTime: string; whatsNext?: string; summarised: boolean }> {
   const raw = req.raw.trim();
   const res = await aiSessionNote(req);

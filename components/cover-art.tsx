@@ -2,16 +2,17 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { portraitFor } from "@/lib/library";
+import { headerFor, portraitFor } from "@/lib/library";
 
 /**
- * Portrait cover art with the label fallback.
+ * Portrait cover art, with two fallbacks.
  *
  * Not every appid has a `library_600x900`, and older or delisted titles have
- * none at all — so a miss falls back to the game's name set as label type,
- * which is what a cartridge sticker would say anyway.
+ * neither that nor a header — so a miss steps down to the wide header, and a
+ * second miss to the game's name set as type. The shelf is the one screen made
+ * almost entirely of these, so a broken one is very visible.
  *
- * Fills its parent: the parent must be positioned and give the aspect ratio.
+ * Fills its parent: the parent must be positioned and set the aspect ratio.
  */
 export function CoverArt({
   appid,
@@ -27,24 +28,24 @@ export function CoverArt({
   priority?: boolean;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [step, setStep] = useState(0);
 
-  if (failed) {
+  if (step > 1) {
     return (
-      <span className="absolute inset-0 flex items-end bg-paper p-3 font-display text-[19px] font-bold uppercase leading-none text-ink">
-        {name}
+      <span className="absolute inset-0 flex items-end bg-surface2 p-3">
+        <span className="poster text-[15px] leading-tight text-muted">{name}</span>
       </span>
     );
   }
 
   return (
     <Image
-      src={portraitFor(appid)}
+      src={step === 0 ? portraitFor(appid) : headerFor(appid)}
       alt={name}
       fill
       sizes={sizes}
       priority={priority}
-      onError={() => setFailed(true)}
+      onError={() => setStep((s) => s + 1)}
       className={`object-cover ${className}`}
     />
   );

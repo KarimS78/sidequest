@@ -1,21 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAiPortrait } from "@/app/profile/actions";
 import { deviceId } from "@/lib/device";
 import { announceAiCall } from "@/lib/ai-events";
 import type { BacklogStats, StoredGame } from "@/lib/library";
+import { useI18n } from "@/i18n/context";
 
 /**
  * The shelf, read as a person.
  *
- * It sits directly above the roast on purpose. Same numbers, two readings: the
- * roast mocks the habit, this one takes it seriously — and having both is the
- * honest position, because a backlog genuinely is both a joke and a taste.
+ * It sits beside the roast on purpose. Same numbers, two readings: the roast
+ * mocks the habit, this one takes it seriously — and having both is the honest
+ * position, because a backlog genuinely is both a joke and a taste.
  *
- * It is never fetched on mount. A portrait nobody asked to read is a paid call
- * on every page view, and this panel is the one place in the app where the
- * player can see exactly what a call costs.
+ * Never fetched on mount. A portrait nobody asked to read is a paid call on
+ * every page view, and this is the one screen where the player can see exactly
+ * what a call costs.
  */
 type State =
   | { s: "idle" }
@@ -32,15 +33,22 @@ export function ShelfPortrait({
   stats: BacklogStats;
   stated: string[];
 }) {
+  const { d, locale } = useI18n();
   const [state, setState] = useState<State>({ s: "idle" });
+  const t = d.profile.portrait;
+
+  // A reading generated in the other language is worse than no reading: the
+  // player switched languages and the one paragraph written for them stayed
+  // behind. Clear it and let them ask again in the language they are reading.
+  useEffect(() => setState({ s: "idle" }), [locale]);
 
   // The shelf's tags, most carried first. Counts only — the model is told what
   // this shelf is made of, never which games are on it.
   const tags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const g of library) {
-      for (const t of g.tags ?? []) {
-        const tag = t.trim();
+      for (const raw of g.tags ?? []) {
+        const tag = raw.trim();
         if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
     }
@@ -66,8 +74,9 @@ export function ShelfPortrait({
         },
         tags,
         stated,
+        locale,
       });
-      // The gauge sits right below this panel; tell it the count moved.
+      // The gauge sits on the same screen; tell it the count moved.
       announceAiCall();
       setState(
         res.ok
@@ -81,67 +90,72 @@ export function ShelfPortrait({
           : { s: "failed", why: res.reason }
       );
     } catch {
-      setState({ s: "failed", why: "the board didn't answer" });
+      setState({ s: "failed", why: "no answer" });
     }
   }
 
   return (
-    <>
-      <p className="rule mt-7">What the shelf says</p>
+    <section className="card flex flex-col gap-4 p-5 lg:p-6">
+      <h3 className="poster text-[1.05rem]">{t.title}</h3>
 
       {state.s === "idle" && (
-        <button
-          onClick={read}
-          disabled={stats.total === 0 || tags.length === 0}
-          className="key flex min-h-11 w-full items-center gap-2.5 px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft transition-colors hover:text-label disabled:opacity-40"
-        >
-          <i className="led" aria-hidden />
-          Read the shelf
-          <span className="ml-auto text-[9px] text-[#5b6a72]">
-            {tags.length > 0 ? `${tags.length} tags · one call` : "no tags yet"}
+        <>
+          <button
+            type="button"
+            onClick={read}
+            disabled={stats.total === 0 || tags.length === 0}
+            className="btn btn-ghost self-start"
+          >
+            {t.cta} <span className="arrow">→</span>
+          </button>
+          <span className="mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+            {tags.length > 0 ? t.cost(tags.length) : t.noTags}
           </span>
-        </button>
+        </>
       )}
 
       {state.s === "reading" && (
-        <div className="key flex min-h-11 w-full items-center gap-2.5 px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-soft">
-          <i className="led led-on led-pulse" aria-hidden />
-          Reading the rack…
-        </div>
+        <p className="mono animate-pulse text-[10.5px] uppercase tracking-[0.12em] text-accent-soft">
+          {t.reading}
+        </p>
       )}
 
       {state.s === "done" && (
-        <div>
-          <b className="print block font-display text-[30px] font-extrabold uppercase leading-[0.92]">
+        <>
+          <p className="poster text-[clamp(1.5rem,3vw,2.1rem)] text-accent-soft">
             {state.archetype}
-          </b>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#b3c0c7]">{state.reading}</p>
+          </p>
+          <p className="text-[14.5px] leading-relaxed text-muted">{state.reading}</p>
           {state.blindSpot && (
-            <div className="readout mt-3">Blind spot: {state.blindSpot}</div>
+            <p className="border-l-2 border-accent pl-3 text-[14px] leading-relaxed">
+              <span className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                {t.blindSpot} ·{" "}
+              </span>
+              {state.blindSpot}
+            </p>
           )}
           <button
+            type="button"
             onClick={() => setState({ s: "idle" })}
-            className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#5b6a72] transition-colors hover:text-label"
+            className="btn btn-quiet self-start !px-0 text-[12.5px]"
           >
-            {state.cached ? "Read again · free, cached" : "Read again"}
+            {state.cached ? t.againCached : t.again}
           </button>
-        </div>
+        </>
       )}
 
       {state.s === "failed" && (
         <>
-          <p className="readout readout-dim">
-            No reading — {state.why}. Every other panel on this page is local and
-            unaffected.
-          </p>
+          <p className="text-[14px] leading-relaxed text-muted">{t.failed(state.why)}</p>
           <button
+            type="button"
             onClick={() => setState({ s: "idle" })}
-            className="mt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[#5b6a72] transition-colors hover:text-label"
+            className="btn btn-quiet self-start !px-0 text-[12.5px]"
           >
-            Try again
+            {t.retry}
           </button>
         </>
       )}
-    </>
+    </section>
   );
 }

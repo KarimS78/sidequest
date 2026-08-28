@@ -14,7 +14,7 @@
 // v3: the landing and the real logo. "/" used to be a redirect to /play and the
 // icons were the old drawn mark — both are precached here, so anyone who visited
 // before would keep serving the previous ones until this string changes.
-const CACHE = "sidequest-v3";
+const CACHE = "sidequest-v4";
 
 const PRECACHE = [
   "/",

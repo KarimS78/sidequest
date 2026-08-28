@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Screenshots are downscaled client-side (~200-500KB), but allow headroom.
     serverActions: { bodySizeLimit: "2mb" },
+    // Route changes fade and rise 8px instead of cutting. Browsers without the
+    // View Transitions API fall back to the cut, which is the right fallback.
+    viewTransition: true,
   },
   images: {
     // Steam's public art CDN — cover art is the only remote image in the app.

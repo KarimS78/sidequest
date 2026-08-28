@@ -1,6 +1,6 @@
 "use server";
 
-import { aiResume } from "@/lib/ai";
+import { aiResume, type AiLocale } from "@/lib/ai";
 
 export type ResumeResult =
   | { ok: true; where: string; next?: string; cached: boolean }
@@ -19,6 +19,7 @@ export async function getResume(req: {
   deviceId: string;
   game: string;
   notes: { ago: string; raw: string }[];
+  locale: AiLocale;
 }): Promise<ResumeResult> {
   const res = await aiResume(req);
   if (!res.ok) return { ok: false, reason: res.reason };

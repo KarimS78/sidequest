@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/i18n/context";
 import { enrichTags } from "@/app/connect/actions";
 import { applyTags, loadLibrary, untaggedAppids } from "@/lib/library";
 
@@ -16,6 +17,7 @@ const CHUNK = 15;
  * import), which re-reads what still needs enriching.
  */
 export function TagEnricher({ version = 0 }: { version?: number }) {
+  const { d } = useI18n();
   const [missing, setMissing] = useState<number[]>([]);
   const [done, setDone] = useState(0);
   const [running, setRunning] = useState(false);
@@ -52,10 +54,12 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
     refresh();
   }
 
+  const t = d.connect.tags;
+
   if (finished && !missing.length) {
     return (
-      <p className="border border-contacts/40 bg-contacts/10 p-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.08em] text-contacts">
-        Tags read — the deck now scores on genre and vibe, not just playtime
+      <p className="mono rounded-card border border-accent-line bg-accent-dim p-3 text-[10.5px] uppercase leading-relaxed tracking-[0.08em] text-accent-soft">
+        {t.done}
       </p>
     );
   }
@@ -65,34 +69,27 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
   const pct = missing.length ? Math.round((done / missing.length) * 100) : 0;
 
   return (
-    <div className="border border-line p-3.5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft">
-        Label data
-      </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-[#b3c0c7]">
-        SideQuest scores your games on their community tags — genre, pace, vibe.{" "}
-        <b className="text-label">{missing.length}</b>{" "}
-        {missing.length === 1 ? "cart is" : "carts are"} missing theirs.
+    <div className="card p-5">
+      <h3 className="poster text-[1.05rem]">{t.title}</h3>
+      <p className="mt-2 text-[14px] leading-relaxed text-muted">
+        {t.line(missing.length)}
       </p>
 
       {running ? (
-        <div className="mt-3.5">
-          <div className="h-1.5 w-full overflow-hidden rounded-[1px] bg-plank">
+        <div className="mt-4">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface2">
             <div
-              className="h-full bg-contacts transition-[width] duration-300"
+              className="h-full rounded-full bg-accent transition-[width] duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
-            {done} / {missing.length} · throttled public API, a few seconds each
+          <p className="mono mt-2 text-[10px] uppercase tracking-[0.08em] text-subtle">
+            {done} / {missing.length} · {t.progress}
           </p>
         </div>
       ) : (
-        <button
-          onClick={run}
-          className="mt-3.5 rounded-[2px] border border-contacts px-3.5 py-2 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-contacts transition-colors hover:bg-contacts hover:text-ink"
-        >
-          Read {missing.length} {missing.length === 1 ? "label" : "labels"}
+        <button type="button" onClick={run} className="btn btn-ghost mt-4">
+          {t.read(missing.length)}
         </button>
       )}
     </div>

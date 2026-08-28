@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAiStatus, type AiStatus } from "@/app/profile/actions";
 import { onAiCall } from "@/lib/ai-events";
+import { useI18n } from "@/i18n/context";
 
 /**
  * Money, at the scale this app actually spends it.
@@ -14,9 +15,6 @@ import { onAiCall } from "@/lib/ai-events";
 function money(usd: number): string {
   if (usd <= 0) return "0¢";
   const cents = usd * 100;
-  // A single call costs about half a thousandth of a cent. Two decimals here
-  // printed "0.00¢" after a real call had been billed — the one rendering that
-  // makes the gauge worse than no gauge. Enough decimals that a call moves it.
   if (cents < 0.01) return `${cents.toFixed(3)}¢`;
   if (cents < 1) return `${cents.toFixed(2)}¢`;
   if (usd < 1) return `${cents.toFixed(1)}¢`;
@@ -24,18 +22,22 @@ function money(usd: number): string {
 }
 
 /**
- * The AI supply readout.
+ * The AI layer, and what it has cost today.
  *
- * The whole AI design is "bounded spend, and the local engine still works
- * without it" — but until this existed you had to read lib/ai-guard.ts to know
- * either of those was true. A machine with a budget shows the gauge.
+ * The previous version printed everything the guard knows: two token counts, a
+ * per-million price list, a reset time and a percentage, all at once, in mono,
+ * all the same size. That is a log, not a readout. What a person actually wants
+ * to know here is three things — is it on, what did it cost, and does anything
+ * break without it — so those are the only three at full size. The arithmetic
+ * that backs them is still on the page, one disclosure away, for whoever wants
+ * to check the number rather than believe it.
  *
- * Off is not an error state and is not styled as one: every screen works, it
- * just phrases things from templates. That is the honest reading and the panel
- * says it that way.
+ * Off is not an error state and is not styled as one.
  */
 export function AiStatusPanel() {
+  const { d, locale } = useI18n();
   const [status, setStatus] = useState<AiStatus | null>(null);
+  const t = d.profile.supply;
 
   useEffect(() => {
     const refresh = () =>
@@ -45,85 +47,100 @@ export function AiStatusPanel() {
         .catch(() => setStatus(null));
 
     refresh();
-    // The portrait and the roast are on this same screen. Without this the
+    // The portrait and the roast sit on this same screen. Without this the
     // gauge kept showing the count from before you pressed them.
     return onAiCall(refresh);
   }, []);
 
   if (!status) return null;
 
-  const pct = (n: number, of: number) => (of > 0 ? Math.min(100, (n / of) * 100) : 0);
-  const tokenPct = pct(status.tokens, status.tokensLimit);
+  const pct =
+    status.tokensLimit > 0
+      ? Math.min(100, (status.tokens / status.tokensLimit) * 100)
+      : 0;
+  const n = (v: number) => v.toLocaleString(locale === "fr" ? "fr-FR" : "en-GB");
 
   return (
-    <>
-      <p className="rule mt-7">AI supply</p>
-
-      <div className="flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.14em]">
-        <i
-          className={`led ${status.on ? "led-on" : ""}`}
-          style={{ "--lit": "var(--contacts)" } as React.CSSProperties}
+    <section className="card p-5 lg:p-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span
           aria-hidden
+          className={`h-2 w-2 rounded-full ${
+            status.on ? "bg-accent shadow-[0_0_10px_var(--accent)]" : "bg-subtle"
+          }`}
         />
-        <span className={status.on ? "text-label" : "text-ink-soft"}>
-          {status.on ? "Live" : "Local only"}
+        <h3 className="poster text-[1.05rem]">{t.title}</h3>
+        <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+          {status.on ? t.live : t.off}
         </span>
-        <span className="h-px flex-1 bg-line-soft" />
-        <span className="text-ink-soft">
-          {status.calls}/{status.callsLimit} calls today
-        </span>
+        {status.on && (
+          <span className="mono ml-auto text-[10.5px] uppercase tracking-[0.1em] text-subtle">
+            {t.calls(status.calls, status.callsLimit)}
+          </span>
+        )}
       </div>
 
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">{status.why}</p>
+      <p className="mt-3 max-w-prose text-[14px] leading-relaxed text-muted">
+        {status.on ? t.liveLine : t.offLine}
+      </p>
 
       {status.on && (
         <>
-          {/* The gauge reads in tokens because tokens are what the bill is in.
-              Calls are the count you can feel; tokens are the one that runs out. */}
-          <div
-            className="mt-3 h-2 overflow-hidden rounded-[1px] bg-[#10171b] shadow-[inset_0_1px_2px_rgba(0,0,0,.8)]"
-            role="meter"
-            aria-valuenow={status.tokens}
-            aria-valuemin={0}
-            aria-valuemax={status.tokensLimit}
-            aria-label="Daily token budget used"
-          >
-            <div
-              className="h-full bg-contacts shadow-[0_0_8px_-1px_var(--contacts)] transition-[width] duration-[var(--slow)]"
-              style={{ width: `${tokenPct}%` }}
-            />
-          </div>
-          <p className="mt-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft">
-            {status.tokens.toLocaleString("en-GB")} of{" "}
-            {status.tokensLimit.toLocaleString("en-GB")} tokens · resets at midnight UTC
-          </p>
+          {/* Two numbers, one of which is the only one anybody argues about.
+              Tokens are what the bill is in; cents are what a decision is in. */}
+          <dl className="mt-5 grid grid-cols-2 gap-3">
+            <div className="card-quiet p-3.5">
+              <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                {t.spent}
+              </dt>
+              <dd className="mono mt-1.5 text-[1.5rem] leading-none text-accent-soft">
+                {money(status.spentUsd)}
+              </dd>
+            </div>
+            <div className="card-quiet p-3.5">
+              <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                {t.ceiling}
+              </dt>
+              <dd className="mono mt-1.5 text-[1.5rem] leading-none">
+                {money(status.ceilingUsd)}
+              </dd>
+            </div>
+          </dl>
 
-          {/* The same gauge in the unit that decides whether this feature stays
-              switched on. A token budget is a number only whoever wrote the
-              guard can price; a number with a currency in front of it is the
-              one a person can hold an opinion about. */}
-          <div className="mt-3 flex items-baseline justify-between border-t border-line-soft pt-2.5 font-mono text-[10px] uppercase tracking-[0.1em]">
-            <span className="text-ink-soft">Spent today</span>
-            <b className="text-contacts">{money(status.spentUsd)}</b>
+          <div className="mt-4">
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-surface2"
+              role="meter"
+              aria-valuenow={status.tokens}
+              aria-valuemin={0}
+              aria-valuemax={status.tokensLimit}
+              aria-label={t.budget}
+            >
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-[var(--t-slow)]"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="mono mt-2 text-[10px] uppercase tracking-[0.1em] text-subtle">
+              {t.budget} · {Math.round(pct)}%
+            </p>
           </div>
-          <div className="mt-1 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.1em]">
-            <span className="text-ink-soft">If it runs flat out</span>
-            <span className="text-label">{money(status.ceilingUsd)}</span>
-          </div>
-          <p className="mt-1.5 font-mono text-[9px] uppercase leading-relaxed tracking-[0.1em] text-[#5b6a72]">
-            {status.inputTokens.toLocaleString("en-GB")} in · {" "}
-            {status.outputTokens.toLocaleString("en-GB")} out · priced at $
-            {status.price.input.toFixed(2)}/M and ${status.price.output.toFixed(2)}/M
-          </p>
+
+          <details className="mt-4 border-t border-line pt-3">
+            <summary className="mono cursor-pointer list-none text-[10px] uppercase tracking-[0.12em] text-subtle transition-colors hover:text-fg">
+              {t.detail}
+            </summary>
+            <p className="mono mt-2 text-[11px] leading-relaxed text-subtle">
+              {t.detailLine(
+                n(status.inputTokens),
+                n(status.outputTokens),
+                status.price.input.toFixed(2),
+                status.price.output.toFixed(2)
+              )}
+            </p>
+          </details>
         </>
       )}
-
-      {!status.on && (
-        <p className="mt-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-[#5b6a72]">
-          The picker, the roast and the notes all still work — the scoring engine
-          is local and was never the part that needed a model.
-        </p>
-      )}
-    </>
+    </section>
   );
 }

@@ -1,189 +1,115 @@
-/**
- * Generates every brand asset in the app from one master file.
- *
- *   node scripts/generate-brand.mjs
- *
- * The master is brand/logo-master.png — the full lockup: the compass mark, the
- * SIDEQUEST wordmark, and the PLAY · TRACK · COMPLETE line. Nothing else in the
- * repo is hand-drawn brand art any more; if the logo changes, this file is the
- * only thing that has to run again.
- *
- * The one rule that shapes all of it: THE WORDMARK DOES NOT SURVIVE SHRINKING.
- * At 32px a tagline set in 8px caps is a grey smear, so every square output
- * here is the MARK ALONE, cropped out of the master. The full lockup is only
- * used where there is room to read it — the social preview card.
- *
- * Requires `sharp`, which is already in node_modules (Next installs it for
- * image optimisation). It is not a declared dependency of this project because
- * nothing at runtime needs it — this script is a build-time tool run by hand.
- */
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+// Derives every brand raster from one source: the mark drawn in
+// components/logo.tsx. Run by hand: `node scripts/generate-brand.mjs`.
+//
+// The old version cropped a painted PNG of a compass. There is no PNG master
+// any more — the mark is geometry, so the master is the geometry, and this
+// script is the only place it is duplicated. If the diamond or the S changes in
+// logo.tsx, change MARK below and re-run; nothing else in the repo is hand-drawn
+// brand art.
+//
+// Uses `sharp`, which ships inside Next. Deliberately not declared as a
+// dependency: it is a build tool run by hand, not something the app imports.
 
-const require = createRequire(import.meta.url);
-const sharp = require("sharp");
+import fs from "node:fs";
+import path from "node:path";
+import zlib from "node:zlib";
+import sharp from "sharp";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const MASTER = join(ROOT, "brand", "logo-master.png");
-const PUBLIC = join(ROOT, "public");
-const APP = join(ROOT, "app");
+const ROOT = path.resolve(import.meta.dirname, "..");
+const ACCENT = "#7c5cff";
+const GROUND = "#0d1114";
 
 /**
- * Where the mark sits inside the master, measured rather than guessed: the
- * bounding box of everything brighter than the backdrop, above the wordmark.
- * It comes out as a near-perfect square, which is what a compass rose should be.
+ * The mark, at any size, on its own ground.
+ *
+ * `pad` is the share of the canvas left empty around it. Square app icons want
+ * a little; a maskable icon wants a lot, because Android crops a circle out of
+ * it and anything in the corners is gone.
  */
-const MARK = { left: 308, top: 175, width: 638, height: 637 };
+function markSvg(size, { pad = 0.12, ground = GROUND, radius = 0 } = {}) {
+  const box = 32;
+  const inner = 1 - pad * 2;
+  const scale = inner;
+  const offset = (box * pad) / scale;
 
-/**
- * The master's own backdrop — a very dark navy, not black. Used to pad the
- * maskable icon so the extra area cannot be seen as a border against the art.
- */
-const BACKDROP = { r: 2, g: 4, b: 27, alpha: 1 };
-
-/** The master's outermost corner — what its vignette fades out to. */
-const CORNER = { r: 0, g: 0, b: 12, alpha: 1 };
-
-/**
- * PNG settings for everything here. The art is a smooth gradient, so a plain
- * 24-bit encode came out at half a megabyte for one 512px icon — heavier than
- * the whole app shell. Quantising to a palette costs nothing visible at icon
- * sizes and divides it by five.
- */
-const PNG = { compressionLevel: 9, palette: true, quality: 92, effort: 10 };
-
-const mark = () => sharp(MASTER).extract(MARK);
-
-/** The mark, square, at one size. */
-async function markAt(size) {
-  return mark().resize(size, size, { fit: "cover" }).png(PNG).toBuffer();
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${box} ${box}">
+  <rect width="${box}" height="${box}" rx="${radius}" fill="${ground}"/>
+  <g transform="scale(${scale}) translate(${offset} ${offset})">
+    <rect x="5.5" y="5.5" width="21" height="21" rx="3" transform="rotate(45 16 16)" fill="${ACCENT}"/>
+    <path d="M19.8 12.9C19.8 11 18.1 10.2 16 10.2C13.9 10.2 12.2 11.1 12.2 12.9C12.2 16.4 19.8 15.3 19.8 19.1C19.8 21 18 21.9 16 21.9C13.9 21.9 12.2 21 12.2 19.3"
+      stroke="${ground}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>`;
 }
 
-/**
- * The mark inset on the backdrop. Android masks icons to whatever shape the
- * launcher likes, and anything outside the middle 80% can be cut — so maskable
- * art has to sit well inside its own canvas rather than fill it.
- */
-async function inset(size, scale) {
-  const art = await mark()
-    .resize(Math.round(size * scale), Math.round(size * scale), { fit: "cover" })
-    .toBuffer();
-  return sharp({
-    create: { width: size, height: size, channels: 4, background: BACKDROP },
-  })
-    .composite([{ input: art, gravity: "centre" }])
-    .png(PNG)
-    .toBuffer();
-}
+const png = (svg, size) => sharp(Buffer.from(svg)).resize(size, size).png().toBuffer();
 
-/**
- * An .ico wrapping PNGs — the format has allowed that since Vista, and every
- * browser that still asks for /favicon.ico understands it.
- *
- * This is the "mini logo" in a Chrome tab, and the smallest the mark is ever
- * drawn. It is also why the wordmark is not in it: at 16px the compass needle
- * is already most of what survives.
- */
-function ico(pngs) {
-  const HEADER = 6;
-  const ENTRY = 16;
-  const header = Buffer.alloc(HEADER);
-  header.writeUInt16LE(0, 0); // reserved
-  header.writeUInt16LE(1, 2); // 1 = icon
-  header.writeUInt16LE(pngs.length, 4);
+/* ============================================================
+   A hand-written ICO container.
 
-  let offset = HEADER + ENTRY * pngs.length;
+   Windows and every browser tab still want one, and the format is three PNGs
+   with a 22-byte header each. Not worth a dependency.
+   ============================================================ */
+function ico(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+
   const entries = [];
-  for (const { size, data } of pngs) {
-    const e = Buffer.alloc(ENTRY);
-    e.writeUInt8(size >= 256 ? 0 : size, 0); // 0 means 256
-    e.writeUInt8(size >= 256 ? 0 : size, 1);
-    e.writeUInt8(0, 2); // palette size
+  let offset = 6 + images.length * 16;
+  for (const { size, data } of images) {
+    const e = Buffer.alloc(16);
+    e.writeUInt8(size === 256 ? 0 : size, 0);
+    e.writeUInt8(size === 256 ? 0 : size, 1);
+    e.writeUInt8(0, 2); // palette
     e.writeUInt8(0, 3); // reserved
     e.writeUInt16LE(1, 4); // colour planes
     e.writeUInt16LE(32, 6); // bits per pixel
     e.writeUInt32LE(data.length, 8);
     e.writeUInt32LE(offset, 12);
-    offset += data.length;
     entries.push(e);
+    offset += data.length;
   }
 
-  return Buffer.concat([header, ...entries, ...pngs.map((p) => p.data)]);
+  return Buffer.concat([header, ...entries, ...images.map((i) => i.data)]);
 }
 
-/**
- * The social preview card. This is the one place the full lockup is used: a
- * link unfurled in Slack or on a timeline is a wide rectangle with room for a
- * wordmark, which is the exact opposite of a favicon.
- */
-async function ogImage() {
-  const W = 1200;
-  const H = 630;
-
-  // Deliberately NOT trimmed. The master carries its own soft vignette, and
-  // trimming to the ink left that vignette sitting on the card as a visible
-  // irregular blob. Kept whole and dropped on a background matching the
-  // master's own corners, it blends into the card instead.
-  const art = await sharp(MASTER)
-    .resize({ height: Math.round(H * 0.98), fit: "inside" })
-    .toBuffer();
-
-  return sharp({
-    create: { width: W, height: H, channels: 4, background: CORNER },
-  })
-    .composite([{ input: art, gravity: "centre" }])
-    .png(PNG)
-    .toBuffer();
-}
+const out = (rel, buf) => {
+  const file = path.join(ROOT, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, buf);
+  console.log(`  ${rel}  ${(buf.length / 1024).toFixed(1)} KB`);
+};
 
 async function main() {
-  mkdirSync(join(PUBLIC, "brand"), { recursive: true });
+  console.log("Deriving the brand from the mark:\n");
 
-  const out = [];
-  const write = (path, data) => {
-    writeFileSync(path, data);
-    out.push(`${path.replace(ROOT, ".").replace(/\\/g, "/")}  ${(data.length / 1024).toFixed(1)} kB`);
-  };
+  // ---- PWA and browser icons ----
+  out("public/icon-192.png", await png(markSvg(192), 192));
+  out("public/icon-512.png", await png(markSvg(512), 512));
+  // Maskable: Android crops a circle, so the mark sits well inside the safe area.
+  out("public/icon-maskable-512.png", await png(markSvg(512, { pad: 0.24 }), 512));
+  out("public/apple-touch-icon.png", await png(markSvg(180, { pad: 0.16 }), 180));
 
-  // --- the mark, for the UI ------------------------------------------------
-  write(join(PUBLIC, "brand", "mark-512.png"), await markAt(512));
-  write(join(PUBLIC, "brand", "mark-128.png"), await markAt(128));
+  // ---- in-app tile, kept for the service worker's precache list ----
+  out("public/brand/mark-128.png", await png(markSvg(128, { pad: 0.08 }), 128));
+  out("public/brand/mark-512.png", await png(markSvg(512, { pad: 0.08 }), 512));
 
-  // --- the full lockup, where there is room to read it ---------------------
-  write(
-    join(PUBLIC, "brand", "logo-full.png"),
-    await sharp(MASTER).trim({ threshold: 12 }).resize({ width: 960 }).png(PNG).toBuffer()
+  // ---- favicon ----
+  const sizes = [16, 32, 48];
+  const frames = [];
+  for (const size of sizes) {
+    frames.push({ size, data: await png(markSvg(size, { pad: 0.06 }), size) });
+  }
+  out("app/favicon.ico", ico(frames));
+
+  console.log(
+    "\nThe social card is app/opengraph-image.tsx — generated per request, not here,\nbecause it sets the wordmark and needs the real font."
   );
-
-  // --- PWA ------------------------------------------------------------------
-  // A touch of air: cropped flush to the art, the compass points touch the edge
-  // and the icon reads as clipped next to every other one on a home screen.
-  write(join(PUBLIC, "icon-192.png"), await inset(192, 0.9));
-  write(join(PUBLIC, "icon-512.png"), await inset(512, 0.9));
-  write(join(PUBLIC, "icon-maskable-512.png"), await inset(512, 0.62));
-
-  // Apple does not mask, it rounds the corners — so it needs only a little air.
-  write(join(PUBLIC, "apple-touch-icon.png"), await inset(180, 0.9));
-
-  // --- the browser tab ------------------------------------------------------
-  write(
-    join(APP, "favicon.ico"),
-    ico([
-      { size: 16, data: await markAt(16) },
-      { size: 32, data: await markAt(32) },
-      { size: 48, data: await markAt(48) },
-    ])
-  );
-
-  // --- link previews --------------------------------------------------------
-  write(join(APP, "opengraph-image.png"), await ogImage());
-
-  console.log(out.join("\n"));
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((err) => {
+  console.error(err);
   process.exit(1);
 });

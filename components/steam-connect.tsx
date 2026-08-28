@@ -6,14 +6,17 @@ import { saveLibrary, saveProfile } from "@/lib/library";
 import { AddGames } from "@/components/add-games";
 import { CoverArt } from "@/components/cover-art";
 import { TagEnricher } from "@/components/tag-enricher";
+import { useI18n } from "@/i18n/context";
 
 export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
+  const { d } = useI18n();
   const [state, action, pending] = useActionState(connectSteam, null);
   // Bumped whenever we rewrite the stored library, so the tag enricher re-reads
   // what still needs fetching.
   const [libVersion, setLibVersion] = useState(0);
+  const t = d.connect;
 
-  // Persist the imported library so the deck (/play) can pick from it.
+  // Persist the imported library so the board (/play) can draw from it.
   useEffect(() => {
     if (state?.ok) {
       saveLibrary(
@@ -35,57 +38,54 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
   }, [state]);
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <TagEnricher version={libVersion} />
 
-      <form action={action} className="border border-line p-3.5">
+      <form action={action} className="card flex flex-col gap-3 p-5">
         <label
           htmlFor="steam"
-          className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-soft"
+          className="mono text-[10px] uppercase tracking-[0.14em] text-subtle"
         >
-          Your Steam profile
+          {t.form.label}
         </label>
-        <p className="mt-1.5 text-sm leading-relaxed text-[#b3c0c7]">
-          Paste your SteamID64, your profile URL, or your custom URL name. The
-          profile has to be public to read playtime.
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <p className="text-[14px] leading-relaxed text-muted">{t.form.line}</p>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="steam"
             name="steam"
+            type="text"
             autoComplete="off"
-            placeholder="76561198… or steamcommunity.com/id/yourname"
-            className="min-h-11 flex-1 rounded-[2px] border border-line bg-transparent px-3 text-[13px] text-label outline-none transition-colors placeholder:text-[#5b6a72] focus:border-contacts"
+            placeholder={t.form.placeholder}
+            className="min-h-11 flex-1"
           />
-          <button
-            type="submit"
-            disabled={pending}
-            className="switch h-11 w-auto shrink-0 px-5 font-display text-[17px] font-extrabold uppercase tracking-[0.12em] disabled:opacity-60"
-          >
-            {pending ? "Reading…" : demoMode ? "Preview" : "Import"}
+          <button type="submit" disabled={pending} className="btn btn-primary shrink-0">
+            {pending ? t.form.pending : demoMode ? t.form.preview : t.form.submit}
+            {!pending && <span className="arrow">→</span>}
           </button>
         </div>
-        <p className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#5b6a72]">
-          Find your SteamID64 at steamid.io if you only know your name
+
+        <p className="mono text-[10px] uppercase tracking-[0.08em] text-subtle">
+          {t.form.hint}
         </p>
       </form>
 
       {state && state.ok === false && (
-        <p className="border border-challenge/40 bg-challenge/10 p-3 text-sm leading-relaxed text-label">
+        <p className="card border-accent-line p-4 text-[14px] leading-relaxed">
           {state.error}
         </p>
       )}
 
       {state && state.ok && (
-        <div className="space-y-5">
+        <div className="flex flex-col gap-5">
           {state.isMock && (
-            <p className="border border-line p-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.08em] text-ink-soft">
-              Demo data — no STEAM_API_KEY set, so this is a sample shelf
+            <p className="mono card-quiet p-3 text-[10.5px] uppercase leading-relaxed tracking-[0.08em] text-subtle">
+              {t.imported.mock}
             </p>
           )}
 
-          <div className="flex items-center gap-3 border border-line p-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-gradient-to-br from-shell to-shell-dark font-display text-[20px] font-extrabold text-ink">
+          <div className="card flex items-center gap-3 p-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-btn bg-surface2">
               {state.profile.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -94,39 +94,41 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                state.profile.name.charAt(0).toUpperCase()
+                <span className="poster text-[18px]">
+                  {state.profile.name.charAt(0).toUpperCase()}
+                </span>
               )}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-[20px] font-bold uppercase leading-none">
-                {state.profile.name}
-              </p>
-              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
-                {state.games.length} carts racked
+              <p className="poster truncate text-[17px]">{state.profile.name}</p>
+              <p className="mono mt-1 text-[10px] uppercase tracking-[0.1em] text-subtle">
+                {t.imported.games(state.games.length)}
               </p>
             </div>
-            <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-contacts">
-              Connected
+            <span className="mono shrink-0 text-[10px] uppercase tracking-[0.12em] text-accent-soft">
+              {t.imported.connected}
             </span>
           </div>
 
-          <div>
-            <p className="rule">Racked · by playtime</p>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-3">
+            <span className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              {t.imported.top}
+            </span>
+            <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
               {state.games.slice(0, 12).map((g) => (
-                <div key={g.appid} className="cart !rounded-[6px_6px_2px_2px] !p-1.5 !pb-0">
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-[2px] bg-paper">
+                <li key={g.appid} className="tile">
+                  <span className="relative block aspect-[2/3] w-full">
                     <CoverArt appid={g.appid} name={g.name} sizes="120px" />
-                  </div>
-                  <p className="truncate px-px py-1 font-display text-[11px] font-bold uppercase leading-none text-ink">
+                  </span>
+                  <span className="block truncate px-2 py-1.5 text-[11.5px] text-muted">
                     {g.name}
-                  </p>
-                </div>
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
             {state.games.length > 12 && (
-              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-soft">
-                +{state.games.length - 12} more on the shelf
+              <p className="mono text-[10px] uppercase tracking-[0.08em] text-subtle">
+                {t.imported.more(state.games.length - 12)}
               </p>
             )}
           </div>

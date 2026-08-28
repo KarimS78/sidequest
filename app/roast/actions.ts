@@ -1,6 +1,6 @@
 "use server";
 
-import { aiRoast } from "@/lib/ai";
+import { aiRoast, type AiLocale } from "@/lib/ai";
 import type { BacklogStats } from "@/lib/library";
 import type { Roast } from "@/lib/roast";
 
@@ -13,6 +13,7 @@ export type AiRoastResult =
 export async function getAiRoast(req: {
   deviceId: string;
   stats: BacklogStats;
+  locale: AiLocale;
 }): Promise<AiRoastResult> {
   const res = await aiRoast(req);
   if (!res.ok) return { ok: false, reason: res.reason };

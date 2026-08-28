@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { EGGS, loadFound, unlock, type Egg, type EggId } from "@/lib/eggs";
+import { useI18n } from "@/i18n/context";
+import { eggCopy } from "@/i18n";
 
 /* ============================================================
    The trophy card
@@ -41,7 +43,9 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export function EggHost() {
+  const { locale } = useI18n();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const copy = eggCopy[locale];
 
   // ---- announce ----
   useEffect(() => {
@@ -119,16 +123,12 @@ export function EggHost() {
       {toasts.map(({ key, egg }) => (
         <div
           key={key}
-          className="trophy w-full max-w-[19rem] overflow-hidden rounded-[3px] border border-[#3d4a51] bg-plank shadow-[0_18px_30px_-14px_rgba(0,0,0,.85)]"
+          className="card seated w-full max-w-[19rem] overflow-hidden shadow-[0_18px_40px_-20px_rgba(0,0,0,.95)]"
         >
-          <div className="trophy-write h-[3px] origin-left bg-contacts" />
-          <div className="px-3 py-2.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-contacts">
-              Trophy · {egg.name}
-            </p>
-            <p className="mt-1 font-display text-[19px] font-bold uppercase leading-none tracking-[0.02em] text-label">
-              {egg.line}
-            </p>
+          <div className="h-[2px] w-full bg-accent" />
+          <div className="px-4 py-3">
+            <p className="eyebrow">{copy[egg.id].name}</p>
+            <p className="poster mt-1.5 text-[17px]">{copy[egg.id].line}</p>
           </div>
         </div>
       ))}
@@ -143,8 +143,20 @@ export function EggHost() {
    is not worth opening.
    ============================================================ */
 
+/**
+ * The case, and it starts shut.
+ *
+ * Twelve rows that mostly say "Locked" were the single largest thing on the
+ * profile — a list of things you have not done, given more room than anything
+ * you have. Collapsed, it is one line that reports a score; opened, it is the
+ * same case it always was.
+ */
 export function TrophyCase() {
+  const { d, locale } = useI18n();
   const [found, setFound] = useState<EggId[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const copy = eggCopy[locale];
+  const t = d.profile.trophies;
 
   useEffect(() => {
     setFound(loadFound());
@@ -156,45 +168,59 @@ export function TrophyCase() {
   if (found === null) return null;
 
   return (
-    <section className="mt-8">
-      <p className="rule">
-        Trophy case · {found.length}/{EGGS.length}
-      </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {EGGS.map((egg) => {
-          const got = found.includes(egg.id);
-          return (
-            <div
-              key={egg.id}
-              className={`flex items-start gap-2.5 rounded-[2px] border p-2.5 ${
-                got ? "border-contacts/40 bg-contacts/[0.06]" : "border-line-soft"
-              }`}
-            >
-              <span
-                aria-hidden
-                className={`mt-[3px] h-[13px] w-[9px] shrink-0 rounded-[1px] ${
-                  got ? "bg-contacts" : "bg-[#1e262b]"
-                }`}
-              />
-              <div className="min-w-0">
-                <p
-                  className={`font-display text-[15px] font-bold uppercase leading-none ${
-                    got ? "text-label" : "text-ink-soft"
+    <section className="card p-5 lg:p-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 className="poster text-[1.05rem]">{t.title}</h3>
+        <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+          {t.found(found.length, EGGS.length)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="btn btn-quiet ml-auto !px-0 text-[12.5px]"
+        >
+          {open ? t.hide : t.show}
+        </button>
+      </div>
+
+      {open && (
+        <>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {EGGS.map((egg) => {
+              const got = found.includes(egg.id);
+              return (
+                <li
+                  key={egg.id}
+                  className={`flex items-start gap-2.5 rounded-btn border p-3 ${
+                    got ? "border-accent-line bg-accent-dim" : "border-line"
                   }`}
                 >
-                  {got ? egg.name : "Locked"}
-                </p>
-                <p className="mt-1 text-[12px] leading-snug text-ink-soft">
-                  {got ? egg.line : egg.hint}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-[#5b6a72]">
-        Kept in this browser only. Nothing is sent anywhere.
-      </p>
+                  <span
+                    aria-hidden
+                    className={`mt-[6px] h-[6px] w-[6px] shrink-0 rounded-full ${
+                      got ? "bg-accent" : "bg-line-strong"
+                    }`}
+                  />
+                  <div className="min-w-0">
+                    <p
+                      className={`poster text-[14px] ${got ? "" : "text-subtle"}`}
+                    >
+                      {got ? copy[egg.id].name : t.locked}
+                    </p>
+                    <p className="mt-1 text-[12.5px] leading-snug text-muted">
+                      {got ? copy[egg.id].line : copy[egg.id].hint}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mono mt-3 text-[10px] uppercase tracking-[0.1em] text-subtle">
+            {t.privacy}
+          </p>
+        </>
+      )}
     </section>
   );
 }

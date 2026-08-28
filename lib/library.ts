@@ -72,6 +72,20 @@ export function portraitFor(appid: number) {
   return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_600x900.jpg`;
 }
 
+/**
+ * The wide key art. The verdict panel is one game filling the frame, and this
+ * is the only Steam asset shaped for that. Rarer than the header, so callers
+ * fall back to `coverUrl` and then to type.
+ */
+export function heroFor(appid: number) {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_hero.jpg`;
+}
+
+/** The 460x215 header — the right weight for a thumbnail in a row. */
+export function headerFor(appid: number) {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
+}
+
 // Used when the player hasn't imported a real library yet, so the picker still
 // demos end-to-end. Mirrors the mock Steam import, tags included, so the scoring
 // engine behaves exactly as it would on a real enriched library.

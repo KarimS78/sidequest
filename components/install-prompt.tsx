@@ -1,19 +1,31 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Mark } from "@/components/logo";
+import { useI18n } from "@/i18n/context";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+const COPY = {
+  en: { pitch: "Install SideQuest", install: "Install", dismiss: "Dismiss" },
+  fr: { pitch: "Installer SideQuest", install: "Installer", dismiss: "Fermer" },
+} as const;
+
 /**
- * Android / desktop Chrome install affordance. iOS has no equivalent event —
- * nothing is shown there for now.
+ * Android / desktop Chrome install affordance. iOS fires no such event, so
+ * nothing is shown there.
+ *
+ * It parks at the bottom — above the phone tab bar, in the corner on a desktop.
+ * Never at the top: the one thing a visitor is looking for in the first second
+ * is the headline, and a bar over the header hides the product to advertise it.
  */
 export function InstallPrompt() {
+  const { locale } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const t = COPY[locale];
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) return;
@@ -35,19 +47,15 @@ export function InstallPrompt() {
   if (!deferred) return null;
 
   return (
-    // Phone: above the bottom nav, never over it. Desktop: parked in the
-    // corner, where a system prompt belongs.
     <div
-      className="install-dock fixed inset-x-0 z-40 flex justify-center px-4 lg:inset-x-auto lg:right-6 lg:justify-end"
+      className="fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom)+12px)] z-50 flex justify-center px-4 lg:inset-x-auto lg:bottom-6 lg:right-6"
+      role="dialog"
+      aria-label={t.pitch}
     >
-      <div className="flex items-center gap-3 rounded-[3px] border border-line bg-plank px-3 py-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.9)]">
-        {/* The icon the home screen is about to get. Showing it here is the
-            whole pitch: this is the thing that will be sitting on your phone. */}
-        <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-[4px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]">
-          <Image src="/brand/mark-128.png" alt="" fill sizes="28px" />
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
-          Install SideQuest
+      <div className="card flex items-center gap-3 px-3 py-2.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)]">
+        <Mark size={26} ground="var(--surface)" />
+        <span className="mono text-[10.5px] uppercase tracking-[0.1em] text-muted">
+          {t.pitch}
         </span>
         <button
           type="button"
@@ -56,15 +64,15 @@ export function InstallPrompt() {
             setDeferred(null);
             await event.prompt();
           }}
-          className="switch w-auto px-3 py-1.5 font-display text-[14px] font-bold uppercase tracking-[0.1em]"
+          className="btn btn-primary !min-h-[34px] !px-3 text-[11px]"
         >
-          Install
+          {t.install}
         </button>
         <button
           type="button"
           onClick={() => setDeferred(null)}
-          aria-label="Dismiss"
-          className="px-1 text-ink-soft transition-colors hover:text-label"
+          aria-label={t.dismiss}
+          className="px-1 text-subtle transition-colors hover:text-fg"
         >
           ✕
         </button>

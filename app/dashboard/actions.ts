@@ -1,6 +1,6 @@
 "use server";
 
-import { aiSearch, type AiFilter } from "@/lib/ai";
+import { aiSearch, type AiFilter, type AiLocale } from "@/lib/ai";
 
 export type ShelfSearchResult =
   | { ok: true; filter: AiFilter; cached: boolean }
@@ -19,6 +19,7 @@ export async function searchShelf(req: {
   deviceId: string;
   query: string;
   vocabulary: string[];
+  locale: AiLocale;
 }): Promise<ShelfSearchResult> {
   const res = await aiSearch(req);
   if (!res.ok) return { ok: false, reason: res.reason };
