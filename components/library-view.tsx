@@ -41,28 +41,59 @@ function vocabularyOf(library: StoredGame[]): string[] {
 }
 
 /**
- * Apply what the model asked for, hardest constraint last so it is the first
- * thing dropped. An empty shelf is a worse answer than a slightly looser one:
- * if the strict read finds nothing we relax, and the readout says we did.
+ * Apply what the model asked for — by score, not by a chain of ANDs.
+ *
+ * The first version ANDed every clause together and dropped them in order when
+ * the result came back empty. It was wrong in both directions, and the first
+ * live call showed it: asked for "something short I don't have to think about",
+ * the model returned the tags Casual/Relaxing but also Open World/Story Rich,
+ * the AND found nothing, the relax dropped the session fit first — and the
+ * shelf answered with Baldur's Gate 3 and Red Dead 2. The exact opposite.
+ *
+ * So the two kinds of clause are treated as what they are:
+ *
+ *   HARD — unplayedOnly and maxHours. Unambiguous, checkable, and if the player
+ *          asked for something they haven't launched, showing one they have is
+ *          not a looser answer, it is a wrong one.
+ *   SOFT — the session fit and the tags. Both are guesses about meaning, so
+ *          they RANK rather than exclude. A game answering the session fit
+ *          outscores one carrying a single vague tag, which is what puts Hades
+ *          above Elden Ring for "short" without needing Hades to be tagged
+ *          Casual.
+ *
+ * Nothing scoring at all is the only case that reports as relaxed.
  */
 function applyFilter(
   list: StoredGame[],
   f: AiFilter
 ): { games: StoredGame[]; relaxed: boolean } {
-  const byTag = f.tags.length ? list.filter((g) => matchesAnyTag(g.tags ?? [], f.tags)) : list;
-  const byPlay = f.unplayedOnly ? byTag.filter((g) => (g.playtimeMin ?? 0) === 0) : byTag;
-  const byHours =
-    f.maxHours > 0 ? byPlay.filter((g) => (g.playtimeMin ?? 0) / 60 <= f.maxHours) : byPlay;
-  const fit = f.sessionFit;
-  const bySession =
-    fit === "any"
-      ? byHours
-      : byHours.filter((g) => matchesAnyTag(g.tags ?? [], [...SESSION_TAGS[fit]]));
+  const hard = list.filter(
+    (g) =>
+      (!f.unplayedOnly || (g.playtimeMin ?? 0) === 0) &&
+      (f.maxHours <= 0 || (g.playtimeMin ?? 0) / 60 <= f.maxHours)
+  );
 
-  if (bySession.length) return { games: bySession, relaxed: false };
-  if (byHours.length) return { games: byHours, relaxed: true };
-  if (byPlay.length) return { games: byPlay, relaxed: true };
-  return { games: byTag, relaxed: byTag.length > 0 };
+  const fit = f.sessionFit;
+  const score = (g: StoredGame) => {
+    const tags = g.tags ?? [];
+    // Every tag counts separately: three matches is a better answer than one.
+    const onTags = f.tags.filter((t) => matchesAnyTag(tags, [t])).length;
+    // Worth two tags. The player said "short"; the engine's own idea of short
+    // is a stronger signal than a community tag the model reached for.
+    const onFit = fit !== "any" && matchesAnyTag(tags, [...SESSION_TAGS[fit]]) ? 2 : 0;
+    return onTags + onFit;
+  };
+
+  // No soft clause at all — the hard filter IS the answer.
+  if (!f.tags.length && fit === "any") return { games: hard, relaxed: false };
+
+  const scored = hard
+    .map((g) => ({ g, s: score(g) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s);
+
+  if (scored.length) return { games: scored.map((x) => x.g), relaxed: false };
+  return { games: hard, relaxed: hard.length > 0 };
 }
 
 export function LibraryView() {
@@ -102,9 +133,15 @@ export function LibraryView() {
     const list =
       q && !filter ? scoped.games.filter((g) => g.name.toLowerCase().includes(q)) : [...scoped.games];
 
-    list.sort((a, b) =>
-      sort === "name" ? a.name.localeCompare(b.name) : b.playtimeMin - a.playtimeMin
-    );
+    // With a filter up, applyFilter has already ordered by how well each game
+    // answers the question. Re-sorting by playtime here would throw that away
+    // and put the 103-hour RPG first again, which is the thing the ranking
+    // exists to prevent.
+    if (!filter) {
+      list.sort((a, b) =>
+        sort === "name" ? a.name.localeCompare(b.name) : b.playtimeMin - a.playtimeMin
+      );
+    }
     return { games: list, relaxed: scoped.relaxed };
   }, [library, query, sort, filter]);
 

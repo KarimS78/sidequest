@@ -418,11 +418,17 @@ export async function aiSearch(input: {
     "Tags available on this shelf (use ONLY these, copied exactly):",
     vocab.join(", "),
     "",
-    "tags — up to 5 that match the request. Empty if the request is not about genre or feel.",
+    "tags — at most 3, and only ones the request genuinely asks for.",
+    "  Never include a tag that contradicts the request. If they want something short,",
+    "  light or undemanding, do NOT return Open World, Story Rich, RPG or anything that",
+    "  implies a long or heavy game. Fewer, exact tags beat five loose ones — an empty",
+    "  list is a valid answer when the request is not about genre or feel.",
     "unplayedOnly — true only if they asked for something new or untouched.",
     "maxHours — 0 unless they implied a game they have barely played.",
     "sessionFit — short if they implied a quick session, long if a deep one, else any.",
     "say — one line, max 14 words, stating what you filtered for. No preamble.",
+    "  Describe only what you actually put in the fields above. Do not add qualities",
+    "  the player never asked for.",
   ].join("\n");
 
   return generate<AiFilter>({
@@ -495,8 +501,11 @@ export async function aiPortrait(input: {
     facts,
     "",
     "archetype — a two or three word label for this player. Specific, not flattering filler.",
+    "  No hedging adjectives (mature, avid, passionate) — they describe nobody.",
     "reading — max 35 words on what the tags and the hours actually say about their taste.",
-    "blindSpot — max 20 words: what the shelf shows they avoid, or where the stated taste and the hours disagree.",
+    "blindSpot — max 20 words naming ONE thing that is NOT in the shelf, or one place",
+    "  where the stated taste and the hours contradict each other. It must say something",
+    "  the reading does not: if it repeats the reading in other words, it is wrong.",
     "Plain, observant, no hype. Second person.",
   ].join("\n");
 
@@ -535,19 +544,29 @@ export async function aiResume(input: {
 }): Promise<GenResult<AiResume>> {
   const notes = input.notes
     .slice(0, LIMITS.maxNotesInPrompt)
-    .map((n) => `- ${clamp(n.ago, 24)}: ${clamp(n.raw, LIMITS.maxNoteChars)}`)
-    .filter((line) => line.length > 12);
+    .map((n) => `[written ${clamp(n.ago, 24)} ago] ${clamp(n.raw, LIMITS.maxNoteChars)}`)
+    .filter((line) => line.length > 24);
 
   if (!notes.length) return { ok: false, reason: "no notes to read back" };
 
   const prompt = [
     `A player is coming back to ${clamp(input.game, 80)} after a break.`,
-    "These are the notes they left themselves, newest first:",
+    "These are the notes they left themselves, newest first. The bracketed age is",
+    "metadata about each note — it is not part of what they wrote:",
     ...notes,
     "",
     "where — max 25 words, second person, where they were when they stopped.",
     "next — max 15 words, the first thing to do on booting it up, ONLY if the notes imply one; otherwise an empty string.",
-    "Use their words. Never invent progress, items, characters or objectives they did not write down.",
+    "",
+    "Two rules, and they pull against each other. Hold both:",
+    "1. REWRITE. Turn their shorthand into a clean second-person sentence, capitalised",
+    "   properly. Never echo a bracketed age, and never hand back their text verbatim —",
+    "   a copy of the note is already on screen above this line.",
+    "2. INVENT NOTHING. Every place, character, item, quest and event you name must",
+    "   appear in the notes. Do not add a location, a person or an object they did not",
+    "   write down, however plausible it sounds for this game — a detail you supplied is",
+    "   indistinguishable from one they wrote, and this line exists to be trusted weeks",
+    "   later. Fewer of their own facts beats more of yours.",
   ].join("\n");
 
   return generate<AiResume>({

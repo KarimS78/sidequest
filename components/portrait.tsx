@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { getAiPortrait } from "@/app/profile/actions";
 import { deviceId } from "@/lib/device";
+import { announceAiCall } from "@/lib/ai-events";
 import type { BacklogStats, StoredGame } from "@/lib/library";
 
 /**
@@ -66,6 +67,8 @@ export function ShelfPortrait({
         tags,
         stated,
       });
+      // The gauge sits right below this panel; tell it the count moved.
+      announceAiCall();
       setState(
         res.ok
           ? {

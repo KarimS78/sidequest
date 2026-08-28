@@ -10,6 +10,7 @@ import {
 import { roastBacklog, type Roast } from "@/lib/roast";
 import { getAiRoast } from "@/app/roast/actions";
 import { deviceId } from "@/lib/device";
+import { announceAiCall } from "@/lib/ai-events";
 
 /** The templates are instant; the pause is what sells "sharpening". */
 const SHARPEN_MS = 450;
@@ -62,6 +63,8 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
 
     Promise.all([waited, ai]).then(([, generated]) => {
       setPending(false);
+      // The supply gauge is a few blocks down the same screen.
+      announceAiCall();
       if (generated) setRoast(generated);
       else if (local.ok) setRoast(local.roast);
       else setError(local.error);

@@ -2,6 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { getAiStatus, type AiStatus } from "@/app/profile/actions";
+import { onAiCall } from "@/lib/ai-events";
+
+/**
+ * Money, at the scale this app actually spends it.
+ *
+ * A day of heavy use is worth a few cents, and "$0.00" is the one rendering
+ * that would make the gauge useless — so under a cent it reads in cents, with
+ * enough decimals to move when a call lands.
+ */
+function money(usd: number): string {
+  if (usd <= 0) return "0¢";
+  const cents = usd * 100;
+  // A single call costs about half a thousandth of a cent. Two decimals here
+  // printed "0.00¢" after a real call had been billed — the one rendering that
+  // makes the gauge worse than no gauge. Enough decimals that a call moves it.
+  if (cents < 0.01) return `${cents.toFixed(3)}¢`;
+  if (cents < 1) return `${cents.toFixed(2)}¢`;
+  if (usd < 1) return `${cents.toFixed(1)}¢`;
+  return `$${usd.toFixed(2)}`;
+}
 
 /**
  * The AI supply readout.
@@ -14,28 +34,20 @@ import { getAiStatus, type AiStatus } from "@/app/profile/actions";
  * just phrases things from templates. That is the honest reading and the panel
  * says it that way.
  */
-/**
- * Money, at the scale this app actually spends it.
- *
- * A day of heavy use is worth a few cents, and "$0.00" is the one rendering
- * that would make the gauge useless — so under a cent it reads in cents, with
- * enough decimals to move when a call lands.
- */
-function money(usd: number): string {
-  if (usd <= 0) return "0¢";
-  if (usd < 0.01) return `${(usd * 100).toFixed(2)}¢`;
-  if (usd < 1) return `${(usd * 100).toFixed(1)}¢`;
-  return `$${usd.toFixed(2)}`;
-}
-
 export function AiStatusPanel() {
   const [status, setStatus] = useState<AiStatus | null>(null);
 
   useEffect(() => {
-    getAiStatus()
-      .then(setStatus)
-      // The readout is a nicety; the profile is not going to error over it.
-      .catch(() => setStatus(null));
+    const refresh = () =>
+      getAiStatus()
+        .then(setStatus)
+        // The readout is a nicety; the profile is not going to error over it.
+        .catch(() => setStatus(null));
+
+    refresh();
+    // The portrait and the roast are on this same screen. Without this the
+    // gauge kept showing the count from before you pressed them.
+    return onAiCall(refresh);
   }, []);
 
   if (!status) return null;
