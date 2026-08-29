@@ -66,6 +66,26 @@ export const GENRE_OPTIONS = [
  */
 export type Genre = (typeof GENRE_OPTIONS)[number];
 
+/**
+ * The shelf's own tag vocabulary, most common first.
+ *
+ * This is the only thing about the library that ever leaves the browser: the
+ * words, not the games. The shelf search and the draw's typed mood both send it
+ * and both apply the answer locally, which is why a 900-game account costs
+ * exactly the same prompt as the ten-game demo — and why neither can come back
+ * naming a game the player does not own.
+ */
+export function vocabularyOf(library: { tags?: string[] }[]): string[] {
+  const counts = new Map<string, number>();
+  for (const g of library) {
+    for (const t of g.tags ?? []) {
+      const tag = t.trim();
+      if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
+}
+
 function cover(appid: number) {
   return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 }

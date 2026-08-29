@@ -25,6 +25,9 @@ const en = {
     title: "Also in the running",
   },
 
+  /** Prefixes the model's one-line reading of what the player typed. */
+  moodReadLabel: "Read as",
+
   /** Shown when free text matched nothing in the library. */
   moodMiss: (text: string) =>
     `Nothing on your shelf is tagged anything like “${text}”, so this one went on time and playtime instead. Try a genre word — roguelike, cosy, story.`,
@@ -75,6 +78,8 @@ const fr: typeof en = {
   alternatives: {
     title: "Aussi en lice",
   },
+
+  moodReadLabel: "Compris comme",
 
   moodMiss: (text: string) =>
     `Rien sur ton étagère n'est taggé quoi que ce soit comme « ${text} », alors le tirage s'est fait sur le temps et les heures jouées. Essaie un mot de genre — roguelike, cosy, histoire.`,

@@ -1,6 +1,12 @@
 "use server";
 
-import { aiPick, aiSessionNote, type AiCandidate, type AiLocale } from "@/lib/ai";
+import {
+  aiMood,
+  aiPick,
+  aiSessionNote,
+  type AiCandidate,
+  type AiLocale,
+} from "@/lib/ai";
 
 export type AiPickResult =
   | { ok: true; appid: number; reason: string; cached: boolean }
@@ -27,6 +33,65 @@ export async function getAiPick(req: {
   if (!known) return { ok: false, reason: "model picked outside the shortlist" };
 
   return { ok: true, appid: res.value.appid, reason: res.value.reason, cached: res.cached };
+}
+
+export type MoodReadResult =
+  | { ok: true; tags: string[]; avoid: string[]; say: string; cached: boolean }
+  /** Never surfaced as an error — the engine reads the words itself instead. */
+  | { ok: false; reason: string };
+
+/**
+ * Reads a mood the player typed, against the vocabulary their own shelf is
+ * written in.
+ *
+ * Same contract as the shelf search: the library stays in the browser, only its
+ * tag words are sent, and what comes back is tags rather than titles. The
+ * engine still does the scoring, so a draw explained by this reading prints the
+ * same real arithmetic as one explained by a preset.
+ */
+export async function readTypedMood(req: {
+  deviceId: string;
+  mood: string;
+  vocabulary: string[];
+  locale: AiLocale;
+}): Promise<MoodReadResult> {
+  const res = await aiMood(req);
+  if (!res.ok) return { ok: false, reason: res.reason };
+
+  // Trust the shelf, not the model, for what a tag is — and for how it is
+  // spelt. The model answers "story rich" as readily as "Story Rich"; matching
+  // is case-insensitive downstream, but the shelf's own spelling is what ends
+  // up on screen and in a history entry.
+  const canonical = new Map(req.vocabulary.map((t) => [t.toLowerCase(), t]));
+  const clean = (list: string[]) =>
+    list
+      .map((t) => canonical.get(t.trim().toLowerCase()))
+      .filter((t): t is string => Boolean(t));
+
+  const tags = clean(res.value.tags ?? []).slice(0, 4);
+  // A tag on both lists is a contradiction the prompt forbids; if it happens
+  // anyway, what they asked for wins over what it guessed they meant.
+  const picked = new Set(tags.map((t) => t.toLowerCase()));
+  const proposed = clean(res.value.avoid ?? []).filter(
+    (t) => !picked.has(t.toLowerCase())
+  );
+
+  /*
+   * A long `avoid` is not a strong opinion, it is the shelf's own vocabulary
+   * handed back.
+   *
+   * Asked for "un truc pour décompresser", the model returned four sensible
+   * tags and then copied all 38 tags of the shelf into `avoid` — including the
+   * four it had just chosen. Applied, that penalises every game the player owns
+   * and turns the mood into noise. The prompt forbids it and the prompt is not
+   * enough, so the shape of the answer is checked here: a refusal names a few
+   * things, and anything past a handful is an echo, not a refusal.
+   */
+  const avoid = proposed.length > 5 ? [] : proposed.slice(0, 3);
+
+  if (!tags.length && !avoid.length) return { ok: false, reason: "nothing usable" };
+
+  return { ok: true, tags, avoid, say: res.value.say?.trim() ?? "", cached: res.cached };
 }
 
 /**

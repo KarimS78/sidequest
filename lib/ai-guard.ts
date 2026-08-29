@@ -28,7 +28,14 @@
  *   portrait — what the shelf says about the player
  *   resume   — where they left off, read back out of their own old notes
  */
-export type CallKind = "pick" | "roast" | "note" | "search" | "portrait" | "resume";
+export type CallKind =
+  | "pick"
+  | "roast"
+  | "note"
+  | "search"
+  | "portrait"
+  | "resume"
+  | "mood";
 
 /**
  * What gpt-5-nano costs, per 1M tokens. The only two numbers in this app that
@@ -75,6 +82,8 @@ export const LIMITS = {
     search: 350,
     portrait: 700,
     resume: 350,
+    // Answers with a handful of tags and one short line, same shape as search.
+    mood: 350,
   } as Record<CallKind, number>,
 
   /**
@@ -88,6 +97,8 @@ export const LIMITS = {
     search: 30,
     portrait: 6,
     resume: 20,
+    // One per draw, and only when the player typed instead of tapping a preset.
+    mood: 40,
   } as Record<CallKind, number>,
 
   /** Total tokens (in + out) across every device, per day. The real ceiling. */

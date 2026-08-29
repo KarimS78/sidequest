@@ -5,7 +5,12 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { explain, recommendGame, REASON_MAX, shortlist } from "@/lib/recommend";
-import { getAiPick, summariseNote } from "@/app/play/actions";
+import {
+  getAiPick,
+  readTypedMood,
+  summariseNote,
+  type MoodReadResult,
+} from "@/app/play/actions";
 import { deviceId } from "@/lib/device";
 import { unlock } from "@/lib/eggs";
 import { Letters, useCountUp, useMagnetic, prefersReducedMotion } from "@/components/motion";
@@ -17,6 +22,7 @@ import {
   loadLibrary,
   loadProfile,
   SAMPLE_LIBRARY,
+  vocabularyOf,
   type StoredGame,
 } from "@/lib/library";
 import {
@@ -229,6 +235,14 @@ export function Picker() {
   const [result, setResult] = useState<Recommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [missedMood, setMissedMood] = useState<string | null>(null);
+  /**
+   * What the model understood the typed mood to mean, in one line.
+   *
+   * Shown for the same reason the shelf shows its filter: a reading that
+   * changes which game wins has to be visible, or a surprising verdict is
+   * indistinguishable from a broken one.
+   */
+  const [moodRead, setMoodRead] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [played, setPlayed] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -334,6 +348,7 @@ export function Picker() {
     timers.current = [];
     setError(null);
     setMissedMood(null);
+    setMoodRead(null);
     setResult(null);
     setAiSentence(null);
     setCountRun(false);
@@ -370,17 +385,57 @@ export function Picker() {
 
     const moodLabel = custom || d.common.mood[mood!].label;
 
-    // The model only ever sees the engine's shortlist, and it runs while the
-    // reel does. Anything short of a clean answer leaves the local pick standing.
-    const aiPromise: Promise<{ appid: number; reason: string } | null> = getAiPick({
-      deviceId: deviceId(),
-      candidates: shortlist(engineInput),
-      time: d.common.time[time].full,
-      mood: moodLabel,
-      locale,
-    })
-      .then((r) => (r.ok ? { appid: r.appid, reason: r.reason } : null))
-      .catch(() => null);
+    /*
+     * Two model calls, in sequence, both inside the reel's two and a half
+     * seconds — and neither of them is allowed to delay it.
+     *
+     * The first reads what the player typed against this shelf's tag
+     * vocabulary. It has to come first because it changes the score, and
+     * therefore the shortlist the second call chooses from: asking for a pick
+     * out of a shortlist built on the wrong reading is worse than not asking.
+     *
+     * `res` above is the local engine's answer, already computed from
+     * lib/mood-words.ts. It stands if the reading is slow, refused by the
+     * guard, or unavailable — which is the whole point of computing it first.
+     */
+    const readingPromise: Promise<MoodReadResult | null> = custom
+      ? readTypedMood({
+          deviceId: deviceId(),
+          mood: custom,
+          vocabulary: vocabularyOf(pool),
+          locale,
+        }).catch(() => null)
+      : Promise.resolve(null);
+
+    const aiPromise = readingPromise.then(async (reading) => {
+      const better =
+        reading?.ok && (reading.tags.length || reading.avoid.length)
+          ? { ...engineInput, moodNeedles: reading.tags, moodAvoid: reading.avoid }
+          : null;
+      const rescored = better ? recommendGame(better) : null;
+
+      // A reading that scores nothing is a reading that was wrong about this
+      // shelf. Keep the local one rather than show an empty verdict.
+      const input = rescored?.ok ? better! : engineInput;
+      const result = rescored?.ok ? rescored : res;
+
+      const pick = await getAiPick({
+        deviceId: deviceId(),
+        candidates: shortlist(input),
+        time: d.common.time[time].full,
+        mood: moodLabel,
+        locale,
+      })
+        .then((r) => (r.ok ? { appid: r.appid, reason: r.reason } : null))
+        .catch(() => null);
+
+      return {
+        result,
+        pick,
+        input,
+        say: reading?.ok ? reading.say : null,
+      };
+    });
 
     /* ---- beat 2: the reel ---- */
     const schedule = reelSchedule();
@@ -405,12 +460,16 @@ export function Picker() {
     });
 
     after(at + SEAT_MS, async () => {
-      const ai = await aiPromise;
-      const merged = ai ? applyAiPick(res.recommendation, ai, engineInput) : res.recommendation;
+      const { result, pick: ai, input, say } = await aiPromise;
+      const merged = ai ? applyAiPick(result.recommendation, ai, input) : result.recommendation;
 
       setResult(merged);
       setAiSentence(ai?.reason ?? null);
-      setMissedMood(res.note ? custom : null);
+      setMoodRead(say);
+      // The miss line belongs to whichever reading actually ran: a model that
+      // found tags has answered the words, and saying "nothing matches" over a
+      // verdict built from them would be the screen contradicting itself.
+      setMissedMood(result.note ? custom : null);
       setReel(null);
       setPhase("done");
 
@@ -755,6 +814,15 @@ export function Picker() {
                       />
                     ))}
                   </div>
+
+                  {moodRead && (
+                    <p className="mt-4 flex max-w-xl items-baseline gap-2 text-[13px] text-subtle">
+                      <span className="mono shrink-0 text-[10px] uppercase tracking-[0.12em]">
+                        {d.draw.moodReadLabel}
+                      </span>
+                      <span className="text-muted">{moodRead}</span>
+                    </p>
+                  )}
 
                   {missedMood && (
                     <p className="mt-4 max-w-xl border-l-2 border-accent pl-3 text-[13.5px] text-subtle">

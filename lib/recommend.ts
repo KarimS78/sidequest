@@ -7,6 +7,8 @@
 // Runs on the client (it needs no secret and no server round-trip), which is
 // why it lives in lib/ and not behind a Server Action.
 
+import { readMood, negatedTags } from "@/lib/mood-words";
+
 export type PickerTime = "short" | "medium" | "long";
 export type PickerMood = "chill" | "story" | "challenge" | "quick";
 
@@ -29,6 +31,17 @@ export type RecommendInput = {
   mood?: PickerMood;
   /** Free-text mood in the player's own words — takes priority over `mood`. */
   customMood?: string;
+  /**
+   * The model's reading of `customMood` — tags drawn out of it, in the shelf's
+   * own vocabulary. Supplied by the caller when the AI layer is available.
+   *
+   * Used only where the engine's own reading (lib/mood-words.ts) came up empty:
+   * the lexicon is the steadier reader, this is the cover for phrasings it does
+   * not know. With no key these are simply absent.
+   */
+  moodNeedles?: string[];
+  /** Tags the same reading says to steer away from. Same precedence. */
+  moodAvoid?: string[];
   /** Hard exclusions — games the player just rejected ("not this one"). */
   excludeAppids?: number[];
   /** Soft avoid — recently recommended games; heavily penalised, not banned. */
@@ -93,6 +106,13 @@ type NeedleSet = {
   key: Extract<ReasonKey, "mood" | "custom">;
   /** The player's own words, when they typed instead of picking a mood. */
   text?: string;
+  /**
+   * Tags the player ruled out in so many words — "nothing scary", "rien de trop
+   * dur". Scored as a penalty rather than merely left unrewarded: a refusal is
+   * information, and treating it as silence is how a request for something calm
+   * comes back with Elden Ring.
+   */
+  avoid?: string[];
 };
 
 export type RecommendPick = {
@@ -206,6 +226,12 @@ const W = {
   moodMax: 40,
   /** Matching this many mood tags already earns full marks. */
   moodSaturation: 3,
+  /**
+   * Carrying tags the player ruled out. Sized just above the anti-repetition
+   * nudge: "not this kind of thing tonight" is a firmer instruction than "you
+   * saw this one on Tuesday".
+   */
+  avoidMax: 30,
   timeBase: 10,
   timeBonusPerTag: 5,
   timeMalusPerTag: 6,
@@ -265,22 +291,9 @@ function matchTags(
   return out;
 }
 
-const STOPWORDS = new Set([
-  "and", "but", "the", "for", "with", "something", "some", "want", "feel",
-  "feeling", "kind", "sort", "like", "little", "bit", "really", "very",
-  "just", "not", "into", "that", "this", "play", "game", "games", "mood",
-]);
-
-/** Free-text mood → candidate tag needles. */
-export function moodTokens(text: string): string[] {
-  return [
-    ...new Set(
-      norm(text)
-        .split(/[^a-z0-9-]+/)
-        .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
-    ),
-  ];
-}
+// The free-text reading — stopwords, negation and the bilingual sense lexicon
+// — lives in lib/mood-words.ts. It left this file when it stopped being a
+// tokenizer: a substring search over tag names could not answer a sentence.
 
 // ===================== Scoring =====================
 
@@ -321,12 +334,16 @@ function scoreGame(
   // --- Mood (or free-text) match: the dominant term ---
   if (needles && tags.length) {
     const hits = matchTags(tags, needles.list);
+    const avoided = needles.avoid?.length
+      ? matchTags(tags, needles.avoid)
+      : [];
+    const reward = Math.min(1, hits.length / W.moodSaturation) * W.moodMax;
+    const malus = Math.min(1, avoided.length / W.moodSaturation) * W.avoidMax;
+
     if (hits.length) {
-      const points =
-        Math.min(1, hits.length / W.moodSaturation) * W.moodMax;
       components.push({
         key: "mood",
-        points,
+        points: reward - malus,
         reason: {
           icon: needles.icon,
           label: `${hits[0].tag} — ${needles.label}`,
@@ -334,6 +351,11 @@ function scoreGame(
           data: { tag: hits[0].tag, text: needles.text },
         },
       });
+    } else if (malus) {
+      // Nothing to celebrate, something to avoid. Scored, but given no reason:
+      // the verdict lists why this game won, and "carries a tag you ruled out"
+      // is never a why for a game that did.
+      components.push({ key: "mood", points: -malus });
     }
   }
 
@@ -485,6 +507,64 @@ function prose(reasons: Reason[], time: PickerTime): string {
   return `${parts.join(". ")}.`;
 }
 
+/**
+ * What a typed mood is scored on — read once, so every caller reads it the same.
+ *
+ * `explain` rebuilds the badges when the model picks a different game from the
+ * shortlist, so it and `recommendGame` have to agree exactly. They did not: one
+ * unioned the two readings and the other still replaced, and the same phrase
+ * scored 50 through the draw and 37 through the rebuild. Same bug family as a
+ * denominator guessed at the call site, and the same fix — one function.
+ *
+ * The lexicon wins where it has an opinion; the model fills the silence.
+ *
+ * Unioning the two was the first try and it was measurably worse. The lexicon
+ * is deterministic and right about the words it knows. The model is neither: on
+ * gpt-5-nano the same phrase does not read the same twice — "je veux souffrir"
+ * came back Difficult + Souls-like once and Open World + RPG the next — and a
+ * union lets one bad reading outvote a good one. Asked for "rien de trop long,
+ * j'ai pas la tête à ça", the lexicon said Casual/Relaxing and the model added
+ * tags for an immersive epic; unioned, the draw answered Elden Ring.
+ *
+ * So the model is not a co-author, it is the cover for sentences nobody could
+ * write a lexicon for. When the lexicon fires, the reading is also free,
+ * instant and identical every time — and identical with or without a key.
+ *
+ * Returns null when the shelf has nothing to say to any of it.
+ */
+function customNeedles(
+  custom: string,
+  input: RecommendInput,
+  pool: PickerGame[]
+): NeedleSet | null {
+  const local = readMood(custom);
+
+  // Only needles this shelf can answer to. A word nobody tagged is not a
+  // preference, it is noise, and scoring on it would spread 40 points evenly
+  // over games that have nothing to do with the ask.
+  const lands = (t: string) => pool.some((g) => tagHits(g.tags ?? [], t));
+
+  const localList = local.needles.filter(lands);
+  const list = localList.length ? localList : (input.moodNeedles ?? []).filter(lands);
+
+  const localAvoid = negatedTags(local.negated).filter(lands);
+  const avoid = (localAvoid.length ? localAvoid : (input.moodAvoid ?? []).filter(lands))
+    // What was asked for wins over what either reading guessed to rule out.
+    .filter((t) => !list.some((l) => l.toLowerCase() === t.toLowerCase()));
+
+  // A refusal with nothing asked for is still a usable instruction.
+  if (!list.length && !avoid.length) return null;
+
+  return {
+    list,
+    icon: "✨",
+    label: `matches “${custom}”`,
+    key: "custom",
+    text: custom,
+    avoid,
+  };
+}
+
 export function recommendGame(input: RecommendInput): RecommendResult {
   if (!input.library?.length) {
     return {
@@ -507,19 +587,8 @@ export function recommendGame(input: RecommendInput): RecommendResult {
   let needles: NeedleSet | null = null;
 
   if (custom) {
-    const tokens = moodTokens(custom);
-    const lands = tokens.some((t) =>
-      pool.some((g) => tagHits(g.tags ?? [], t))
-    );
-    if (lands) {
-      needles = {
-        list: tokens,
-        icon: "✨",
-        label: `matches “${custom}”`,
-        key: "custom",
-        text: custom,
-      };
-    } else {
+    needles = customNeedles(custom, input, pool);
+    if (!needles) {
       note = `Nothing in your library is tagged anything like “${custom}”, so I picked on time and playtime instead. Try a genre word — “roguelike”, “cozy”, “story”.`;
     }
   } else if (input.mood) {
@@ -619,13 +688,7 @@ export function explain(input: RecommendInput) {
   const recent = new Set(input.recentAppids ?? []);
   const custom = input.customMood?.trim();
   const needles: NeedleSet | null = custom
-    ? {
-        list: moodTokens(custom),
-        icon: "✨",
-        label: `matches “${custom}”`,
-        key: "custom",
-        text: custom,
-      }
+    ? customNeedles(custom, input, input.library)
     : input.mood
       ? {
           list: MOOD_TAGS[input.mood],

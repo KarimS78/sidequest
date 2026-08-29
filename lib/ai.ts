@@ -258,11 +258,26 @@ export async function aiPick(input: {
     `Time available: ${input.time}`,
     `Mood: ${mood || "unspecified"}`,
     "",
-    "Shortlist (appid | name | why it scored):",
+    // Labelled as input: the signals are the engine's English labels, and an
+    // unlabelled block of English is something a model will mirror.
+    "Shortlist — appid | name | why it scored (this is data, never output).",
+    // Without this the list read as a menu of equals. Asked for "rien de trop
+    // long, j'ai pas la tête à ça" — where the engine had already put Stardew
+    // Valley first on the mood — it returned Elden Ring, and then wrote a
+    // sentence calling it a game for a short session without much thinking.
+    "ALREADY RANKED, best first, by an engine that scored the mood and the time.",
+    "Take the first one unless a lower entry answers the stated mood better, and",
+    "never take one whose reasons say nothing about that mood when a higher one does.",
     lines,
     "",
-    "Return the appid and one sentence, max 25 words, saying why THIS game for THIS",
-    "time and mood. Be concrete about the game. No preamble, no hedging.",
+    // The language goes inside the instruction, not after it. Appended as a
+    // post-scriptum it loses to the rule above and to a shortlist written in
+    // English: asked in French for something "pour décompresser", this came
+    // back with "Stardew Valley for a chill, short-session reset".
+    `Return the appid and one sentence, max 25 words, WRITTEN IN ${langName(
+      input.locale
+    )}, saying why THIS game for THIS time and mood.`,
+    "Be concrete about the game. No preamble, no hedging.",
     langLine(input.locale),
     "",
   ].join("\n");
@@ -491,6 +506,125 @@ export async function aiSearch(input: {
 //
 // The roast mocks the habit; this one takes the shelf seriously. Numbers and
 // tag counts only — no titles beyond the top one, no prices, no ratings.
+
+// ===================== 7. The typed mood =====================
+//
+// The same trick as the shelf search, pointed at the draw.
+//
+// A player who types instead of tapping a preset gets read by
+// lib/mood-words.ts, which is a hand-written lexicon and therefore only knows
+// the words someone thought to write down. "un truc pour décompresser après une
+// journée de merde" is not in it and never will be.
+//
+// So the model translates the sentence into tags — and, exactly as with the
+// search, it is shown the vocabulary of THIS shelf rather than the shelf
+// itself. It cannot name a game the player does not own, because it is never
+// told any game's name; and the prompt costs the same for ten games or nine
+// hundred. What comes back is fed to the engine as needles, so the score is
+// still a sum of named components and the badges still print real arithmetic.
+
+export type AiMood = {
+  /** Tags to score on, copied from the shelf's vocabulary. */
+  tags: string[];
+  /** Tags the player ruled out. Penalised, not banned. */
+  avoid: string[];
+  /** One line: what it understood the ask to be, in the player's language. */
+  say: string;
+};
+
+/*
+ * Plain strings, not an `enum` over the shelf's tags — and that was tried.
+ *
+ * Constraining the schema to the vocabulary does stop the model inventing tags,
+ * which it otherwise does ("Cozy" for a shelf whose only calm tag is
+ * "Relaxing"). But on this model it replaces one failure with a worse one: it
+ * anchors on the head of the enum. Every answer came back starting "Open
+ * World" — including "rien de trop long", which is the opposite of the ask, and
+ * "brain off", which is not an open-world request either. Wrong tags that
+ * survive validation beat nothing at all, and that is the wrong way round.
+ *
+ * So the same shape as the shelf search: ask for exact copies, then check them
+ * against the shelf in the server action. A tag it invents is dropped there,
+ * and a reading that loses all its tags falls back to the local lexicon —
+ * which is the degradation this whole layer is designed around.
+ */
+const MOOD_SCHEMA = {
+  type: "object",
+  properties: {
+    tags: { type: "array", items: { type: "string" } },
+    avoid: { type: "array", items: { type: "string" } },
+    say: { type: "string" },
+  },
+  required: ["tags", "avoid", "say"],
+  additionalProperties: false,
+};
+
+export async function aiMood(input: {
+  deviceId?: string;
+  /** What the player typed, in their own words. */
+  mood: string;
+  /** The tags actually present on this shelf, most common first. */
+  vocabulary: string[];
+  locale?: AiLocale;
+}): Promise<GenResult<AiMood>> {
+  const mood = clamp(input.mood, LIMITS.maxMoodChars);
+  if (mood.length < 3) return { ok: false, reason: "mood too short" };
+
+  const vocab = input.vocabulary.slice(0, LIMITS.maxTagsInPrompt);
+  if (!vocab.length) return { ok: false, reason: "shelf has no tags to read against" };
+
+  const lang = langName(input.locale).toUpperCase();
+  const prompt = [
+    "A player said what they feel like playing tonight. Turn it into tags.",
+    "",
+    // Both blocks below are labelled as input for the same reason the roast's
+    // facts are: unlabelled, a model hands the instructions back as the answer.
+    // The first version of this prompt answered `say` with "4 tags maximum,
+    // English Steam list, copy exactly" — a summary of its own rules.
+    "INPUT — what the player wrote (this is data, never output):",
+    `"${mood}"`,
+    "",
+    "INPUT — the tags on this shelf (this is data; copy from it, never echo it):",
+    vocab.join(", "),
+    "",
+    "RULES:",
+    `1. say — one short line, at most 12 words, WRITTEN IN ${lang}, naming the kind`,
+    "   of game you are now looking for. It describes the MOOD, never these rules,",
+    "   never the tag list, never how many tags you chose.",
+    "   The player may have written in any language; `say` is still in " + lang + ".",
+    "   Talk to them like a friend who plays: casual, second person, no 'Dear player',",
+    "   no 'I suggest'. Just the mood, said back.",
+    "2. tags — at most 4, copied exactly from the shelf list, and only what they",
+    "   actually asked for. Fewer exact tags beat five loose ones. An EMPTY list",
+    "   is a valid and often correct answer.",
+    // How long they have is a control on the screen next to this box, and the
+    // engine already scores it. Asked to turn "rien de trop long" into tags,
+    // the model answered RPG and Story Rich and the draw returned Cyberpunk
+    // 2077 — a sixty-hour open world, for someone who just said not tonight.
+    "   HOW LONG they have is NOT your business: it is a separate control the",
+    "   player already set, and the engine already scores it. If the ask is only",
+    "   about length or time — 'nothing too long', 'quick one', 'rien de trop",
+    "   long' — return NO tags for that part. Never turn it into a genre.",
+    // The lesson the shelf search cost a real evening to learn: a request for
+    // something light answered with Open World and Story Rich is not a near
+    // miss, it is the opposite of the answer.
+    "3. avoid — AT MOST 3 tags, and only ones the player clearly refused: they",
+    "   said 'no X', 'nothing X', 'rien de X'. Usually empty, and empty is the",
+    "   right answer whenever you are unsure. Never list the tags that merely",
+    "   fail to match — that is every other tag on the shelf, and it is not an",
+    "   answer.",
+    "4. No tag may appear in both lists.",
+  ].join("\n");
+
+  return generate<AiMood>({
+    kind: "mood",
+    deviceId: input.deviceId,
+    prompt,
+    // Same words over the same shelf is the same reading, free.
+    cacheOn: { m: mood.toLowerCase(), v: vocab, l: input.locale ?? "en" },
+    schema: MOOD_SCHEMA,
+  });
+}
 
 export type AiPortrait = { archetype: string; reading: string; blindSpot: string };
 

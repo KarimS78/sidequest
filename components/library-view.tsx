@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CoverArt } from "@/components/cover-art";
 import { searchShelf } from "@/app/dashboard/actions";
-import { loadLibrary, SAMPLE_LIBRARY, untaggedAppids, type StoredGame } from "@/lib/library";
+import {
+  loadLibrary,
+  SAMPLE_LIBRARY,
+  untaggedAppids,
+  vocabularyOf,
+  type StoredGame,
+} from "@/lib/library";
 import { matchesAnyTag, SESSION_TAGS } from "@/lib/recommend";
 import type { AiFilter } from "@/lib/ai";
 import { deviceId } from "@/lib/device";
@@ -22,24 +28,6 @@ const SEARCH_EGGS: { test: RegExp; id: "cake" | "halflife" }[] = [
   { test: /^(half.?life ?3|hl3|portal ?3)$/i, id: "halflife" },
 ];
 
-/**
- * The shelf's own tag vocabulary, most common first.
- *
- * This is the only thing about the library that ever leaves the browser for a
- * search: the words, not the games. The model answers with a filter over these
- * words and the filtering happens here, which is why a 900-game account costs
- * exactly the same prompt as the ten-game demo.
- */
-function vocabularyOf(library: StoredGame[]): string[] {
-  const counts = new Map<string, number>();
-  for (const g of library) {
-    for (const t of g.tags ?? []) {
-      const tag = t.trim();
-      if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-  }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
-}
 
 /**
  * Apply what the model asked for — by score, not by a chain of ANDs.
