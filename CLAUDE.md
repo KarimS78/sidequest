@@ -64,13 +64,17 @@ L'app n'est plus en anglais seul. **Les deux langues sont de premier rang.**
 - **Le contenu généré ne survit pas à un changement de langue.** Portrait, roast, relecture et filtre d'étagère se vident sur bascule : trois vannes anglaises sous un titre français lisent comme un bug, parce que c'en est un.
 - **Reste en anglais** : les punchlines de repli de `lib/roast.ts` (le chemin sans clé IA / hors quota) et les `mood` déjà stockés dans l'historique (de la donnée écrite au moment du tirage).
 
-## Marque (refaite le 29/08/2026)
+## Marque
 
-- **La marque est de la géométrie, plus un PNG.** Un losange arrondi violet avec un « S » traversant, défini dans `components/logo.tsx` — le losange est une face de dé, ce qui est la forme honnête pour un produit dont le geste unique est un tirage. Quart de tour au ressort au survol.
-- `node scripts/generate-brand.mjs` dérive **tout le reste** de cette géométrie (sharp, présent via Next, volontairement pas déclaré en dépendance) : `public/icon-{192,512}.png`, `icon-maskable-512.png` (padding 24 % — Android découpe un cercle), `apple-touch-icon.png`, `public/brand/mark-{128,512}.png`, et `app/favicon.ico` (16/32/48 dans un conteneur ICO écrit à la main).
-- **La règle qui décide de tout tient toujours : le lettrage ne survit pas à la réduction.** Toute sortie carrée est la marque seule. Le lockup complet n'apparaît qu'à un endroit, la carte sociale.
-- `app/opengraph-image.tsx` est **généré** (ImageResponse + `assets/ClashDisplay-Semibold.ttf`), pas un PNG commité : il ne peut pas diverger de la marque. En anglais par défaut — un crawler n'envoie pas de cookie.
-- `public/sw.js` précache `/` et les icônes → **bumper `CACHE` à chaque changement de logo ou de home** (fait : `sidequest-v4`).
+- **Le master est `brand/logo-master.png`** — le lockup complet fourni par Karim : rose des vents + S, SIDEQUEST, PLAY · TRACK · COMPLETE. **Tout le reste en dérive**, via `node scripts/generate-brand.mjs` (sharp, présent via Next, volontairement pas déclaré en dépendance : c'est un outil de build lancé à la main).
+- ⚠️ **Le 29/08/2026 j'ai remplacé ce logo par une marque géométrique** (losange violet + S découpé, en SVG) parce que le brief de DA disait « nouveau mark ». **Karim l'a refusée : « nope celui que t'ai envoyé ».** Le master fourni EST le logo. Ne pas le redessiner, même si un brief semble le demander — demander d'abord.
+- **Le crop de la marque est mesuré, pas estimé** : le script scanne les lignes de pixels allumés, les groupe en bandes (marque / wordmark / baseline) et prend la première. Il tombe sur un carré de 642px, ce qu'une rose des vents doit être. Un nouvel export du logo se recroppe donc tout seul, au lieu d'invalider silencieusement un crop codé en dur.
+- **La règle qui décide de tout : le lettrage ne survit pas à la réduction.** À 32px une baseline de capitales de 8px est une bavure grise. Donc **toute sortie carrée est la marque seule** ; le lockup complet n'apparaît qu'à un endroit, la carte sociale, qui est le seul rectangle assez large pour le lire.
+- **La marque garde sa propre tuile sombre** (`components/logo.tsx`, `rounded-[6px]`, overflow hidden) au lieu d'être détourée : elle porte son halo et son fond quasi-noir, et la poser directement sur une surface montrerait ce fond comme une salissure carrée. Même chose sur la carte sociale, où le lockup a sa plaque noire à coins arrondis — sans elle, il faisait une tache sur le `#0d1114` de la carte.
+- **Au survol, l'emblème fait un écart de quelques degrés**, comme une aiguille qui trouve le nord — pas un tour complet : le S est une lettre, et la faire tourner lit comme un spinner de chargement.
+- Sorties : `public/icon-{192,512}.png`, `icon-maskable-512.png` (padding 22 % — Android découpe un cercle dedans), `apple-touch-icon.png`, `public/brand/mark-{128,512}.png` pour l'UI, `app/favicon.ico` (16/32/48 en PNG dans un conteneur ICO écrit à la main), `public/brand/logo-full.png` + `assets/og-lockup.png`.
+- `app/opengraph-image.tsx` est **généré** (ImageResponse + `assets/ClashDisplay-Semibold.ttf` + le lockup en base64), pas un PNG commité : il ne peut pas diverger du master.  En anglais par défaut — un crawler n'envoie pas de cookie.
+- `public/sw.js` précache `/` et les icônes → **bumper `CACHE` à chaque changement de logo ou de home** (fait : `sidequest-v5`).
 
 ## Structure actuelle
 

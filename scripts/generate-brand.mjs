@@ -1,54 +1,133 @@
-// Derives every brand raster from one source: the mark drawn in
-// components/logo.tsx. Run by hand: `node scripts/generate-brand.mjs`.
+// Derives every brand raster from one source: brand/logo-master.png, the full
+// lockup Karim supplied — compass rose + S, SIDEQUEST, PLAY · TRACK · COMPLETE.
+// Run by hand: `node scripts/generate-brand.mjs`.
 //
-// The old version cropped a painted PNG of a compass. There is no PNG master
-// any more — the mark is geometry, so the master is the geometry, and this
-// script is the only place it is duplicated. If the diamond or the S changes in
-// logo.tsx, change MARK below and re-run; nothing else in the repo is hand-drawn
-// brand art.
+// Nothing else in the repo is hand-drawn brand art. There was briefly a mark
+// drawn in SVG here instead; it is gone, because the master is the master.
+//
+// THE RULE THAT DECIDES EVERYTHING: the lettering does not survive shrinking.
+// At 32px an 8px line of capitals is a grey smear. So every square output is
+// the MARK ALONE, and the full lockup appears in exactly one place — the social
+// card, which is the one wide rectangle with room to read it.
 //
 // Uses `sharp`, which ships inside Next. Deliberately not declared as a
 // dependency: it is a build tool run by hand, not something the app imports.
 
 import fs from "node:fs";
 import path from "node:path";
-import zlib from "node:zlib";
 import sharp from "sharp";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const ACCENT = "#7c5cff";
-const GROUND = "#0d1114";
+const MASTER = path.join(ROOT, "brand/logo-master.png");
+const GROUND = { r: 8, g: 10, b: 18 };
 
 /**
- * The mark, at any size, on its own ground.
+ * Where the mark is inside the master — measured, never estimated.
  *
- * `pad` is the share of the canvas left empty around it. Square app icons want
- * a little; a maskable icon wants a lot, because Android crops a circle out of
- * it and anything in the corners is gone.
+ * The lockup is three stacked bands of bright pixels on a near-black ground:
+ * the mark, the wordmark, then the tagline. Scanning rows for brightness and
+ * taking the FIRST band gives the mark without hard-coding a crop that a new
+ * export of the logo would silently invalidate.
  */
-function markSvg(size, { pad = 0.12, ground = GROUND, radius = 0 } = {}) {
-  const box = 32;
-  const inner = 1 - pad * 2;
-  const scale = inner;
-  const offset = (box * pad) / scale;
+async function measureMark() {
+  const { data, info } = await sharp(MASTER)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${box} ${box}">
-  <rect width="${box}" height="${box}" rx="${radius}" fill="${ground}"/>
-  <g transform="scale(${scale}) translate(${offset} ${offset})">
-    <rect x="5.5" y="5.5" width="21" height="21" rx="3" transform="rotate(45 16 16)" fill="${ACCENT}"/>
-    <path d="M19.8 12.9C19.8 11 18.1 10.2 16 10.2C13.9 10.2 12.2 11.1 12.2 12.9C12.2 16.4 19.8 15.3 19.8 19.1C19.8 21 18 21.9 16 21.9C13.9 21.9 12.2 21 12.2 19.3"
-      stroke="${ground}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-  </g>
-</svg>`;
+  const { width, height, channels } = info;
+  const LIT = 78; // above the halo, below the artwork
+
+  const bright = (x, y) => {
+    const i = (y * width + x) * channels;
+    const a = channels === 4 ? data[i + 3] : 255;
+    if (a < 40) return false;
+    return Math.max(data[i], data[i + 1], data[i + 2]) > LIT;
+  };
+
+  // Rows that contain anything lit at all.
+  const rowHasInk = [];
+  for (let y = 0; y < height; y++) {
+    let ink = 0;
+    for (let x = 0; x < width; x += 2) if (bright(x, y)) ink++;
+    // A handful of stray pixels is halo noise, not a band.
+    rowHasInk.push(ink > 4);
+  }
+
+  // Group into bands, keep the first one: that is the mark.
+  const bands = [];
+  let start = -1;
+  for (let y = 0; y < height; y++) {
+    if (rowHasInk[y] && start === -1) start = y;
+    if (!rowHasInk[y] && start !== -1) {
+      if (y - start > height * 0.04) bands.push([start, y]);
+      start = -1;
+    }
+  }
+  if (start !== -1) bands.push([start, height]);
+  if (!bands.length) throw new Error("no lit band found in the master");
+
+  const [top, bottom] = bands[0];
+
+  // Horizontal extent within that band.
+  let left = width;
+  let right = 0;
+  for (let y = top; y < bottom; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!bright(x, y)) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+    }
+  }
+
+  // A compass rose wants to be a square, so square it off around its centre.
+  const cx = (left + right) / 2;
+  const cy = (top + bottom) / 2;
+  const side = Math.max(right - left, bottom - top);
+  const half = side / 2;
+
+  const box = {
+    left: Math.max(0, Math.round(cx - half)),
+    top: Math.max(0, Math.round(cy - half)),
+    size: Math.round(side),
+  };
+  box.size = Math.min(box.size, width - box.left, height - box.top);
+
+  console.log(
+    `  measured mark: ${box.size}x${box.size} at (${box.left}, ${box.top}) of ${width}x${height}`
+  );
+  return box;
 }
 
-const png = (svg, size) => sharp(Buffer.from(svg)).resize(size, size).png().toBuffer();
+/**
+ * The mark on its own ground, at `size`.
+ *
+ * `pad` is the share of the canvas left empty around it — a maskable icon needs
+ * a lot of it, because Android crops a circle out and anything near a corner is
+ * gone. The ground is painted rather than left transparent: the artwork carries
+ * its own glow and near-black background, and knocking it out would show that
+ * background as a smudge on whatever sits behind.
+ */
+async function markPng(box, size, pad = 0.06) {
+  const inner = Math.round(size * (1 - pad * 2));
+  const mark = await sharp(MASTER)
+    .extract({ left: box.left, top: box.top, width: box.size, height: box.size })
+    .resize(inner, inner, { fit: "cover" })
+    .toBuffer();
+
+  return sharp({
+    create: { width: size, height: size, channels: 4, background: { ...GROUND, alpha: 1 } },
+  })
+    .composite([{ input: mark, gravity: "center" }])
+    .png()
+    .toBuffer();
+}
 
 /* ============================================================
    A hand-written ICO container.
 
    Windows and every browser tab still want one, and the format is three PNGs
-   with a 22-byte header each. Not worth a dependency.
+   with a 16-byte directory entry each. Not worth a dependency.
    ============================================================ */
 function ico(images) {
   const header = Buffer.alloc(6);
@@ -83,30 +162,34 @@ const out = (rel, buf) => {
 };
 
 async function main() {
-  console.log("Deriving the brand from the mark:\n");
+  console.log("Deriving the brand from brand/logo-master.png:\n");
+  const box = await measureMark();
+  console.log("");
 
-  // ---- PWA and browser icons ----
-  out("public/icon-192.png", await png(markSvg(192), 192));
-  out("public/icon-512.png", await png(markSvg(512), 512));
-  // Maskable: Android crops a circle, so the mark sits well inside the safe area.
-  out("public/icon-maskable-512.png", await png(markSvg(512, { pad: 0.24 }), 512));
-  out("public/apple-touch-icon.png", await png(markSvg(180, { pad: 0.16 }), 180));
+  // ---- PWA and browser icons: the mark alone ----
+  out("public/icon-192.png", await markPng(box, 192));
+  out("public/icon-512.png", await markPng(box, 512));
+  // Android crops a circle out of the maskable one, so the mark sits well in.
+  out("public/icon-maskable-512.png", await markPng(box, 512, 0.22));
+  out("public/apple-touch-icon.png", await markPng(box, 180, 0.1));
 
-  // ---- in-app tile, kept for the service worker's precache list ----
-  out("public/brand/mark-128.png", await png(markSvg(128, { pad: 0.08 }), 128));
-  out("public/brand/mark-512.png", await png(markSvg(512, { pad: 0.08 }), 512));
+  // ---- the tile the UI uses ----
+  out("public/brand/mark-128.png", await markPng(box, 128, 0.04));
+  out("public/brand/mark-512.png", await markPng(box, 512, 0.04));
 
   // ---- favicon ----
-  const sizes = [16, 32, 48];
   const frames = [];
-  for (const size of sizes) {
-    frames.push({ size, data: await png(markSvg(size, { pad: 0.06 }), size) });
+  for (const size of [16, 32, 48]) {
+    frames.push({ size, data: await markPng(box, size, 0.02) });
   }
   out("app/favicon.ico", ico(frames));
 
-  console.log(
-    "\nThe social card is app/opengraph-image.tsx — generated per request, not here,\nbecause it sets the wordmark and needs the real font."
-  );
+  // ---- the full lockup, for the one place it fits: the social card ----
+  const lockup = await sharp(MASTER).trim({ threshold: 12 }).resize({ width: 760 }).png().toBuffer();
+  out("public/brand/logo-full.png", lockup);
+  out("assets/og-lockup.png", lockup);
+
+  console.log("\nDone. The social card (app/opengraph-image.tsx) reads assets/og-lockup.png.");
 }
 
 main().catch((err) => {

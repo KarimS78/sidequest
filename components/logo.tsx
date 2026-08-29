@@ -1,57 +1,43 @@
+import Image from "next/image";
+
 /**
- * The mark: a rounded diamond with an S cut through it.
+ * The mark: the compass rose and S from brand/logo-master.png.
  *
- * The diamond is a die face seen straight on, which is the honest shape for
- * this product — the whole thing is a weighted draw, and the one gesture the
- * app asks for is a roll.
+ * Two things about how it is rendered, both learned rather than chosen:
  *
- * The S is stroked in the ground colour rather than punched with an SVG
- * `<mask>`. That is not a shortcut: a masked shape gets rasterised before it is
- * scaled, and at 30px the diamond's four points came back flattened into an
- * octagon with a smeared letter inside it. Drawn straight, both stay vector all
- * the way down to 18px. Pass `ground` when the mark sits on anything that is
- * not the app background.
+ * It keeps its OWN dark tile instead of being knocked out onto whatever is
+ * behind it. The artwork carries its own glow and its own near-black ground,
+ * and floating that on a surface shows the ground as a smudge around the
+ * emblem. The tile is the fix, and it is why `Mark` takes no colour prop.
  *
- * Server-safe: no hooks, no client boundary. The hover rotation is CSS on the
+ * It is the mark alone, never the full lockup. At 32px the 8px line of
+ * capitals under the emblem is a grey smear — so every square use is the
+ * emblem, and the lockup appears in exactly one place, the social card.
+ *
+ * Server-safe: no hooks, no client boundary. The hover movement is CSS on the
  * parent, so a page can use the mark without paying for a client component.
  */
 export function Mark({
   size = 32,
-  ground = "var(--background)",
   className = "",
 }: {
   size?: number;
-  ground?: string;
   className?: string;
 }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden
-      className={className}
+    <span
+      className={`relative block shrink-0 overflow-hidden rounded-[6px] ${className}`}
+      style={{ width: size, height: size }}
     >
-      <rect
-        x="5.5"
-        y="5.5"
-        width="21"
-        height="21"
-        rx="3"
-        transform="rotate(45 16 16)"
-        fill="var(--accent)"
+      <Image
+        src="/brand/mark-512.png"
+        alt=""
+        fill
+        sizes={`${size}px`}
+        priority
+        className="object-cover"
       />
-      {/* The S sits inside the diamond's inscribed square, so neither terminal
-          runs out into a narrow corner. */}
-      <path
-        d="M19.8 12.9C19.8 11 18.1 10.2 16 10.2C13.9 10.2 12.2 11.1 12.2 12.9C12.2 16.4 19.8 15.3 19.8 19.1C19.8 21 18 21.9 16 21.9C13.9 21.9 12.2 21 12.2 19.3"
-        stroke={ground}
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
+    </span>
   );
 }
 
@@ -71,8 +57,9 @@ export function Wordmark({ className = "" }: { className?: string }) {
 }
 
 /**
- * Mark + wordmark, with the die-roll on hover: a quarter turn on a spring,
- * because a die that rotated linearly would be a loading spinner.
+ * Mark + wordmark. On hover the emblem twitches like a needle finding north —
+ * a few degrees on a spring, not a full turn: the S is a letterform, and
+ * spinning it would read as a loading state rather than a compass.
  *
  * Deliberately renders no link and no button — the caller decides whether this
  * is navigation or a control, and nesting one inside the other is how a logo
@@ -89,7 +76,7 @@ export function LogoContent({
     <>
       <Mark
         size={size}
-        className="transition-transform duration-500 [transition-timing-function:var(--spring)] group-hover:rotate-90"
+        className="transition-transform duration-500 [transition-timing-function:var(--spring)] group-hover:-rotate-[7deg] group-hover:scale-105"
       />
       {showWord && <Wordmark />}
     </>
