@@ -50,6 +50,24 @@ told why, mid-game, without a red box.
 The numbers deliberately differ from the web app's `lib/ai-guard.ts`: those are
 sized for a 350-token text prompt, and one overlay call carries a screenshot.
 
+## Building an installer
+
+```bash
+cd desktop
+npm install
+npm run make-icon   # first time only
+npm run dist
+```
+
+Writes to `desktop/dist/`: an NSIS installer on Windows, a dmg on macOS, an
+AppImage on Linux. Unsigned — Windows SmartScreen and macOS Gatekeeper will
+both warn on first run, which is the honest state of a personal project and
+the reason the landing page says the overlay is not out yet rather than
+offering a download.
+
+The config lives in the `build` block of `package.json`. It has not been run
+in CI, and no binary is published anywhere.
+
 ## Notes
 
 - Screenshots are downscaled and sent to OpenAI in-memory — never written to disk.

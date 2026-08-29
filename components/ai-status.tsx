@@ -138,6 +138,9 @@ export function AiStatusPanel() {
                 status.price.output.toFixed(2)
               )}
             </p>
+            <p className="mt-2.5 border-l-2 border-line-strong pl-3 text-[12.5px] leading-relaxed text-subtle">
+              {t.perInstance}
+            </p>
           </details>
         </>
       )}

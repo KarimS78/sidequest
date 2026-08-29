@@ -85,6 +85,13 @@ const en = {
     detail: "The arithmetic",
     detailLine: (a: string, b: string, inP: string, outP: string) =>
       `${a} tokens in, ${b} out, priced at $${inP} and $${outP} per million. Resets at midnight UTC.`,
+    /**
+     * The caveat that turns this gauge from an accounting figure into a brake.
+     * Printed rather than buried, because a ceiling read as site-wide when it
+     * is per-instance is a number that will be wrong on the day it matters.
+     */
+    perInstance:
+      "Counted in one server instance's memory. A serverless host runs several, and a deploy resets them — so this is a brake on runaway spend, not a ledger, and the real ceiling for the whole site is higher than the figure above.",
   },
 
   trophies: {
@@ -172,6 +179,8 @@ const fr: typeof en = {
     detail: "Le détail du calcul",
     detailLine: (a: string, b: string, inP: string, outP: string) =>
       `${a} tokens en entrée, ${b} en sortie, au prix de ${inP} $ et ${outP} $ le million. Remise à zéro à minuit UTC.`,
+    perInstance:
+      "Compté dans la mémoire d'une seule instance serveur. Un hébergeur serverless en fait tourner plusieurs, et un déploiement les remet à zéro — c'est donc un frein contre l'emballement, pas une comptabilité, et le vrai plafond du site entier est plus haut que le chiffre ci-dessus.",
   },
 
   trophies: {

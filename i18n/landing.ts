@@ -76,6 +76,23 @@ const en = {
     ],
     honesty:
       "Nothing is billed. There is no card form anywhere in this app — during the beta these prices describe what the layer would cost, not what it costs.",
+
+    /**
+     * What THIS deployment can actually do, read from the server's env at
+     * render time. A pricing grid that lists a feature the running site cannot
+     * perform is the one kind of copy that is worth catching automatically.
+     */
+    status: {
+      live: "Live here",
+      off: "Off here",
+      soon: "Not out yet",
+    },
+    noSteamKey:
+      "This deployment has no Steam key, so the import loads a demo shelf instead of your account. Everything else in this column works.",
+    noAiKey:
+      "No model key on this deployment, so this column is switched off: every screen falls back to the local engine and phrases things from templates.",
+    noOverlay:
+      "The overlay exists in the repository and is not packaged for download yet. Nothing here is buyable.",
   },
 
   footer: {
@@ -156,6 +173,18 @@ const fr: typeof en = {
     ],
     honesty:
       "Rien n'est facturé. Il n'y a aucun formulaire de carte dans cette app : pendant la bêta, ces prix décrivent ce que la couche coûterait, pas ce qu'elle coûte.",
+
+    status: {
+      live: "Actif ici",
+      off: "Éteint ici",
+      soon: "Pas encore sorti",
+    },
+    noSteamKey:
+      "Ce déploiement n'a pas de clé Steam : l'import charge une étagère de démo au lieu de ton compte. Tout le reste de cette colonne fonctionne.",
+    noAiKey:
+      "Pas de clé modèle sur ce déploiement, donc cette colonne est éteinte : tous les écrans retombent sur le moteur local et formulent à partir de gabarits.",
+    noOverlay:
+      "L'overlay existe dans le dépôt et n'est pas encore empaqueté pour le téléchargement. Rien ici n'est achetable.",
   },
 
   footer: {
