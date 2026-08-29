@@ -1,5 +1,6 @@
 import type { Locale } from "./locale";
 import type { EggId } from "@/lib/eggs";
+import type { Genre } from "@/lib/library";
 
 /**
  * The profile.
@@ -63,6 +64,25 @@ const en = {
     title: "Genres you actually like",
     line: "A mild nudge, deliberately weighted below the mood you pick at draw time.",
     saved: "Saved",
+    /**
+     * The chip labels. `GENRE_OPTIONS` stays English because it is what gets
+     * stored on the profile and what the engine and the model match against —
+     * same split as the engine's reasons. Only the label is translated.
+     */
+    genres: {
+      Action: "Action",
+      RPG: "RPG",
+      "Story-rich": "Story-rich",
+      "Open world": "Open world",
+      Shooter: "Shooter",
+      Strategy: "Strategy",
+      Roguelike: "Roguelike",
+      Metroidvania: "Metroidvania",
+      "Cozy / relaxing": "Cozy / relaxing",
+      Multiplayer: "Multiplayer",
+      Indie: "Indie",
+      Soulslike: "Soulslike",
+    } as Record<Genre, string>,
   },
 
   hidden: {
@@ -157,6 +177,22 @@ const fr: typeof en = {
     title: "Les genres que tu aimes vraiment",
     line: "Un léger coup de pouce, volontairement pesé sous l'humeur que tu choisis au moment du tirage.",
     saved: "Enregistré",
+    // Roguelike, Metroidvania, Soulslike et Shooter restent tels quels : c'est
+    // ce que les joueurs français disent, les traduire sonnerait faux.
+    genres: {
+      Action: "Action",
+      RPG: "RPG",
+      "Story-rich": "Narratif",
+      "Open world": "Monde ouvert",
+      Shooter: "Shooter",
+      Strategy: "Stratégie",
+      Roguelike: "Roguelike",
+      Metroidvania: "Metroidvania",
+      "Cozy / relaxing": "Cosy / détente",
+      Multiplayer: "Multijoueur",
+      Indie: "Indé",
+      Soulslike: "Soulslike",
+    },
   },
 
   hidden: {

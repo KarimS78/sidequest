@@ -602,13 +602,19 @@ export function Picker() {
           </div>
 
           {/* ---- the one gesture ---- */}
+          {/*
+           * The glow steps down once a verdict is on screen. Before the draw,
+           * this button is the only thing to do, so it carries the accent.
+           * After it, the answer is "launch it" and that CTA carries it — two
+           * glowing buttons in one viewport is two pointers, which is none.
+           */}
           <div className="flex flex-col gap-3">
             <button
               ref={pullRef}
               type="button"
               onClick={() => pull(excluded)}
               disabled={rolling}
-              className="btn btn-primary magnetic w-full"
+              className={`btn ${phase === "done" ? "btn-ghost" : "btn-primary"} magnetic w-full`}
             >
               {rolling ? `${d.draw.rolling}…` : phase === "done" ? d.common.actions.drawAgain : d.common.actions.draw}
               {!rolling && <span className="arrow">→</span>}

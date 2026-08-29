@@ -59,6 +59,13 @@ export const GENRE_OPTIONS = [
   "Soulslike",
 ] as const;
 
+/**
+ * The stored value of a stated taste — English, always. It is a key the engine
+ * and the model both match on, so it is data; `d.profile.taste.genres` holds
+ * what the chip actually says on screen.
+ */
+export type Genre = (typeof GENRE_OPTIONS)[number];
+
 function cover(appid: number) {
   return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 }

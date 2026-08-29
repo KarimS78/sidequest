@@ -134,7 +134,7 @@ export function ProfileEditor() {
                   }
                   className="chip !min-h-9 text-[13px]"
                 >
-                  {g}
+                  {t.taste.genres[g]}
                 </button>
               );
             })}

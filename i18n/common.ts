@@ -91,7 +91,7 @@ const fr: typeof en = {
 
   actions: {
     draw: "TIRER",
-    drawAgain: "RETIRER",
+    drawAgain: "RELANCER",
     dice: "Ou laisse l'heure qu'il est décider",
     launch: "Lancer sur Steam",
     reroll: "Pas celui-là",
