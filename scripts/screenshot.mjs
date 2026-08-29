@@ -19,7 +19,8 @@
  * public/ ships with the app.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -65,14 +66,31 @@ async function connect(wsUrl) {
     ws.onopen = resolve;
     ws.onerror = reject;
   });
+  // A CDP error arrives as `{id, error}` with no `result`. Resolving that to
+  // `undefined` is how a failed navigate turns into a blank screenshot instead
+  // of a stack trace, so it throws.
   const send = (method, params = {}) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const i = ++id;
-      pending.set(i, (d) => resolve(d.result));
+      pending.set(i, (d) =>
+        d.error ? reject(new Error(`${method}: ${d.error.message}`)) : resolve(d.result)
+      );
       ws.send(JSON.stringify({ id: i, method, params }));
     });
   return { send, close: () => ws.close() };
 }
+
+/**
+ * Its own profile directory, and this is not optional.
+ *
+ * Chrome launched against the default profile while you already have Chrome
+ * open does not start a browser: it hands the arguments to the running
+ * instance and exits. `--remote-debugging-port` goes with it, `Page.navigate`
+ * comes back an error this client drops on the floor, and every shot below is
+ * a picture of `about:blank` — no crash, no warning, just blank PNGs. A
+ * throwaway `--user-data-dir` is what forces a real second instance.
+ */
+const PROFILE = mkdtempSync(join(tmpdir(), "sq-shot-"));
 
 const chrome = spawn(
   CHROME,
@@ -80,6 +98,7 @@ const chrome = spawn(
     "--headless=new",
     "--disable-gpu",
     "--hide-scrollbars",
+    `--user-data-dir=${PROFILE}`,
     `--remote-debugging-port=${PORT}`,
     "--window-size=1440,900",
     "about:blank",
@@ -123,4 +142,10 @@ try {
   close();
 } finally {
   chrome.kill();
+  // Windows keeps the profile's files locked for a moment after the kill, and
+  // a throw here would bury whatever actually went wrong above. It is in the
+  // OS temp directory either way.
+  try {
+    rmSync(PROFILE, { recursive: true, force: true });
+  } catch {}
 }
