@@ -78,7 +78,7 @@ L'app n'est plus en anglais seul. **Les deux langues sont de premier rang.**
 - **Au survol, l'emblème fait un écart de quelques degrés**, comme une aiguille qui trouve le nord — pas un tour complet : le S est une lettre, et la faire tourner lit comme un spinner de chargement.
 - Sorties : `public/icon-{192,512}.png`, `icon-maskable-512.png` (padding 22 % — Android découpe un cercle dedans), `apple-touch-icon.png`, `public/brand/mark-{128,512}.png` pour l'UI, `app/favicon.ico` (16/32/48 en PNG dans un conteneur ICO écrit à la main), `public/brand/logo-full.png` + `assets/og-lockup.png`.
 - `app/opengraph-image.tsx` est **généré** (ImageResponse + `assets/ClashDisplay-Semibold.ttf` + le lockup en base64), pas un PNG commité : il ne peut pas diverger du master.  En anglais par défaut — un crawler n'envoie pas de cookie.
-- `public/sw.js` précache `/` et les icônes → **bumper `CACHE` à chaque changement de logo ou de home** (fait : `sidequest-v5`).
+- `public/sw.js` précache `/` et les icônes → **bumper `CACHE` à chaque changement de logo ou de home** (fait : `sidequest-v6`, le 30/08/2026).
 
 ## Structure actuelle
 

@@ -11,10 +11,10 @@
  * Bump CACHE to invalidate; activate() drops every other cache we own.
  */
 
-// v5: Studio Nuit, the real logo, both languages. "/" used to be a redirect to /play and the
+// v6: Studio Nuit held to its own rules, the real logo, both languages. "/" used to be a redirect to /play and the
 // icons were the old drawn mark — both are precached here, so anyone who visited
 // before would keep serving the previous ones until this string changes.
-const CACHE = "sidequest-v5";
+const CACHE = "sidequest-v6";
 
 const PRECACHE = [
   "/",

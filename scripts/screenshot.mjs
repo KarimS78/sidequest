@@ -128,6 +128,12 @@ try {
       await send("Page.navigate", { url: BASE + route });
       // Fonts, cover art and the label animation all want a beat.
       await sleep(2200);
+      // A fresh profile fires `beforeinstallprompt`, so the install banner is
+      // up in every shot — and these shots are what the install dialog shows.
+      // A screenshot of the app offering to install itself is not the app.
+      await send("Runtime.evaluate", {
+        expression: `document.querySelectorAll('[role="dialog"]').forEach((n) => n.remove())`,
+      });
       const shot = await send("Page.captureScreenshot", { format: "png" });
       const slug = route.replace(/\//g, "") || "home";
       const file =
