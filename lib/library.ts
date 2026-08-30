@@ -244,8 +244,12 @@ export function loadLibrary(): StoredGame[] | null {
  * rule. The enricher's queue.
  */
 export function untaggedAppids(library: StoredGame[]): number[] {
+  // The stamp decides, not the tag count: a game the sources know nothing
+  // about is stamped with an empty list and leaves the queue, otherwise the
+  // three delisted games on a shelf would be offered for reading on every
+  // visit. An unstamped game with tags was read under the old six-tag cap.
   return library
-    .filter((g) => !g.tags?.length || (g.tagsV ?? 1) < TAGS_VERSION)
+    .filter((g) => (g.tagsV ?? (g.tags?.length ? 1 : 0)) < TAGS_VERSION)
     .map((g) => g.appid);
 }
 
