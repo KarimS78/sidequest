@@ -61,7 +61,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
                   key={g.appid}
                   className="flex items-center gap-3 rounded-btn border border-line p-2"
                 >
-                  <span className="relative block aspect-[2/3] w-9 shrink-0 overflow-hidden rounded-[4px]">
+                  <span className="relative block aspect-[2/3] w-9 shrink-0 overflow-hidden rounded-btn">
                     <CoverArt appid={g.appid} name={g.name} sizes="36px" />
                   </span>
                   <span className="poster min-w-0 flex-1 truncate text-[14px]">

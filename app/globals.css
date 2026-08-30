@@ -359,7 +359,7 @@ textarea:focus {
   position: absolute;
   inset: 4px auto 4px 4px;
   width: calc((100% - 8px) / var(--seg-n, 3));
-  border-radius: 7px;
+  border-radius: var(--r-btn);
   background: var(--accent-dim);
   border: 1px solid var(--accent-line);
   transform: translateX(calc(var(--seg-i, 0) * 100%));
@@ -370,7 +370,7 @@ textarea:focus {
   position: relative;
   z-index: 1;
   min-height: 40px;
-  border-radius: 7px;
+  border-radius: var(--r-btn);
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -434,7 +434,7 @@ textarea:focus {
   align-items: center;
   gap: 0.45rem;
   padding: 0.3rem 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--r-btn);
   border: 1px solid var(--border-strong);
   background: rgba(11, 14, 19, 0.62);
   font-family: var(--font-geist-mono), ui-monospace, monospace;

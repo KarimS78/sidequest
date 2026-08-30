@@ -172,12 +172,9 @@ export function Landing({ caps }: { caps: Capabilities }) {
           </h2>
 
           <ul className="mt-10 grid gap-px overflow-hidden rounded-card border border-line bg-line md:grid-cols-3">
-            {l.problem.lines.map((line, i) => (
+            {l.problem.lines.map((line) => (
               <li key={line} className="bg-base p-6">
-                <span className="mono text-[11px] tracking-[0.14em] text-accent-soft">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <p className="mt-3 text-[15.5px] leading-relaxed text-muted">{line}</p>
+                <p className="text-[15.5px] leading-relaxed text-muted">{line}</p>
               </li>
             ))}
           </ul>

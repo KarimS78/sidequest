@@ -66,7 +66,7 @@ export function AiStatusPanel() {
         <span
           aria-hidden
           className={`h-2 w-2 rounded-full ${
-            status.on ? "bg-accent shadow-[0_0_10px_var(--accent)]" : "bg-subtle"
+            status.on ? "bg-accent" : "bg-subtle"
           }`}
         />
         <h3 className="poster text-[1.05rem]">{t.title}</h3>
@@ -117,8 +117,8 @@ export function AiStatusPanel() {
               aria-label={t.budget}
             >
               <div
-                className="h-full rounded-full bg-accent transition-[width] duration-[var(--t-slow)]"
-                style={{ width: `${pct}%` }}
+                className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-slow)] [transition-timing-function:var(--ease-out-quest)]"
+                style={{ transform: `scaleX(${pct / 100})` }}
               />
             </div>
             <p className="mono mt-2 text-[10px] uppercase tracking-[0.1em] text-subtle">

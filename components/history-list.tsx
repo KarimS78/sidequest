@@ -229,7 +229,7 @@ export function HistoryList() {
                     <span
                       aria-hidden
                       className={`h-1.5 w-1.5 rounded-full ${
-                        g.latest.played ? "bg-accent" : "bg-line-strong"
+                        g.latest.played ? "bg-fg" : "bg-line-strong"
                       }`}
                     />
                     {g.latest.played ? t.played : t.skipped}

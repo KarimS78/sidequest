@@ -79,8 +79,8 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
         <div className="mt-4">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface2">
             <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${pct}%` }}
+              className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-base)] [transition-timing-function:var(--ease-out-quest)]"
+              style={{ transform: `scaleX(${pct / 100})` }}
             />
           </div>
           <p className="mono mt-2 text-[10px] uppercase tracking-[0.08em] text-subtle">

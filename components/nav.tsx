@@ -134,7 +134,7 @@ export function AppNav() {
   return (
     <>
       {/* ---------------- the top bar ---------------- */}
-      <header className="sticky top-0 z-40 border-b border-line bg-base/85 backdrop-blur-[6px]">
+      <header className="sticky top-0 z-40 border-b border-line bg-base">
         <div className="wrap flex h-16 items-center justify-between gap-6">
           <Link
             href={isLanding ? "/" : "/play"}
@@ -179,7 +179,7 @@ export function AppNav() {
       {!isLanding && (
         <nav
           aria-label={d.nav.aria}
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base/95 backdrop-blur-[6px] lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base lg:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <ul className="mx-auto grid max-w-md grid-cols-4">
