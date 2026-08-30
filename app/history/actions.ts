@@ -1,11 +1,12 @@
 "use server";
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import { aiResume, type AiLocale } from "@/lib/ai";
 
 export type ResumeResult =
   | { ok: true; where: string; next?: string; cached: boolean }
   /** Never an error the player sees — the raw note is still on the screen. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /**
  * Reads the player's own old notes back to them as one line.
@@ -22,10 +23,10 @@ export async function getResume(req: {
   locale: AiLocale;
 }): Promise<ResumeResult> {
   const res = await aiResume(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   const where = res.value.where?.trim();
-  if (!where) return { ok: false, reason: "empty response" };
+  if (!where) return { ok: false, reason: "empty response", code: "unusable" };
 
   return { ok: true, where, next: res.value.next?.trim() || undefined, cached: res.cached };
 }

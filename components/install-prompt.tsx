@@ -9,11 +9,6 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const COPY = {
-  en: { pitch: "Install SideQuest", install: "Install", dismiss: "Dismiss" },
-  fr: { pitch: "Installer SideQuest", install: "Installer", dismiss: "Fermer" },
-} as const;
-
 /**
  * Android / desktop Chrome install affordance. iOS fires no such event, so
  * nothing is shown there.
@@ -23,9 +18,9 @@ const COPY = {
  * is the headline, and a bar over the header hides the product to advertise it.
  */
 export function InstallPrompt() {
-  const { locale } = useI18n();
+  const { d } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const t = COPY[locale];
+  const t = d.common.install;
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) return;

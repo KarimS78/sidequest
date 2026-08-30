@@ -23,7 +23,12 @@ const en = {
 
   alternatives: {
     title: "Also in the running",
+    /** When no score component earned a reason worth a line. */
+    fallback: "Also a fit for tonight.",
   },
+
+  /** The meme, left as the meme. */
+  pressF: "press F",
 
   /** Prefixes the model's one-line reading of what the player typed. */
   moodReadLabel: "Read as",
@@ -77,7 +82,10 @@ const fr: typeof en = {
 
   alternatives: {
     title: "Aussi en lice",
+    fallback: "Colle aussi à ce soir.",
   },
+
+  pressF: "press F",
 
   moodReadLabel: "Compris comme",
 

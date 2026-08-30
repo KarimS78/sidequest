@@ -167,11 +167,11 @@ export function LibraryView() {
         // Never an error dialog: the shelf still searches by name, and the
         // panel says which of the two you are looking at.
         setFilter(null);
-        setAskNote(t.filter.failed(res.reason));
+        setAskNote(t.filter.failed(d.common.aiFail[res.code]));
       }
     } catch {
       setFilter(null);
-      setAskNote(t.filter.failed("no answer"));
+      setAskNote(t.filter.failed(d.common.aiFail.unreachable));
     } finally {
       setAsking(false);
     }

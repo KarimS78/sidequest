@@ -1,11 +1,12 @@
 "use server";
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import { aiSearch, type AiFilter, type AiLocale } from "@/lib/ai";
 
 export type ShelfSearchResult =
   | { ok: true; filter: AiFilter; cached: boolean }
   /** Never surfaced as an error — the shelf keeps its plain name search. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /**
  * Reads a sentence and hands back a filter, not a list of games.
@@ -22,7 +23,7 @@ export async function searchShelf(req: {
   locale: AiLocale;
 }): Promise<ShelfSearchResult> {
   const res = await aiSearch(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   // Trust the shelf, not the model, for what a tag is: anything it invented is
   // dropped rather than matched against nothing.

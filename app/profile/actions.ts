@@ -1,5 +1,6 @@
 "use server";
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import { aiPortrait, aiStatus, budgetSnapshot, type AiLocale, type AiPortrait } from "@/lib/ai";
 import { PRICE_PER_MTOK } from "@/lib/ai-guard";
 
@@ -60,7 +61,7 @@ export async function getAiStatus(): Promise<AiStatus> {
 export type PortraitResult =
   | { ok: true; portrait: AiPortrait; cached: boolean }
   /** Never an error the player sees — the panel simply doesn't appear. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /**
  * The shelf read as a person, from counts only.
@@ -84,11 +85,11 @@ export async function getAiPortrait(req: {
   locale: AiLocale;
 }): Promise<PortraitResult> {
   const res = await aiPortrait(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   const { archetype, reading, blindSpot } = res.value;
   if (!archetype?.trim() || !reading?.trim()) {
-    return { ok: false, reason: "incomplete response" };
+    return { ok: false, reason: "incomplete response", code: "unusable" };
   }
 
   return {

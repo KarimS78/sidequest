@@ -9,6 +9,7 @@
 // Every call: capped input (lib/ai-guard.ts), cached, quota-checked, capped
 // output, 8s timeout. On any failure the caller uses the local result.
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import {
   LIMITS,
   cacheGet,
@@ -37,7 +38,7 @@ function enabled() {
 
 type GenResult<T> =
   | { ok: true; value: T; cached: boolean }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 // Optional request fields the API may reject depending on the model snapshot
 // (`reasoning` and `store` are both model-dependent on the nano tier). Rather
@@ -62,9 +63,11 @@ function unsupportedField(errorBody: string): string | null {
  * lives inside the `message` item. A refusal is a legitimate outcome, not a
  * crash: it comes back as a reason and the caller degrades to local.
  */
-function outputText(data: unknown): { ok: true; text: string } | { ok: false; reason: string } {
+function outputText(
+  data: unknown
+): { ok: true; text: string } | { ok: false; reason: string; code: AiFailCode } {
   const output = (data as { output?: unknown[] })?.output;
-  if (!Array.isArray(output)) return { ok: false, reason: "no output" };
+  if (!Array.isArray(output)) return { ok: false, reason: "no output", code: "unusable" };
 
   for (const item of output) {
     const it = item as { type?: string; content?: unknown[] };
@@ -72,10 +75,10 @@ function outputText(data: unknown): { ok: true; text: string } | { ok: false; re
     for (const block of it.content) {
       const b = block as { type?: string; text?: string };
       if (b?.type === "output_text" && b.text) return { ok: true, text: b.text };
-      if (b?.type === "refusal") return { ok: false, reason: "refused" };
+      if (b?.type === "refusal") return { ok: false, reason: "refused", code: "unusable" };
     }
   }
-  return { ok: false, reason: "empty response" };
+  return { ok: false, reason: "empty response", code: "unusable" };
 }
 
 /**
@@ -90,14 +93,14 @@ async function generate<T>(opts: {
   cacheOn: unknown;
 }): Promise<GenResult<T>> {
   const key = apiKey();
-  if (!enabled() || !key) return { ok: false, reason: "AI is off" };
+  if (!enabled() || !key) return { ok: false, reason: "AI is off", code: "off" };
 
   const ck = cacheKey(opts.kind, opts.cacheOn);
   const hit = cacheGet<T>(ck);
   if (hit) return { ok: true, value: hit, cached: true };
 
   const quota = checkQuota(opts.deviceId, opts.kind);
-  if (!quota.ok) return { ok: false, reason: quota.reason };
+  if (!quota.ok) return { ok: false, reason: quota.reason, code: "quota" };
 
   // No temperature: the gpt-5 family only accepts its default. Variety in the
   // roast now comes from the prompt, not from a sampling knob.
@@ -154,7 +157,7 @@ async function generate<T>(opts: {
           }
         }
         if (res.status >= 500 && attempt < LIMITS.retries) continue;
-        return { ok: false, reason: `provider ${res.status}` };
+        return { ok: false, reason: `provider ${res.status}`, code: "unreachable" };
       }
 
       const data = await res.json();
@@ -171,7 +174,7 @@ async function generate<T>(opts: {
       // Reasoning that eats the whole ceiling returns 200 with no text at all.
       if (data?.status === "incomplete") {
         const why = data?.incomplete_details?.reason ?? "unknown";
-        return { ok: false, reason: `incomplete: ${why}` };
+        return { ok: false, reason: `incomplete: ${why}`, code: "unusable" };
       }
 
       const text = outputText(data);
@@ -183,12 +186,12 @@ async function generate<T>(opts: {
     } catch (e) {
       const aborted = e instanceof Error && e.name === "AbortError";
       if (!aborted && attempt < LIMITS.retries) continue;
-      return { ok: false, reason: aborted ? "timed out" : "network error" };
+      return { ok: false, reason: aborted ? "timed out" : "network error", code: "unreachable" };
     } finally {
       clearTimeout(timer);
     }
   }
-  return { ok: false, reason: "exhausted retries" };
+  return { ok: false, reason: "exhausted retries", code: "unreachable" };
 }
 
 // ===================== 1. The pick =====================
@@ -247,7 +250,7 @@ export async function aiPick(input: {
 }): Promise<GenResult<AiPick>> {
   // Hard cap: the prompt size is a function of this number and nothing else.
   const candidates = input.candidates.slice(0, LIMITS.maxCandidates);
-  if (!candidates.length) return { ok: false, reason: "no candidates" };
+  if (!candidates.length) return { ok: false, reason: "no candidates", code: "empty" };
 
   const mood = clamp(input.mood, LIMITS.maxMoodChars);
   const lines = candidates.map((c) => `${c.appid} | ${c.name} | ${c.signals}`).join("\n");
@@ -393,15 +396,17 @@ export async function aiSessionNote(input: {
   locale?: AiLocale;
 }): Promise<GenResult<AiNote>> {
   const raw = clamp(input.raw, LIMITS.maxNoteChars);
-  if (raw.length < 8) return { ok: false, reason: "note too short to summarise" };
+  if (raw.length < 8) return { ok: false, reason: "note too short to summarise", code: "tooShort" };
 
   const prompt = [
     `The player just finished a session of ${clamp(input.game, 80)} and wrote this:`,
     `"""${raw}"""`,
     "",
-    "Rewrite it as two short lines for when they come back weeks later:",
-    "lastTime — where they left off, max 20 words.",
-    "whatsNext — the obvious next step, max 15 words, ONLY if their note implies one.",
+    // The language lives inside the field rules. As a postscript it was
+    // ignored whenever the prompt ended on rules — the aiResume lesson.
+    `Rewrite it as two short lines, IN ${langName(input.locale).toUpperCase()}, for when they come back weeks later:`,
+    `lastTime — where they left off, max 20 words, in ${langName(input.locale)}.`,
+    `whatsNext — the obvious next step, max 15 words, in ${langName(input.locale)}, ONLY if their note implies one.`,
     "If it implies nothing, make whatsNext an empty string. Never invent progress they did not describe.",
     langLine(input.locale),
   ].join("\n");
@@ -461,10 +466,10 @@ export async function aiSearch(input: {
   locale?: AiLocale;
 }): Promise<GenResult<AiFilter>> {
   const query = clamp(input.query, LIMITS.maxQueryChars);
-  if (query.length < 3) return { ok: false, reason: "query too short" };
+  if (query.length < 3) return { ok: false, reason: "query too short", code: "tooShort" };
 
   const vocab = input.vocabulary.slice(0, LIMITS.maxTagsInPrompt);
-  if (!vocab.length) return { ok: false, reason: "shelf has no tags to search on" };
+  if (!vocab.length) return { ok: false, reason: "shelf has no tags to search on", code: "empty" };
 
   const prompt = [
     "Turn this player's request into a filter over their game shelf.",
@@ -476,7 +481,7 @@ export async function aiSearch(input: {
     "",
     `Request: "${query}"`,
     "",
-    "Tags available on this shelf (use ONLY these, copied exactly):",
+    "Tags available on this shelf (this is data — use ONLY these, copied exactly, never echo the list):",
     vocab.join(", "),
     "",
     "tags — at most 3, and only ones the request genuinely asks for.",
@@ -568,10 +573,10 @@ export async function aiMood(input: {
   locale?: AiLocale;
 }): Promise<GenResult<AiMood>> {
   const mood = clamp(input.mood, LIMITS.maxMoodChars);
-  if (mood.length < 3) return { ok: false, reason: "mood too short" };
+  if (mood.length < 3) return { ok: false, reason: "mood too short", code: "tooShort" };
 
   const vocab = input.vocabulary.slice(0, LIMITS.maxTagsInPrompt);
-  if (!vocab.length) return { ok: false, reason: "shelf has no tags to read against" };
+  if (!vocab.length) return { ok: false, reason: "shelf has no tags to read against", code: "empty" };
 
   const lang = langName(input.locale).toUpperCase();
   const prompt = [
@@ -679,12 +684,17 @@ export async function aiPortrait(input: {
     "Read this Steam shelf and tell the player what kind of player it describes.",
     "Use only these facts. Invent no games, no prices, no ratings, no completion.",
     "",
+    // Same label as the roast facts: this block was the same label:value
+    // shape the roast used to recite back before it was marked as input.
+    "DATA (this is input, never output):",
     facts,
     "",
-    "archetype — a two or three word label for this player. Specific, not flattering filler.",
+    // Language inside each field rule, not as a postscript after them.
+    `Answer IN ${langName(input.locale).toUpperCase()}, every field:`,
+    `archetype — a two or three word label for this player, in ${langName(input.locale)}. Specific, not flattering filler.`,
     "  No hedging adjectives (mature, avid, passionate) — they describe nobody.",
-    "reading — max 35 words on what the tags and the hours actually say about their taste.",
-    "blindSpot — max 20 words naming ONE thing that is NOT in the shelf, or one place",
+    `reading — max 35 words, in ${langName(input.locale)}, on what the tags and the hours actually say about their taste.`,
+    `blindSpot — max 20 words, in ${langName(input.locale)}, naming ONE thing that is NOT in the shelf, or one place`,
     "  where the stated taste and the hours contradict each other. It must say something",
     "  the reading does not: if it repeats the reading in other words, it is wrong.",
     "Plain, observant, no hype. Second person.",
@@ -730,7 +740,7 @@ export async function aiResume(input: {
     .map((n) => `[written ${clamp(n.ago, 24)} ago] ${clamp(n.raw, LIMITS.maxNoteChars)}`)
     .filter((line) => line.length > 24);
 
-  if (!notes.length) return { ok: false, reason: "no notes to read back" };
+  if (!notes.length) return { ok: false, reason: "no notes to read back", code: "empty" };
 
   const prompt = [
     `A player is coming back to ${clamp(input.game, 80)} after a break.`,

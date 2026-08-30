@@ -6,6 +6,7 @@ import { deviceId } from "@/lib/device";
 import { announceAiCall } from "@/lib/ai-events";
 import type { BacklogStats, StoredGame } from "@/lib/library";
 import { useI18n } from "@/i18n/context";
+import type { AiFailCode } from "@/lib/ai-fail";
 
 /**
  * The shelf, read as a person.
@@ -22,7 +23,7 @@ type State =
   | { s: "idle" }
   | { s: "reading" }
   | { s: "done"; archetype: string; reading: string; blindSpot: string; cached: boolean }
-  | { s: "failed"; why: string };
+  | { s: "failed"; why: AiFailCode };
 
 export function ShelfPortrait({
   library,
@@ -87,10 +88,10 @@ export function ShelfPortrait({
               blindSpot: res.portrait.blindSpot,
               cached: res.cached,
             }
-          : { s: "failed", why: res.reason }
+          : { s: "failed", why: res.code }
       );
     } catch {
-      setState({ s: "failed", why: "no answer" });
+      setState({ s: "failed", why: "unreachable" });
     }
   }
 
@@ -146,7 +147,7 @@ export function ShelfPortrait({
 
       {state.s === "failed" && (
         <>
-          <p className="text-[14px] leading-relaxed text-muted">{t.failed(state.why)}</p>
+          <p className="text-[14px] leading-relaxed text-muted">{t.failed(d.common.aiFail[state.why])}</p>
           <button
             type="button"
             onClick={() => setState({ s: "idle" })}

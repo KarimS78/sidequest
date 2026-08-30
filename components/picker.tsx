@@ -379,7 +379,8 @@ export function Picker() {
     const res = recommendGame(engineInput);
     if (!res.ok) {
       setPhase("idle");
-      setError(res.error);
+      // The engine has one failure and it is not a sentence: an empty pool.
+      setError(d.common.empty.noLibrary);
       return;
     }
 
@@ -914,7 +915,7 @@ export function Picker() {
                     <span className="flex min-w-0 flex-col justify-center py-2 pr-3">
                       <span className="poster truncate text-[15px]">{alt.name}</span>
                       <span className="truncate text-[12.5px] text-subtle">
-                        {alt.hint ? reasonLine(locale, alt.hint) : alt.reason}
+                        {alt.hint ? reasonLine(locale, alt.hint) : d.draw.alternatives.fallback}
                       </span>
                     </span>
                   </li>
@@ -925,7 +926,7 @@ export function Picker() {
 
           {payRespects && (
             <p className="mono text-center text-[10.5px] uppercase tracking-[0.12em] text-subtle">
-              press F
+              {d.draw.pressF}
             </p>
           )}
         </section>

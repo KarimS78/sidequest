@@ -72,7 +72,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
 
       {state && state.ok === false && (
         <p className="card border-accent-line p-4 text-[14px] leading-relaxed">
-          {state.error}
+          {d.common.steamFail[state.code]}
         </p>
       )}
 

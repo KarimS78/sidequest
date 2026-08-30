@@ -1,4 +1,6 @@
 import type { MetadataRoute } from "next";
+import { dictionary } from "@/i18n";
+import { getLocale } from "@/i18n/server";
 
 /**
  * Installed, SideQuest is a small appliance: it opens on the shelf, it keeps
@@ -8,24 +10,32 @@ import type { MetadataRoute } from "next";
  * The screenshots matter more than they look: without a `wide` one, a desktop
  * browser offers a cramped phone-shaped install dialog instead of the real
  * app card.
+ *
+ * It reads the locale cookie, which makes it a dynamic route instead of a
+ * cached one. A few hundred bytes of JSON, served once at install time, in
+ * the language the person installing it is reading — that trade is fine. The
+ * previous version was English whatever the screen said, and its screenshot
+ * labels still described a cartridge.
  */
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const locale = await getLocale();
+  const t = dictionary(locale).common.pwa;
+  const icon = [{ src: "/icon-192.png", sizes: "192x192" }];
+
   return {
     id: "/",
     name: "SideQuest",
     short_name: "SideQuest",
-    description:
-      "An intelligent gaming companion that logs your sessions and generates AI progress summaries — so you can pick up any game right where you stopped.",
+    description: t.description,
     start_url: "/",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
     orientation: "any",
-    lang: "en",
+    lang: locale,
     categories: ["games", "entertainment", "productivity"],
-    // Inside the cabinet — the same --ground the app paints and the same value
-    // layout.tsx gives the viewport. These two said #191412 long after the app
-    // stopped being warm brown, so the install splash flashed the old theme.
+    // The same --background the app paints and the same value layout.tsx
+    // gives the viewport, so the install splash matches the first paint.
     background_color: "#0d1114",
     theme_color: "#0d1114",
     icons: [
@@ -49,28 +59,28 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     // Long-press the installed icon: the three things worth doing directly.
+    // One word per action, the same word the tab uses.
     shortcuts: [
       {
-        // One word per action: the tab, the switch and channel 03 all say DRAW.
-        name: "Run a draw",
-        short_name: "Draw",
-        description: "Pick tonight's game",
+        name: t.shortcuts.draw.name,
+        short_name: t.shortcuts.draw.short,
+        description: t.shortcuts.draw.description,
         url: "/play",
-        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+        icons: icon,
       },
       {
-        name: "Open the shelf",
-        short_name: "Shelf",
-        description: "Browse the library",
+        name: t.shortcuts.shelf.name,
+        short_name: t.shortcuts.shelf.short,
+        description: t.shortcuts.shelf.description,
         url: "/dashboard",
-        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+        icons: icon,
       },
       {
-        name: "Read the saves",
-        short_name: "Saves",
-        description: "Where you left off",
+        name: t.shortcuts.saves.name,
+        short_name: t.shortcuts.saves.short,
+        description: t.shortcuts.saves.description,
         url: "/history",
-        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+        icons: icon,
       },
     ],
     screenshots: [
@@ -79,14 +89,14 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "1440x900",
         type: "image/png",
         form_factor: "wide",
-        label: "The deck, the panel and the shelf on a desktop",
+        label: t.screenshots.desktop,
       },
       {
         src: "/screenshots/phone.png",
         sizes: "780x1688",
         type: "image/png",
         form_factor: "narrow",
-        label: "Pulling tonight's cartridge on a phone",
+        label: t.screenshots.phone,
       },
     ],
   };

@@ -13,6 +13,7 @@ import {
   type HistoryEntry,
 } from "@/lib/history";
 import { useI18n } from "@/i18n/context";
+import type { AiFailCode } from "@/lib/ai-fail";
 import type { Dict } from "@/i18n";
 
 /**
@@ -41,7 +42,7 @@ type Group = {
 type Resume =
   | { state: "reading" }
   | { state: "done"; where: string; next?: string }
-  | { state: "failed"; why: string };
+  | { state: "failed"; why: AiFailCode };
 
 /**
  * Stable across renders, so the grouping below is actually memoised — an
@@ -122,12 +123,12 @@ export function HistoryList() {
         ...r,
         [group.appid]: res.ok
           ? { state: "done", where: res.where, next: res.next }
-          : { state: "failed", why: res.reason },
+          : { state: "failed", why: res.code },
       }));
     } catch {
       setResumes((r) => ({
         ...r,
-        [group.appid]: { state: "failed", why: "no answer" },
+        [group.appid]: { state: "failed", why: "unreachable" },
       }));
     }
   }
@@ -283,7 +284,7 @@ export function HistoryList() {
 
                 {resume?.state === "failed" && (
                   <p className="mt-3.5 text-[13.5px] leading-relaxed text-subtle">
-                    {t.readBack.failed(resume.why)}
+                    {t.readBack.failed(d.common.aiFail[resume.why])}
                   </p>
                 )}
               </div>

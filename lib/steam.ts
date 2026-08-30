@@ -21,9 +21,31 @@ export type SteamProfile = {
   visibility: number; // 1 = private, 3 = public (community visibility state)
 };
 
+/**
+ * Why an import failed, as a code the UI translates. The message on the error
+ * itself is for the log; it used to be the message on the screen, in English,
+ * whatever language the screen was in.
+ */
+export type SteamFailCode =
+  | "emptyInput"
+  | "vanity"
+  | "notFound"
+  | "private"
+  | "gamesPrivate"
+  | "api";
+
+class SteamFail extends Error {
+  constructor(
+    public code: SteamFailCode,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 export type SteamImportResult =
   | { ok: true; profile: SteamProfile; games: SteamGame[]; isMock: boolean }
-  | { ok: false; error: string };
+  | { ok: false; code: SteamFailCode; error: string };
 
 const STEAMID64_RE = /^7656119\d{10}$/;
 
@@ -37,7 +59,7 @@ function apiKey() {
 
 async function getJson(url: string) {
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Steam API ${res.status}`);
+  if (!res.ok) throw new SteamFail("api", `Steam API ${res.status}`);
   return res.json();
 }
 
@@ -59,7 +81,7 @@ async function resolveVanity(name: string, key: string): Promise<string> {
     )}`
   );
   if (data?.response?.success !== 1 || !data.response.steamid) {
-    throw new Error("Could not resolve that Steam profile name.");
+    throw new SteamFail("vanity", "could not resolve vanity name");
   }
   return data.response.steamid as string;
 }
@@ -72,7 +94,7 @@ async function fetchProfile(
     `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${key}&steamids=${steamId}`
   );
   const p = data?.response?.players?.[0];
-  if (!p) throw new Error("Steam profile not found — check the ID or URL.");
+  if (!p) throw new SteamFail("notFound", "profile not found");
   return {
     steamId,
     name: p.personaname ?? "Unknown",
@@ -91,9 +113,7 @@ async function fetchOwnedGames(
   );
   const list = data?.response?.games;
   if (!Array.isArray(list)) {
-    throw new Error(
-      "Your profile is public but its game details are private. In Steam → Edit Profile → Privacy Settings, set ‘Game details’ to Public, then try again."
-    );
+    throw new SteamFail("gamesPrivate", "game details are private");
   }
   return list
     .map(
@@ -237,7 +257,7 @@ export async function importSteamLibrary(
   rawInput: string
 ): Promise<SteamImportResult> {
   const raw = rawInput?.trim();
-  if (!raw) return { ok: false, error: "Enter your SteamID or profile URL." };
+  if (!raw) return { ok: false, code: "emptyInput", error: "empty input" };
 
   const key = apiKey();
   if (!key) return mockImport(raw);
@@ -250,11 +270,7 @@ export async function importSteamLibrary(
         : await resolveVanity(parsed.value, key);
     const profile = await fetchProfile(steamId, key);
     if (profile.visibility !== 3) {
-      return {
-        ok: false,
-        error:
-          "This Steam profile is private. In Steam → Edit Profile → Privacy Settings, set ‘My profile’ and ‘Game details’ to Public, then try again.",
-      };
+      return { ok: false, code: "private", error: "profile is private" };
     }
     const games = await fetchOwnedGames(steamId, key);
     const recent = await fetchRecentlyPlayed(steamId, key);
@@ -263,6 +279,7 @@ export async function importSteamLibrary(
   } catch (e) {
     return {
       ok: false,
+      code: e instanceof SteamFail ? e.code : "api",
       error: e instanceof Error ? e.message : "Steam import failed.",
     };
   }

@@ -1,4 +1,6 @@
 import type { Locale } from "./locale";
+import type { AiFailCode } from "@/lib/ai-fail";
+import type { SteamFailCode } from "@/lib/steam";
 
 // Shared vocabulary: the words that appear on more than one screen.
 //
@@ -67,6 +69,49 @@ const en = {
     importCta: "Import from Steam",
   },
 
+  // Why an AI panel has nothing to show. Each screen wraps one of these in its
+  // own sentence ("No reading — ${why}. …"), so they read as a clause, lower
+  // case, no full stop. The code comes from lib/ai-fail.ts; the English log
+  // string behind it never reaches a screen.
+  aiFail: {
+    off: "the AI is off on this deployment",
+    quota: "today's AI budget is spent",
+    unreachable: "the model did not answer",
+    unusable: "the model answered with nothing usable",
+    tooShort: "there was too little to read",
+    empty: "there was nothing to read from",
+  } satisfies Record<AiFailCode, string>,
+
+  // Steam import failures. Full sentences: they are the whole message.
+  steamFail: {
+    emptyInput: "Enter your SteamID or profile URL.",
+    vanity: "Could not resolve that Steam profile name.",
+    notFound: "Steam profile not found — check the ID or URL.",
+    private:
+      "This Steam profile is private. In Steam → Edit Profile → Privacy Settings, set ‘My profile’ and ‘Game details’ to Public, then try again.",
+    gamesPrivate:
+      "Your profile is public but its game details are private. In Steam → Edit Profile → Privacy Settings, set ‘Game details’ to Public, then try again.",
+    api: "Steam did not answer. Try again in a minute.",
+  } satisfies Record<SteamFailCode, string>,
+
+  install: { pitch: "Install SideQuest", install: "Install", dismiss: "Dismiss" },
+
+  // What the OS shows once the app is installed: the store-style description,
+  // the long-press shortcuts, the install-dialog screenshots.
+  pwa: {
+    description:
+      "Tonight's game, picked from your own Steam shelf by mood and time — and a note of where you left off, for next time.",
+    shortcuts: {
+      draw: { name: "Run a draw", short: "Draw", description: "Pick tonight's game" },
+      shelf: { name: "Open the shelf", short: "Shelf", description: "Browse the library" },
+      saves: { name: "Read the saves", short: "Saves", description: "Where you left off" },
+    },
+    screenshots: {
+      desktop: "The verdict, the settings and the shelf on a desktop",
+      phone: "Tonight's draw on a phone",
+    },
+  },
+
   langSwitch: "Language",
 };
 
@@ -124,6 +169,42 @@ const fr: typeof en = {
     noLibrary: "Ton étagère est encore vide.",
     noLibraryCta: "Charger la bibliothèque de démo",
     importCta: "Importer depuis Steam",
+  },
+
+  aiFail: {
+    off: "l'IA est coupée sur ce déploiement",
+    quota: "le budget IA du jour est épuisé",
+    unreachable: "le modèle n'a pas répondu",
+    unusable: "le modèle a répondu à côté",
+    tooShort: "il y avait trop peu à lire",
+    empty: "il n'y avait rien à lire",
+  },
+
+  steamFail: {
+    emptyInput: "Entre ton SteamID ou l'URL de ton profil.",
+    vanity: "Impossible de retrouver ce nom de profil Steam.",
+    notFound: "Profil Steam introuvable — vérifie l'ID ou l'URL.",
+    private:
+      "Ce profil Steam est privé. Dans Steam → Modifier le profil → Paramètres de confidentialité, passe « Mon profil » et « Détails des jeux » en Public, puis réessaie.",
+    gamesPrivate:
+      "Ton profil est public mais les détails des jeux sont privés. Dans Steam → Modifier le profil → Paramètres de confidentialité, passe « Détails des jeux » en Public, puis réessaie.",
+    api: "Steam n'a pas répondu. Réessaie dans une minute.",
+  },
+
+  install: { pitch: "Installer SideQuest", install: "Installer", dismiss: "Fermer" },
+
+  pwa: {
+    description:
+      "Le jeu de ce soir, choisi dans ta propre étagère Steam selon ton humeur et ton temps — et une note d'où tu t'es arrêté, pour la prochaine fois.",
+    shortcuts: {
+      draw: { name: "Lancer un tirage", short: "Tirage", description: "Choisir le jeu de ce soir" },
+      shelf: { name: "Ouvrir l'étagère", short: "Étagère", description: "Parcourir la bibliothèque" },
+      saves: { name: "Lire les reprises", short: "Reprises", description: "Où tu en étais" },
+    },
+    screenshots: {
+      desktop: "Le verdict, les réglages et l'étagère sur un écran",
+      phone: "Le tirage de ce soir sur un téléphone",
+    },
   },
 
   langSwitch: "Langue",

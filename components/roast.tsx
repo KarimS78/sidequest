@@ -78,7 +78,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
       announceAiCall();
       if (generated) setRoast(generated);
       else if (local.ok) setRoast(local.roast);
-      else setError(local.error);
+      else setError(d.common.empty.noLibrary);
     });
   }
 

@@ -1,5 +1,6 @@
 "use server";
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import { aiRoast, type AiLocale } from "@/lib/ai";
 import type { BacklogStats } from "@/lib/library";
 import type { Roast } from "@/lib/roast";
@@ -7,7 +8,7 @@ import type { Roast } from "@/lib/roast";
 export type AiRoastResult =
   | { ok: true; roast: Roast; cached: boolean }
   /** Never an error the player sees — the caller falls back to the templates. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /** Stats in, three jabs out. The prompt is numbers only — no library, no tags. */
 export async function getAiRoast(req: {
@@ -16,11 +17,11 @@ export async function getAiRoast(req: {
   locale: AiLocale;
 }): Promise<AiRoastResult> {
   const res = await aiRoast(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   const { verdict, lines, redemption } = res.value;
   if (!verdict || !Array.isArray(lines) || !lines.length) {
-    return { ok: false, reason: "incomplete response" };
+    return { ok: false, reason: "incomplete response", code: "unusable" };
   }
 
   return {

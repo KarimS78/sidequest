@@ -1,5 +1,6 @@
 "use server";
 
+import type { AiFailCode } from "@/lib/ai-fail";
 import {
   aiMood,
   aiPick,
@@ -11,7 +12,7 @@ import {
 export type AiPickResult =
   | { ok: true; appid: number; reason: string; cached: boolean }
   /** Never surfaced as an error — the caller keeps the local engine's pick. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /**
  * Asks the model to choose among the shortlist the local engine already
@@ -26,11 +27,11 @@ export async function getAiPick(req: {
   locale: AiLocale;
 }): Promise<AiPickResult> {
   const res = await aiPick(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   // Trust the shortlist, not the model, for which game this is.
   const known = req.candidates.some((c) => c.appid === res.value.appid);
-  if (!known) return { ok: false, reason: "model picked outside the shortlist" };
+  if (!known) return { ok: false, reason: "model picked outside the shortlist", code: "unusable" };
 
   return { ok: true, appid: res.value.appid, reason: res.value.reason, cached: res.cached };
 }
@@ -38,7 +39,7 @@ export async function getAiPick(req: {
 export type MoodReadResult =
   | { ok: true; tags: string[]; avoid: string[]; say: string; cached: boolean }
   /** Never surfaced as an error — the engine reads the words itself instead. */
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: AiFailCode };
 
 /**
  * Reads a mood the player typed, against the vocabulary their own shelf is
@@ -56,7 +57,7 @@ export async function readTypedMood(req: {
   locale: AiLocale;
 }): Promise<MoodReadResult> {
   const res = await aiMood(req);
-  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!res.ok) return { ok: false, reason: res.reason, code: res.code };
 
   // Trust the shelf, not the model, for what a tag is — and for how it is
   // spelt. The model answers "story rich" as readily as "Story Rich"; matching
@@ -89,7 +90,7 @@ export async function readTypedMood(req: {
    */
   const avoid = proposed.length > 5 ? [] : proposed.slice(0, 3);
 
-  if (!tags.length && !avoid.length) return { ok: false, reason: "nothing usable" };
+  if (!tags.length && !avoid.length) return { ok: false, reason: "nothing usable", code: "unusable" };
 
   return { ok: true, tags, avoid, say: res.value.say?.trim() ?? "", cached: res.cached };
 }
