@@ -57,8 +57,8 @@ function apiKey() {
   return process.env.STEAM_API_KEY?.trim() || null;
 }
 
-async function getJson(url: string) {
-  const res = await fetch(url, { cache: "no-store" });
+async function getJson(url: string, timeoutMs = 10000) {
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new SteamFail("api", `Steam API ${res.status}`);
   return res.json();
 }
@@ -153,21 +153,67 @@ async function fetchRecentlyPlayed(
 
 // ===== Community tags — the recommendation engine's main signal =====
 //
-// Steam's own API exposes no tags, so we read them from SteamSpy (free, no key,
-// crowd-voted tags) and fall back to the storefront's genres + categories.
-// Both are public endpoints and both are rate-limited, hence the throttle below.
+// Steam's own API exposes no tags. The store PAGE does: every app page lists
+// its community tags, most-voted first, as `app_tag` links — the same list
+// SteamSpy republishes, from the host that owns it. It is read first.
+// SteamSpy is the fallback, the storefront's genres + categories the last
+// resort. Every call has a timeout: a lookup that hangs is a chunk that
+// never finishes, and the enricher's bar stays at 0 with no error anywhere.
+//
+// Found the hard way on 30/08/2026: Karim's 489-game shelf had zero tags.
+// Read from Vercel, SteamSpy did not answer, `getJson` had no timeout, and
+// the first chunk was still "running" when the function limit killed it.
 
-/** How many tags we keep per game — enough to characterise it, cheap to store. */
-const TAGS_PER_GAME = 6;
+/**
+ * How many tags we keep per game. Was 6 — enough for a genre, not for a
+ * mood: "Atmospheric", "Relaxing" and "Story Rich" usually sit between eighth
+ * and twelfth place, and the engine weights by rank precisely so it can
+ * afford to keep them.
+ */
+const TAGS_PER_GAME = 15;
 
-/** SteamSpy asks for ~1 request/second; 250ms is the practical floor. */
-const TAG_FETCH_DELAY_MS = 250;
+/** A page lookup that has not answered in this long is not going to. */
+const TAG_TIMEOUT_MS = 6000;
+
+/** Store pages are served happily at this pace; SteamSpy asks for ~1/s. */
+const TAG_FETCH_DELAY_MS = 150;
+
+/** Lookups in flight at once inside a batch. */
+const TAG_CONCURRENCY = 4;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Age gate: without these cookies a mature game's page is a birthday form. */
+const STORE_PAGE_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (compatible; SideQuest/1.0)",
+  "Accept-Language": "en",
+  Cookie: "birthtime=568022401; lastagecheckage=1-January-1988; wants_mature_content=1",
+};
+
+/** The community tags on a store page, most-voted first. */
+async function tagsFromStorePage(appid: number): Promise<string[]> {
+  const res = await fetch(`https://store.steampowered.com/app/${appid}/?l=english`, {
+    headers: STORE_PAGE_HEADERS,
+    cache: "no-store",
+    signal: AbortSignal.timeout(TAG_TIMEOUT_MS),
+  });
+  if (!res.ok) return [];
+  const html = await res.text();
+  // A redirect to the front page (delisted app) has no app_tag at all.
+  const tags: string[] = [];
+  const re = /class="app_tag"[^>]*>([^<]*)</g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) && tags.length < TAGS_PER_GAME) {
+    const tag = m[1].replace(/\s+/g, " ").trim();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
+}
+
 async function tagsFromSteamSpy(appid: number): Promise<string[]> {
   const data = await getJson(
-    `https://steamspy.com/api.php?request=appdetails&appid=${appid}`
+    `https://steamspy.com/api.php?request=appdetails&appid=${appid}`,
+    TAG_TIMEOUT_MS
   );
   // `tags` is {tag: votes} when known, and [] (not {}) when SteamSpy has none.
   const tags = data?.tags;
@@ -178,18 +224,44 @@ async function tagsFromSteamSpy(appid: number): Promise<string[]> {
     .map(([tag]) => tag);
 }
 
+/**
+ * Storefront categories worth keeping, spelled the way community tags spell
+ * them. The rest ("Steam Achievements", "Full controller support", "Remote
+ * Play on TV") describe the store listing, not the game, and a shelf tagged
+ * with them matches no mood anyone has.
+ */
+const STORE_CATEGORY_AS_TAG: Record<string, string> = {
+  "Single-player": "Singleplayer",
+  "Multi-player": "Multiplayer",
+  "Co-op": "Co-op",
+  "Online Co-op": "Online Co-Op",
+  "LAN Co-op": "Local Co-Op",
+  "Shared/Split Screen Co-op": "Local Co-Op",
+  "Shared/Split Screen": "Split Screen",
+  PvP: "PvP",
+  "Online PvP": "PvP",
+  MMO: "Massively Multiplayer",
+  "Cross-Platform Multiplayer": "Multiplayer",
+  "VR Supported": "VR",
+  "VR Only": "VR",
+};
+
 async function tagsFromStore(appid: number): Promise<string[]> {
   const data = await getJson(
-    `https://store.steampowered.com/api/appdetails?appids=${appid}&l=english`
+    `https://store.steampowered.com/api/appdetails?appids=${appid}&l=english&filters=genres,categories`,
+    TAG_TIMEOUT_MS
   );
   const entry = data?.[String(appid)];
   if (!entry?.success || !entry.data) return [];
   const genres = (entry.data.genres ?? []) as { description?: string }[];
   const categories = (entry.data.categories ?? []) as { description?: string }[];
-  return [...genres, ...categories]
-    .map((g) => g.description)
-    .filter((d): d is string => Boolean(d))
-    .slice(0, TAGS_PER_GAME);
+  const out: string[] = [];
+  for (const g of genres) if (g.description && !out.includes(g.description)) out.push(g.description);
+  for (const c of categories) {
+    const tag = c.description ? STORE_CATEGORY_AS_TAG[c.description] : undefined;
+    if (tag && !out.includes(tag)) out.push(tag);
+  }
+  return out.slice(0, TAGS_PER_GAME);
 }
 
 /**
@@ -197,31 +269,33 @@ async function tagsFromStore(appid: number): Promise<string[]> {
  * perfectly importable game, it just scores on playtime signals alone.
  */
 export async function fetchGameTags(appid: number): Promise<string[]> {
-  try {
-    const tags = await tagsFromSteamSpy(appid);
-    if (tags.length) return tags;
-  } catch {
-    // fall through to the storefront
+  for (const source of [tagsFromStorePage, tagsFromSteamSpy, tagsFromStore]) {
+    try {
+      const tags = await source(appid);
+      if (tags.length) return tags;
+    } catch {
+      // next source
+    }
   }
-  try {
-    return await tagsFromStore(appid);
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 /**
- * Sequential, throttled tag lookup for a batch of appids. Callers drive this in
- * chunks so the UI can show progress and no single request runs long enough to
- * time out. Returns a map keyed by appid; missing/failed games map to [].
+ * Throttled tag lookup for a batch of appids, a few in flight at once.
+ * Callers drive this in chunks so the UI can show progress and no single
+ * request runs long. Returns a map keyed by appid; failed games map to [].
  */
 export async function fetchTagsForBatch(
   appids: number[]
 ): Promise<Record<number, string[]>> {
   const out: Record<number, string[]> = {};
-  for (let i = 0; i < appids.length; i++) {
+  for (let i = 0; i < appids.length; i += TAG_CONCURRENCY) {
     if (i > 0) await sleep(TAG_FETCH_DELAY_MS);
-    out[appids[i]] = await fetchGameTags(appids[i]);
+    const group = appids.slice(i, i + TAG_CONCURRENCY);
+    const tags = await Promise.all(group.map((id) => fetchGameTags(id)));
+    group.forEach((id, j) => {
+      out[id] = tags[j];
+    });
   }
   return out;
 }

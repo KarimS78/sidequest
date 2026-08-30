@@ -5,8 +5,8 @@ import { useI18n } from "@/i18n/context";
 import { enrichTags } from "@/app/connect/actions";
 import { applyTags, loadLibrary, untaggedAppids } from "@/lib/library";
 
-/** Games per server round-trip — ~250ms each, so a chunk takes ~4s. */
-const CHUNK = 15;
+/** Games per server round-trip — four in flight at a time, ~2s a chunk. */
+const CHUNK = 12;
 
 /**
  * Fetches the community tags the picker scores on. Self-hides when every game
@@ -16,7 +16,14 @@ const CHUNK = 15;
  * `version` bumps whenever the caller rewrites the stored library (a fresh
  * import), which re-reads what still needs enriching.
  */
-export function TagEnricher({ version = 0 }: { version?: number }) {
+export function TagEnricher({
+  version = 0,
+  onDone,
+}: {
+  version?: number;
+  /** Called once the pass ends, so a screen holding the library can reload it. */
+  onDone?: () => void;
+}) {
   const { d } = useI18n();
   const [missing, setMissing] = useState<number[]>([]);
   const [done, setDone] = useState(0);
@@ -52,6 +59,7 @@ export function TagEnricher({ version = 0 }: { version?: number }) {
     setRunning(false);
     setFinished(true);
     refresh();
+    onDone?.();
   }
 
   const t = d.connect.tags;

@@ -50,7 +50,7 @@ const en = {
         n === 1 ? "game is" : "games are"
       } missing theirs.`,
     read: (n: number) => `Read ${n} ${n === 1 ? "tag set" : "tag sets"}`,
-    progress: "throttled public API, a few seconds each",
+    progress: "reading Steam's store pages, a couple of seconds a batch",
     done: "Tags read — the board now scores on genre and feel, not just playtime.",
   },
 
@@ -108,7 +108,7 @@ const fr: typeof en = {
         n === 1 ? "jeu n'a pas" : "jeux n'ont pas"
       } les siens.`,
     read: (n: number) => `Lire ${n} ${n === 1 ? "jeu de tags" : "jeux de tags"}`,
-    progress: "API publique bridée, quelques secondes chacun",
+    progress: "lecture des pages du store Steam, quelques secondes par lot",
     done: "Tags lus — le plateau note maintenant sur le genre et l'ambiance, pas seulement sur les heures.",
   },
 

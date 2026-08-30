@@ -14,6 +14,7 @@ import {
 import { deviceId } from "@/lib/device";
 import { unlock } from "@/lib/eggs";
 import { Letters, useCountUp, useMagnetic, prefersReducedMotion } from "@/components/motion";
+import { TagEnricher } from "@/components/tag-enricher";
 import {
   addToBlacklist,
   headerFor,
@@ -294,6 +295,12 @@ export function Picker() {
     timers.current.push(setTimeout(fn, ms));
   }, []);
 
+  // Bumped when the enricher finishes, so the pool re-reads its tags. The
+  // shelf that started this: 489 games imported, none ever enriched, and the
+  // draw answered every typed mood with "nothing on your shelf is tagged…" —
+  // which was true, and the one place saying so was another screen.
+  const [libVersion, setLibVersion] = useState(0);
+
   useEffect(() => {
     const lib = loadLibrary();
     setLibrary(lib ?? SAMPLE_LIBRARY);
@@ -307,6 +314,8 @@ export function Picker() {
 
   const blacklistSet = new Set(blacklist);
   const pool = (library ?? []).filter((g) => !blacklistSet.has(g.appid));
+  /** A shelf with no tags at all cannot answer any mood, typed or not. */
+  const shelfUntagged = pool.length > 0 && pool.every((g) => !g.tags?.length);
 
   /**
    * The covers the reel will flick through.
@@ -701,6 +710,18 @@ export function Picker() {
               {d.draw.sample}
             </p>
           )}
+
+          {/* Self-hides once every game has its tags. On the draw because
+              this is where a tagless shelf is felt: every mood misses. */}
+          {!isSample && (
+            <TagEnricher
+              version={libVersion}
+              onDone={() => {
+                setLibrary(loadLibrary() ?? SAMPLE_LIBRARY);
+                setLibVersion((v) => v + 1);
+              }}
+            />
+          )}
         </section>
 
         {/* ================= verdict ================= */}
@@ -827,7 +848,7 @@ export function Picker() {
 
                   {missedMood && (
                     <p className="mt-4 max-w-xl border-l-2 border-accent pl-3 text-[13.5px] text-subtle">
-                      {d.draw.moodMiss(missedMood)}
+                      {shelfUntagged ? d.draw.noTagsYet : d.draw.moodMiss(missedMood)}
                     </p>
                   )}
 

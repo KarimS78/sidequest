@@ -12,12 +12,22 @@ export type StoredGame = {
   /** Minutes played in the last 2 weeks, captured at import. 0/undefined = none. */
   recentMin?: number;
   /**
-   * Community tags (SteamSpy, storefront genres as fallback), most-voted first.
-   * The scoring engine's main signal. Always an array after `loadLibrary` —
-   * libraries stored before tags existed read back as [] and can be re-enriched.
+   * Community tags (store page, SteamSpy, storefront genres as fallbacks),
+   * most-voted first. The scoring engine's main signal. Always an array after
+   * `loadLibrary` — libraries stored before tags existed read back as [] and
+   * can be re-enriched.
    */
   tags: string[];
+  /**
+   * Which reading of the tags these are. Bumped when the source or the cap
+   * changes, so a shelf enriched under the old rules is read again once —
+   * six tags per game were enough for a genre and not for a mood.
+   */
+  tagsV?: number;
 };
+
+/** The current tag reading. Games below it show up in `untaggedAppids`. */
+export const TAGS_VERSION = 2;
 
 export type StoredProfile = {
   /** Genres the player says they enjoy, used as a recommendation signal. */
@@ -229,9 +239,14 @@ export function loadLibrary(): StoredGame[] | null {
   }
 }
 
-/** Games we have no tags for — the re-enrichment queue. */
+/**
+ * Games whose tags need (re)reading: none at all, or read under an older
+ * rule. The enricher's queue.
+ */
 export function untaggedAppids(library: StoredGame[]): number[] {
-  return library.filter((g) => !g.tags?.length).map((g) => g.appid);
+  return library
+    .filter((g) => !g.tags?.length || (g.tagsV ?? 1) < TAGS_VERSION)
+    .map((g) => g.appid);
 }
 
 /** Merge freshly fetched tags into the stored library and persist. */
@@ -239,7 +254,10 @@ export function applyTags(tagsByAppid: Record<number, string[]>): StoredGame[] {
   const current = loadLibrary() ?? [];
   const next = current.map((g) => {
     const tags = tagsByAppid[g.appid];
-    return tags?.length ? { ...g, tags } : g;
+    // A game the sources know nothing about is stamped too: otherwise it
+    // stays in the queue and every visit offers to read it again.
+    if (!(g.appid in tagsByAppid)) return g;
+    return tags?.length ? { ...g, tags, tagsV: TAGS_VERSION } : { ...g, tagsV: TAGS_VERSION };
   });
   saveLibrary(next);
   return next;
