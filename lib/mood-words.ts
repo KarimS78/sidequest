@@ -149,7 +149,12 @@ export const MOOD_SENSES: Sense[] = [
   },
   {
     id: "story",
-    tags: ["Story Rich", "Narrative", "Choices Matter", "Adventure", "Singleplayer"],
+    // Not "Singleplayer": it lives under `alone`, and here it handed every
+    // game on the shelf a crumb of story that a concave score then inflated.
+    tags: [
+      "Story Rich", "Narrative", "Choices Matter", "Visual Novel", "Mystery",
+      "Detective", "Emotional", "Cinematic", "Adventure",
+    ],
     words: [
       "story", "narrative", "plot", "characters", "lore", "writing", "immersive",
       "histoire", "narratif", "narration", "scenario", "recit", "intrigue",
@@ -328,6 +333,14 @@ export type MoodReading = {
   negated: string[];
   /** Words that were not stopwords and not triggers — kept as literal needles. */
   literals: string[];
+  /**
+   * The same needles, one list per sense that fired (literals form a group of
+   * their own). "une bonne histoire, tranquille" is two asks, and a game that
+   * answers both should beat one that saturates a single one — which is what
+   * happened when the lists were flattened: Stardew Valley, on calm alone,
+   * outscored every story game on the shelf.
+   */
+  groups: string[][];
 };
 
 /**
@@ -401,18 +414,28 @@ export function readMood(text: string): MoodReading {
   }
 
   const needles: string[] = [];
+  const groups: string[][] = [];
   for (const id of fired) {
+    const group: string[] = [];
     for (const tag of SENSE_BY_ID.get(id)?.tags ?? []) {
       if (!needles.includes(tag)) needles.push(tag);
+      group.push(tag);
     }
+    if (group.length) groups.push(group);
   }
-  for (const l of literals) if (!needles.includes(l)) needles.push(l);
+  const lits: string[] = [];
+  for (const l of literals) {
+    if (!needles.includes(l)) needles.push(l);
+    lits.push(l);
+  }
+  if (lits.length) groups.push(lits);
 
   return {
     needles,
     senses: [...fired],
     negated: [...negated],
     literals,
+    groups,
   };
 }
 

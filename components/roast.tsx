@@ -17,6 +17,20 @@ import { useI18n } from "@/i18n/context";
 const SHARPEN_MS = 450;
 
 /**
+ * Whether the model gets to write the roast.
+ *
+ * Off since 30/08/2026, on measurement. Once the templates could name games
+ * (the twenty-minute try, the sealed JRPG, the co-op bought for absent
+ * friends) they were sharper than anything gpt-5-nano wrote from the same
+ * facts — its lines stacked images that meant nothing ("tchou-tchou au fond
+ * du backlog", "wishlist Gazette"), even with the register shown to it. A
+ * roast is comedy, and comedy is the one thing this model tier does not do.
+ * The call is kept wired (lib/ai.ts, app/roast/actions.ts) for a model that
+ * can; flipping this is the whole change.
+ */
+const USE_MODEL_ROAST = false;
+
+/**
  * The warning label.
  *
  * The one inverted surface in the whole app: dark type on light stock, the way
@@ -62,11 +76,13 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
     setPending(true);
 
     // Templates first, so there is always something to show. The model gets to
-    // beat them if it answers in time; if it does not, nobody notices.
-    const local = roastBacklog(stats);
-    const ai = getAiRoast({ deviceId: deviceId(), stats, locale })
-      .then((r) => (r.ok ? r.roast : null))
-      .catch(() => null);
+    // beat them if it answers in time — when it is allowed to try.
+    const local = roastBacklog(stats, locale);
+    const ai = USE_MODEL_ROAST
+      ? getAiRoast({ deviceId: deviceId(), stats, locale })
+          .then((r) => (r.ok ? r.roast : null))
+          .catch(() => null)
+      : Promise.resolve<Roast | null>(null);
 
     const waited = new Promise<void>((resolve) => {
       if (timer.current) clearTimeout(timer.current);
@@ -75,7 +91,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
 
     Promise.all([waited, ai]).then(([, generated]) => {
       setPending(false);
-      announceAiCall();
+      if (USE_MODEL_ROAST) announceAiCall();
       if (generated) setRoast(generated);
       else if (local.ok) setRoast(local.roast);
       else setError(d.common.empty.noLibrary);

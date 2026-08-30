@@ -95,7 +95,7 @@ const en = {
     title: "The AI layer",
     live: "Live",
     off: "Local only",
-    liveLine: "The written verdicts, the roast and the shelf reading are coming from the model today.",
+    liveLine: "The written verdicts and the shelf reading are coming from the model today.",
     offLine:
       "No key, and nothing is broken: the scoring engine is local and was never the part that needed a model. Every screen still works, it just phrases things from templates.",
     calls: (n: number, of: number) => `${n} of ${of} calls today`,
@@ -205,7 +205,7 @@ const fr: typeof en = {
     title: "La couche IA",
     live: "En ligne",
     off: "Local seulement",
-    liveLine: "Les verdicts rédigés, le roast et la lecture d'étagère sortent du modèle aujourd'hui.",
+    liveLine: "Les verdicts rédigés et la lecture d'étagère sortent du modèle aujourd'hui.",
     offLine:
       "Pas de clé, et rien n'est cassé : le moteur de score est local et n'a jamais été la partie qui avait besoin d'un modèle. Tous les écrans marchent, ils formulent juste à partir de gabarits.",
     calls: (n: number, of: number) => `${n} appels sur ${of} aujourd'hui`,

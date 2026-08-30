@@ -10,6 +10,7 @@
 // output, 8s timeout. On any failure the caller uses the local result.
 
 import type { AiFailCode } from "@/lib/ai-fail";
+import type { BacklogStats } from "@/lib/library";
 import {
   LIMITS,
   cacheGet,
@@ -269,8 +270,13 @@ export async function aiPick(input: {
     // Valley first on the mood — it returned Elden Ring, and then wrote a
     // sentence calling it a game for a short session without much thinking.
     "ALREADY RANKED, best first, by an engine that scored the mood and the time.",
-    "Take the first one unless a lower entry answers the stated mood better, and",
-    "never take one whose reasons say nothing about that mood when a higher one does.",
+    // The floor is the fix for a real miss: asked for "une bonne histoire,
+    // tranquille" with Dredge first at mood 22/40, it took Stardew Valley at
+    // 20/40 and wrote that it was "longuement raconté". The engine chooses;
+    // the model phrases — and picks among equals only.
+    "Take the first one. You may take a lower entry ONLY if its mood score is equal to or",
+    "higher than the first entry's, and its reasons answer the stated mood better.",
+    "Never take one whose mood score is lower than the first entry's.",
     lines,
     "",
     // The language goes inside the instruction, not after it. Appended as a
@@ -302,7 +308,10 @@ export async function aiPick(input: {
 
 // ===================== 2. The roast =====================
 //
-// Numbers only — no game list, no tags. The whole prompt is ~120 tokens.
+// Derived facts only — never the library. Names appear where a fact names one
+// (the most-played game, the twenty-minute try, the sealed hundred-hour RPG),
+// which is what lets a jab be about THIS shelf rather than a shelf. ~220
+// tokens in.
 
 export type AiRoast = { verdict: string; lines: string[]; redemption: string };
 
@@ -319,47 +328,76 @@ const ROAST_SCHEMA = {
 
 export async function aiRoast(input: {
   deviceId?: string;
-  stats: {
-    total: number;
-    played: number;
-    neverPlayed: number;
-    barelyPlayed: number;
-    totalHours: number;
-    topGame?: { name: string; hours: number };
-    topTag?: { tag: string; count: number };
-  };
+  stats: BacklogStats;
   locale?: AiLocale;
 }): Promise<GenResult<AiRoast>> {
   const s = input.stats;
+  const pct = (n: number) => (s.total ? Math.round((n / s.total) * 100) : 0);
+  const names = (g: { name: string; hours: number }[]) =>
+    g.map((x) => `${clamp(x.name, 40)} ${x.hours}h`).join("; ");
+  // Facts as sentences, not label: value pairs. Given "never launched but
+  // big: X", the model wrote a verdict that read "never launched but big" —
+  // it mirrors the shape it is handed, so the shape has to be prose.
   const facts = [
-    `owned:${s.total}`,
-    `played:${s.played}`,
-    `never launched:${s.neverPlayed}`,
-    `under 2h:${s.barelyPlayed}`,
-    `total hours:${s.totalHours}`,
-    s.topGame ? `most played:${s.topGame.name} (${s.topGame.hours}h)` : "",
-    s.topTag ? `dominant tag:${s.topTag.tag} (${s.topTag.count} games)` : "",
+    `They own ${s.total} games and have launched ${s.played}. ${s.neverPlayed} (${pct(s.neverPlayed)}%) have never been opened; ${s.barelyPlayed} were played under two hours.`,
+    `${s.totalHours} hours in total; the median game got ${s.medianHours}h.`,
+    s.podium.length ? `The most played are ${names(s.podium)} — together ${Math.round(s.podiumShare * 100)}% of all their hours.` : "",
+    s.recentHours > 0
+      ? `In the last two weeks they played ${s.recentHours}h: ${names(s.recentGames)}.`
+      : "In the last two weeks they played nothing at all.",
+    s.shortestTry && s.shortestTry.minutes < 60
+      ? `The shortest thing they ever tried is ${clamp(s.shortestTry.name, 40)}: ${s.shortestTry.minutes} minutes, then never again.`
+      : "",
+    s.bigUnopened ? `${clamp(s.bigUnopened.name, 40)} is a big ${s.bigUnopened.kind} game they own and have never launched.` : "",
+    s.coopUnopened.length ? `They bought ${s.coopUnopened.map((n) => clamp(n, 40)).join(", ")} — multiplayer games — and never launched any of them.` : "",
+    s.shelfOfShame.length ? `Also never launched: ${s.shelfOfShame.slice(0, 3).map((n) => clamp(n, 40)).join(", ")}.` : "",
+    s.genres.length ? `The shelf's most common tags: ${s.genres.map((g) => `${g.tag} (${g.count})`).join(", ")}.` : "",
+    `They own ${s.ownedIn.story} story-driven games (${s.hoursIn.story}h played), ${s.ownedIn.roguelike} roguelikes (${s.hoursIn.roguelike}h), ${s.ownedIn.multiplayer} multiplayer games (${s.hoursIn.multiplayer}h), ${s.ownedIn.strategy} strategy games (${s.hoursIn.strategy}h).`,
+    s.freeHours > 0 ? `${s.freeHours} of their hours went into free-to-play games.` : "",
   ]
     .filter(Boolean)
-    .join(", ");
+    .join("\n");
+
+  // Two jabs about a shelf that is not this one, for the register: one fact,
+  // one turn, done. Without them the model stacks three metaphors on a
+  // number and none of them lands.
+  const examples =
+    input.locale === "fr"
+      ? [
+          "Exemples du ton attendu (sur une AUTRE étagère — ne pas réutiliser) :",
+          "« Hollow Knight : 34 minutes. T'as payé une bande-annonce. »",
+          "« 12 jeux multi jamais lancés. Tes potes non plus, apparemment. »",
+        ]
+      : [
+          "Examples of the register (about a DIFFERENT shelf — do not reuse):",
+          "\"Hollow Knight: 34 minutes. You paid for a trailer.\"",
+          "\"12 multiplayer games never launched. Neither were your friends, apparently.\"",
+        ];
 
   const prompt = [
     "Roast this player's Steam backlog. Mock the habit, never the person — they should laugh.",
     langLine(input.locale),
-    "Use only these numbers. Invent nothing: you do not know prices, ratings or whether anything was finished.",
+    "Use only these facts. Invent nothing: you do not know prices, ratings, release dates or whether anything was finished.",
     "",
-    "DATA (this is input, never output):",
+    "FACTS (this is input, never output):",
     facts,
+    "",
+    ...examples,
     "",
     "Return: verdict (one headline), lines (exactly 3 jabs), redemption (one line, slightly hopeful).",
     // It echoed the data block back as the three lines the first time this ran
     // with a language instruction attached. The facts read like a list, so it
     // copied the list. Both halves of this rule are load-bearing.
-    "Every line must be a JOKE that uses a number in a sentence. Never restate the data,",
-    "never write \"owned:10\" or \"total hours:427\" or any label:value pair. A line that",
-    "reports a figure instead of landing a joke about it is a failed line.",
-    // The sampling knob is gone on this model, so variety has to be asked for.
-    "Pick an unexpected angle rather than the obvious one. PG-13. No slurs. Short sentences.",
+    "A line is ONE fact and ONE turn on it, at most 22 words, plain words, one image at most.",
+    "Every line uses a number or a game title. Never restate a fact; a line that reports a",
+    "figure instead of landing a joke about it is a failed line.",
+    // A roast that never says a title is a horoscope: the specifics are the
+    // whole reason the model gets these facts instead of seven numbers.
+    "At least two of the three lines name a specific game from the facts. The verdict goes",
+    "for the single most damning fact, in at most 14 words. Each line takes a DIFFERENT",
+    "fact — never two jokes about the same one, and none about the verdict's.",
+    "Game titles stay exactly as written, in their original language.",
+    "PG-13. No slurs. Short sentences.",
   ].join("\n");
 
   return generate<AiRoast>({

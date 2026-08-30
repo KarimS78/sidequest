@@ -26,7 +26,61 @@ export type StoredProfile = {
   steamId?: string;
 };
 
-/** Derived backlog metrics — feeds the Roast (and, later, Gaming DNA). */
+/**
+ * Tags that sit on most of any real shelf and therefore say nothing about
+ * it. "Singleplayer" was the dominant tag of a 41-game account (34 games),
+ * and the roast called that a type. Shared with the portrait, which was
+ * spending its twelve tag slots on the same nothing.
+ */
+export const GENERIC_TAGS = new Set(
+  [
+    "Singleplayer", "Multiplayer", "Indie", "Action", "Adventure", "Atmospheric",
+    "Great Soundtrack", "2D", "3D", "Third Person", "First-Person", "Colorful",
+    "Early Access", "Mature", "Nudity", "Violent", "Gore", "Realistic", "Stylized",
+    "Replay Value", "Moddable", "Controller", "Family Friendly", "Old School",
+    "Character Customization", "Cinematic", "Beautiful", "Dark", "Female Protagonist",
+    "Exploration", "Cartoon", "Cartoony", "Cute", "Funny", "Comedy", "Classic",
+    "Combat", "Masterpiece", "Addictive", "Physics", "Procedural Generation",
+    "Perma Death", "Isometric", "Top-Down", "Side Scroller", "Hand-drawn",
+  ].map((t) => t.toLowerCase())
+);
+
+export function isGenericTag(tag: string): boolean {
+  return GENERIC_TAGS.has(tag.trim().toLowerCase());
+}
+
+/** A game family, read off the top of a tag list. */
+export type Family = "story" | "roguelike" | "multiplayer" | "strategy";
+
+const FAMILY_TAGS: Record<Family, string[]> = {
+  story: ["story rich", "narrative", "choices matter", "visual novel", "jrpg", "crpg"],
+  roguelike: ["roguelike", "roguelite", "deckbuilding", "roguelike deckbuilder", "action roguelike"],
+  multiplayer: ["multiplayer", "co-op", "online co-op", "pvp", "massively multiplayer", "battle royale", "mmorpg", "local co-op"],
+  strategy: ["strategy", "turn-based strategy", "4x", "grand strategy", "city builder", "management", "tactical"],
+};
+
+/** Which families a game belongs to, judged on its six most-voted tags only. */
+export function familiesOf(tags: string[]): Family[] {
+  const top = tags.slice(0, 6).map((t) => t.trim().toLowerCase());
+  return (Object.keys(FAMILY_TAGS) as Family[]).filter((f) =>
+    top.some((t) => FAMILY_TAGS[f].includes(t))
+  );
+}
+
+/**
+ * Tags near the top of a list that mark a game as a big one, biggest first:
+ * a sealed hundred-hour JRPG is a better jab than a sealed open world.
+ */
+const BIG_TAGS = ["mmorpg", "4x", "grand strategy", "jrpg", "crpg", "rpg", "open world", "story rich"];
+
+/**
+ * Derived backlog metrics — feeds the roast, the portrait and the profile.
+ *
+ * Everything here is measured, never guessed: there are no prices, no
+ * completion data and no dates beyond "played in the last two weeks". What
+ * there is, is enough to name names — the game that got twenty minutes, the
+ * hundred-hour RPG still sealed, the co-op bought for friends who never came.
+ */
 export type BacklogStats = {
   total: number;
   played: number; // games with any playtime
@@ -34,10 +88,32 @@ export type BacklogStats = {
   barelyPlayed: number; // started but under 2h
   totalHours: number;
   topGame?: { name: string; hours: number };
-  /** The tag that shows up most across the library — their de-facto genre. */
+  /** Top three by hours. */
+  podium: { name: string; hours: number }[];
+  /** Share of all hours inside the podium, 0..1. */
+  podiumShare: number;
+  /** Most common meaningful tag — generic ones excluded. */
   topTag?: { tag: string; count: number };
+  /** Top five meaningful tags. */
+  genres: { tag: string; count: number }[];
   /** A few never-played game names, for flavour. */
   shelfOfShame: string[];
+  /** The played game that got the least time: the shortest first date. */
+  shortestTry?: { name: string; minutes: number };
+  /** A never-launched game that is plainly a big one, with the tag that says so. */
+  bigUnopened?: { name: string; kind: string };
+  /** Never-launched games whose top tags are multiplayer: bought for friends. */
+  coopUnopened: string[];
+  /** Hours in the last two weeks, and the games they went into. */
+  recentHours: number;
+  recentGames: { name: string; hours: number }[];
+  /** Owned and played, by family, for "six story games, 300h in a card game". */
+  ownedIn: Record<Family, number>;
+  hoursIn: Record<Family, number>;
+  /** Hours sunk into games that cost nothing. */
+  freeHours: number;
+  /** Median hours per owned game. */
+  medianHours: number;
 };
 
 const LIBRARY_KEY = "sidequest:library";
@@ -233,27 +309,94 @@ export function computeBacklogStats(library: StoredGame[]): BacklogStats {
   const barelyPlayed = library.filter(
     (g) => g.playtimeMin > 0 && g.playtimeMin < 120
   ).length;
-  const totalHours = Math.round(
-    library.reduce((s, g) => s + g.playtimeMin, 0) / 60
-  );
-  const top = [...library].sort((a, b) => b.playtimeMin - a.playtimeMin)[0];
+  const totalMin = library.reduce((s, g) => s + g.playtimeMin, 0);
+  const totalHours = Math.round(totalMin / 60);
+  const hours = (min: number) => Math.round(min / 60);
+
+  const byHours = [...library].sort((a, b) => b.playtimeMin - a.playtimeMin);
+  const top = byHours[0];
   const topGame =
     top && top.playtimeMin > 0
-      ? { name: top.name, hours: Math.round(top.playtimeMin / 60) }
+      ? { name: top.name, hours: hours(top.playtimeMin) }
       : undefined;
-  const shelfOfShame = library
-    .filter((g) => g.playtimeMin === 0)
-    .slice(0, 6)
-    .map((g) => g.name);
+  const podium = byHours
+    .filter((g) => g.playtimeMin > 0)
+    .slice(0, 3)
+    .map((g) => ({ name: g.name, hours: hours(g.playtimeMin) }));
+  const podiumMin = byHours.slice(0, 3).reduce((s, g) => s + g.playtimeMin, 0);
+  const podiumShare = totalMin > 0 ? podiumMin / totalMin : 0;
 
-  // Most frequent tag across the library — only meaningful once tags exist and
-  // it actually recurs, so a two-game coincidence never becomes "your genre".
+  const never = library.filter((g) => g.playtimeMin === 0);
+  const shelfOfShame = never.slice(0, 6).map((g) => g.name);
+
+  // Most frequent meaningful tag — only once it actually recurs, so a two-game
+  // coincidence never becomes "your genre".
   const counts = new Map<string, number>();
   for (const g of library) {
-    for (const tag of g.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    for (const tag of g.tags ?? []) {
+      if (!isGenericTag(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
   }
-  const [tag, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
-  const topTag = tag && count >= 3 ? { tag, count } : undefined;
+  const genres = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([tag, count]) => ({ tag, count }));
+  const topTag = genres[0] && genres[0].count >= 3 ? genres[0] : undefined;
+
+  const tried = library
+    .filter((g) => g.playtimeMin > 0)
+    .sort((a, b) => a.playtimeMin - b.playtimeMin)[0];
+  const shortestTry = tried ? { name: tried.name, minutes: tried.playtimeMin } : undefined;
+
+  // The biggest thing still sealed: the never-launched game whose top four
+  // tags carry the biggest "big" tag. The tag is kept so the joke can say
+  // what kind of big.
+  let bigUnopened: BacklogStats["bigUnopened"];
+  let bigRank = BIG_TAGS.length;
+  for (const g of never) {
+    for (const t of (g.tags ?? []).slice(0, 4)) {
+      const rank = BIG_TAGS.indexOf(t.trim().toLowerCase());
+      if (rank !== -1 && rank < bigRank) {
+        bigRank = rank;
+        bigUnopened = { name: g.name, kind: t };
+      }
+    }
+  }
+
+  const coopUnopened = never
+    .filter((g) => familiesOf(g.tags ?? []).includes("multiplayer"))
+    .slice(0, 3)
+    .map((g) => g.name);
+
+  const recentMin = library.reduce((s, g) => s + (g.recentMin ?? 0), 0);
+  const recentHours = Math.round(recentMin / 60);
+  const recentGames = [...library]
+    .filter((g) => (g.recentMin ?? 0) > 0)
+    .sort((a, b) => (b.recentMin ?? 0) - (a.recentMin ?? 0))
+    .slice(0, 3)
+    .map((g) => ({ name: g.name, hours: Math.max(1, hours(g.recentMin ?? 0)) }));
+
+  const ownedIn: Record<Family, number> = { story: 0, roguelike: 0, multiplayer: 0, strategy: 0 };
+  const hoursIn: Record<Family, number> = { story: 0, roguelike: 0, multiplayer: 0, strategy: 0 };
+  let freeMin = 0;
+  for (const g of library) {
+    for (const f of familiesOf(g.tags ?? [])) {
+      ownedIn[f] += 1;
+      hoursIn[f] += g.playtimeMin;
+    }
+    if ((g.tags ?? []).some((t) => t.trim().toLowerCase() === "free to play")) {
+      freeMin += g.playtimeMin;
+    }
+  }
+  for (const f of Object.keys(hoursIn) as Family[]) hoursIn[f] = hours(hoursIn[f]);
+
+  const sortedMin = library.map((g) => g.playtimeMin).sort((a, b) => a - b);
+  const mid = Math.floor(sortedMin.length / 2);
+  const medianMin = sortedMin.length
+    ? sortedMin.length % 2
+      ? sortedMin[mid]
+      : (sortedMin[mid - 1] + sortedMin[mid]) / 2
+    : 0;
 
   return {
     total,
@@ -262,8 +405,20 @@ export function computeBacklogStats(library: StoredGame[]): BacklogStats {
     barelyPlayed,
     totalHours,
     topGame,
+    podium,
+    podiumShare,
     topTag,
+    genres,
     shelfOfShame,
+    shortestTry,
+    bigUnopened,
+    coopUnopened,
+    recentHours,
+    recentGames,
+    ownedIn,
+    hoursIn,
+    freeHours: hours(freeMin),
+    medianHours: Math.round((medianMin / 60) * 10) / 10,
   };
 }
 

@@ -70,7 +70,7 @@ export type Reason = {
   icon: string;
   label: string;
   key: ReasonKey;
-  data?: { tag?: string; hours?: number; text?: string };
+  data?: { tag?: string; hours?: number; text?: string; tags?: string[] };
 };
 
 /**
@@ -113,6 +113,15 @@ type NeedleSet = {
    * comes back with Elden Ring.
    */
   avoid?: string[];
+  /** Per-needle specificity on this shelf, from `specificity()`. */
+  spec: Map<string, number>;
+  /**
+   * The needles split by the sense they came from. A preset mood is one
+   * group; a typed "une bonne histoire, tranquille" is two. The score is the
+   * mean over groups, each saturating on its own, so answering both asks
+   * beats saturating one.
+   */
+  groups: string[][];
 };
 
 export type RecommendPick = {
@@ -147,33 +156,46 @@ export type RecommendResult =
 export const MOOD_TAGS: Record<PickerMood, string[]> = {
   // Low stakes, no failure pressure — something you can put down.
   chill: [
-    "Casual",
-    "Cozy",
     "Relaxing",
-    "Simulation",
+    "Cozy",
+    "Casual",
     "Farming Sim",
+    "Life Sim",
+    "Simulation",
     "Sandbox",
     "Building",
     "Puzzle",
+    "Cute",
+    "Fishing",
   ],
-  // Being told a story, or living one.
+  // Being told a story, or living one. "Singleplayer" and "Open World" used
+  // to be in here; on a real shelf they sit on most of it, which is how a
+  // Guild Wars tied with Disco Elysium for "story".
   story: [
     "Story Rich",
-    "RPG",
-    "Adventure",
     "Narrative",
     "Choices Matter",
-    "Open World",
-    "Singleplayer",
+    "Visual Novel",
+    "CRPG",
+    "JRPG",
+    "RPG",
+    "Emotional",
+    "Mystery",
+    "Detective",
+    "Cinematic",
+    "Adventure",
   ],
-  // Wants to be tested. Failure is the point.
+  // Wants to be tested. Failure is the point. Not "Strategy": that is
+  // thinking, which is a different ask, and it was pulling deckbuilders
+  // ahead of Elden Ring for "challenge, whole evening".
   challenge: [
-    "Souls-like",
     "Difficult",
-    "Roguelike",
-    "Roguelite",
+    "Souls-like",
     "Precision Platformer",
-    "Strategy",
+    "Roguelike",
+    "Perma Death",
+    "Competitive",
+    "Boomer Shooter",
   ],
   // Instant gratification, no commitment, easy to stop after one round.
   quick: [
@@ -182,7 +204,11 @@ export const MOOD_TAGS: Record<PickerMood, string[]> = {
     "Roguelite",
     "Card Game",
     "Party Game",
-    "Platformer",
+    "Bullet Hell",
+    "Rhythm",
+    "Racing",
+    "Addictive",
+    "Battle Royale",
     "Shooter",
   ],
 };
@@ -200,11 +226,35 @@ const SHORT_SESSION_TAGS = [
   "Roguelite",
   "Roguelike",
   "Card Game",
+  "Deckbuilding",
   "Party Game",
+  "Bullet Hell",
+  "Rhythm",
+  "Racing",
+  "Pinball",
+  "Battle Royale",
+  "Fighting",
 ];
 
-/** Games that punish being played in 30-minute slices. */
-const LONG_SESSION_TAGS = ["Open World", "CRPG", "MMO", "4X", "Grand Strategy"];
+/**
+ * Games that punish being played in 30-minute slices. "City Builder" is here
+ * because a never-launched Cities: Skylines was the engine's answer to
+ * "chill, half an hour" — a city is not a thing you start in thirty minutes.
+ */
+const LONG_SESSION_TAGS = [
+  "Open World",
+  "Open World Survival Craft",
+  "CRPG",
+  "JRPG",
+  "MMO",
+  "MMORPG",
+  "Massively Multiplayer",
+  "4X",
+  "Grand Strategy",
+  "City Builder",
+  "Colony Sim",
+  "Base Building",
+];
 
 /**
  * The same two lists, for screens outside the deck.
@@ -224,8 +274,28 @@ export const SESSION_TAGS = {
 const W = {
   /** Mood is what the player actually asked for — the dominant term. */
   moodMax: 40,
-  /** Matching this many mood tags already earns full marks. */
-  moodSaturation: 3,
+  /**
+   * Weighted evidence that earns full marks. A hit is worth up to 1 — less
+   * when the tag sits low in the game's list or high on everyone's shelf —
+   * so two strong, specific hits saturate and five weak ones do not.
+   *
+   * It was a count of three. With SteamSpy's fifteen tags per game, nearly
+   * everything has three of anything, and "story" came back as five games
+   * tied at 40 with a draw between them: a lottery with a scoreboard.
+   */
+  moodSaturation: 2,
+  /** Rank weight floor: a tag in 15th place still counts, for a quarter. */
+  rankFloor: 0.25,
+  /** How much each place down the tag list costs. */
+  rankStep: 0.06,
+  /** Specificity floor: a tag on every game on the shelf still counts, barely. */
+  specFloor: 0.15,
+  /**
+   * Below this much of a sense, it did not answer that sense. The concave
+   * coverage would otherwise turn one fifteenth-place tag into a fifth of a
+   * full match.
+   */
+  senseFloor: 0.1,
   /**
    * Carrying tags the player ruled out. Sized just above the anti-repetition
    * nudge: "not this kind of thing tonight" is a firmer instruction than "you
@@ -259,13 +329,57 @@ const norm = (s: string) => s.trim().toLowerCase();
 
 /** Substring match in both directions: "Rogue" ↔ "Roguelike". */
 function tagHits(gameTags: string[], needle: string): string | null {
+  return tagHitAt(gameTags, needle)?.tag ?? null;
+}
+
+/**
+ * The same match, with where in the list it landed.
+ *
+ * SteamSpy orders tags by votes, so the position is the community saying how
+ * much the tag is the game: "Horror" first on Dredge is the point of Dredge,
+ * "Horror" fifteenth on Vampire Survivors is a technicality. The engine
+ * treated both as one hit and answered "I want to be scared" with a
+ * bullet-hell.
+ */
+function tagHitAt(gameTags: string[], needle: string): { tag: string; rank: number } | null {
   const n = norm(needle);
   if (!n) return null;
-  for (const tag of gameTags) {
-    const t = norm(tag);
-    if (t.includes(n) || n.includes(t)) return tag;
+  // Exact first: "RPG" should land on a game's "RPG" before its "MMORPG".
+  for (let i = 0; i < gameTags.length; i++) {
+    if (norm(gameTags[i]) === n) return { tag: gameTags[i], rank: i };
+  }
+  for (let i = 0; i < gameTags.length; i++) {
+    const t = norm(gameTags[i]);
+    // Needle inside tag: "Rogue" → "Roguelike", "RPG" → "CRPG". Tag inside
+    // needle only as a plural or a suffix ("metroidvanias" → "Metroidvania"),
+    // so it has to be a prefix: a game tagged "Platformer" is not a precision
+    // platformer, a game tagged "Building" is not a base builder, and a game
+    // tagged "RPG" is not a CRPG — all three were scoring as if.
+    if (t.includes(n) || (n.startsWith(t) && n.length - t.length <= 2)) {
+      return { tag: gameTags[i], rank: i };
+    }
   }
   return null;
+}
+
+/** 1 at the top of the list, sliding to the floor around fifteenth place. */
+function rankWeight(rank: number): number {
+  return Math.max(W.rankFloor, 1 - rank * W.rankStep);
+}
+
+/**
+ * How much a needle says about a game on THIS shelf: 1 when it is rare, near
+ * nothing when it is on everything. "Singleplayer" sits on 34 of 41 games on
+ * a real account; matching it is not information. Computed once per draw.
+ */
+function specificity(needles: string[], pool: PickerGame[]): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!pool.length) return out;
+  for (const n of needles) {
+    const hits = pool.filter((g) => tagHitAt(g.tags ?? [], n)).length;
+    out.set(n, Math.max(W.specFloor, 1 - hits / pool.length));
+  }
+  return out;
 }
 
 /**
@@ -278,17 +392,45 @@ export function matchesAnyTag(gameTags: string[], needles: string[]): boolean {
   return needles.some((n) => tagHits(gameTags, n) !== null);
 }
 
-/** Every needle that matched, with the game tag that matched it. */
+/** Every needle that matched, with the game tag that matched it and its rank. */
 function matchTags(
   gameTags: string[],
   needles: string[]
-): { needle: string; tag: string }[] {
-  const out: { needle: string; tag: string }[] = [];
+): { needle: string; tag: string; rank: number }[] {
+  const out: { needle: string; tag: string; rank: number }[] = [];
+  const claimed = new Set<string>();
   for (const needle of needles) {
-    const tag = tagHits(gameTags, needle);
-    if (tag) out.push({ needle, tag });
+    const hit = tagHitAt(gameTags, needle);
+    // One claim per tag: "CRPG" and "JRPG" both reach "RPG", and a session
+    // list counted the one tag twice.
+    if (hit && !claimed.has(hit.tag)) {
+      claimed.add(hit.tag);
+      out.push({ needle, ...hit });
+    }
   }
   return out;
+}
+
+/**
+ * Weighted evidence for a set of needles: each hit counts for its rank on the
+ * game times its specificity on the shelf. Sorted strongest first, so the
+ * badge names the tag that actually carried the score.
+ */
+function evidence(
+  gameTags: string[],
+  needles: string[],
+  spec: Map<string, number>
+): { total: number; hits: { needle: string; tag: string; weight: number }[] } {
+  // One claim per game tag: "RPG", "CRPG" and "JRPG" are three needles, and a
+  // game's single "JRPG" tag answered all three, counting three times.
+  const byTag = new Map<string, { needle: string; tag: string; weight: number }>();
+  for (const h of matchTags(gameTags, needles)) {
+    const weight = rankWeight(h.rank) * (spec.get(h.needle) ?? 1);
+    const prev = byTag.get(h.tag);
+    if (!prev || prev.weight < weight) byTag.set(h.tag, { needle: h.needle, tag: h.tag, weight });
+  }
+  const hits = [...byTag.values()].sort((a, b) => b.weight - a.weight);
+  return { total: hits.reduce((s, h) => s + h.weight, 0), hits };
 }
 
 // The free-text reading — stopwords, negation and the bilingual sense lexicon
@@ -333,22 +475,40 @@ function scoreGame(
 
   // --- Mood (or free-text) match: the dominant term ---
   if (needles && tags.length) {
-    const hits = matchTags(tags, needles.list);
+    const hits = evidence(tags, needles.list, needles.spec);
     const avoided = needles.avoid?.length
-      ? matchTags(tags, needles.avoid)
-      : [];
-    const reward = Math.min(1, hits.length / W.moodSaturation) * W.moodMax;
-    const malus = Math.min(1, avoided.length / W.moodSaturation) * W.avoidMax;
+      ? evidence(tags, needles.avoid, needles.spec)
+      : { total: 0, hits: [] };
+    // Mean over senses of the square root of each one's saturation: concave,
+    // so half of two asks beats all of one. A plain mean scored "une bonne
+    // histoire, tranquille" the same for Stardew Valley (calm, no story) as
+    // for Dredge (some of each), and playtime broke the tie the wrong way.
+    const groups = needles.groups.length ? needles.groups : [needles.list];
+    const coverage =
+      groups.reduce((s, g) => {
+        const sat = Math.min(1, evidence(tags, g, needles.spec).total / W.moodSaturation);
+        return s + (sat < W.senseFloor ? 0 : Math.sqrt(sat));
+      }, 0) / groups.length;
+    const reward = coverage * W.moodMax;
+    const malus = Math.min(1, avoided.total / W.moodSaturation) * W.avoidMax;
 
-    if (hits.length) {
+    if (hits.hits.length) {
       components.push({
         key: "mood",
         points: reward - malus,
         reason: {
           icon: needles.icon,
-          label: `${hits[0].tag} — ${needles.label}`,
+          label: `${hits.hits[0].tag} — ${needles.label}`,
           key: needles.key,
-          data: { tag: hits[0].tag, text: needles.text },
+          data: {
+            tag: hits.hits[0].tag,
+            text: needles.text,
+            // Every tag that scored, strongest first. The shortlist shows the
+            // model these: with one tag per game it could not see that Dredge
+            // answered both halves of "une bonne histoire, tranquille" and
+            // took Stardew Valley for the story.
+            tags: hits.hits.slice(0, 3).map((h) => h.tag),
+          },
         },
       });
     } else if (malus) {
@@ -361,8 +521,12 @@ function scoreGame(
 
   // --- Session length fit ---
   {
-    const shortHits = matchTags(tags, SHORT_SESSION_TAGS).length;
-    const longHits = matchTags(tags, LONG_SESSION_TAGS).length;
+    // Rank-weighted like the mood: "Open World" in first place is a game
+    // built around it, in twelfth it is a large map.
+    const weigh = (list: string[]) =>
+      matchTags(tags, list).reduce((s, h) => s + rankWeight(h.rank), 0);
+    const shortHits = weigh(SHORT_SESSION_TAGS);
+    const longHits = weigh(LONG_SESSION_TAGS);
     const cap = (n: number) => Math.min(n, W.timeBonusCap);
 
     let points: number = W.timeBase;
@@ -546,6 +710,9 @@ function customNeedles(
 
   const localList = local.needles.filter(lands);
   const list = localList.length ? localList : (input.moodNeedles ?? []).filter(lands);
+  const groups = localList.length
+    ? local.groups.map((g) => g.filter(lands)).filter((g) => g.length)
+    : [list];
 
   const localAvoid = negatedTags(local.negated).filter(lands);
   const avoid = (localAvoid.length ? localAvoid : (input.moodAvoid ?? []).filter(lands))
@@ -562,6 +729,20 @@ function customNeedles(
     key: "custom",
     text: custom,
     avoid,
+    spec: specificity([...list, ...avoid], pool),
+    groups,
+  };
+}
+
+/** The preset-mood needle set, with its specificity measured on this shelf. */
+function presetNeedles(mood: PickerMood, pool: PickerGame[]): NeedleSet {
+  return {
+    list: MOOD_TAGS[mood],
+    icon: MOOD_ICON[mood],
+    label: "your mood",
+    key: "mood",
+    spec: specificity(MOOD_TAGS[mood], pool),
+    groups: [MOOD_TAGS[mood]],
   };
 }
 
@@ -592,12 +773,7 @@ export function recommendGame(input: RecommendInput): RecommendResult {
       note = `Nothing in your library is tagged anything like “${custom}”, so I picked on time and playtime instead. Try a genre word — “roguelike”, “cozy”, “story”.`;
     }
   } else if (input.mood) {
-    needles = {
-      list: MOOD_TAGS[input.mood],
-      icon: MOOD_ICON[input.mood],
-      label: "your mood",
-      key: "mood",
-    };
+    needles = presetNeedles(input.mood, pool);
   }
 
   const recent = new Set(input.recentAppids ?? []);
@@ -675,7 +851,13 @@ export function shortlist(
         s.components
           .filter((c) => c.points > 0 && c.reason)
           .sort((a, b) => b.points - a.points)
-          .map((c) => c.reason!.label.split(" — ")[0])
+          .map((c) => {
+            const r = c.reason!;
+            const head = r.data?.tags?.length ? r.data.tags.join(", ") : r.label.split(" — ")[0];
+            // The points make the ranking legible: "mood 22/40" next to
+            // "mood 8/40" says why the first line is first.
+            return c.key === "mood" ? `${head} (mood ${Math.round(c.points)}/${W.moodMax})` : head;
+          })
           .join("; ") || "no strong signal",
     }));
 }
@@ -690,12 +872,7 @@ export function explain(input: RecommendInput) {
   const needles: NeedleSet | null = custom
     ? customNeedles(custom, input, input.library)
     : input.mood
-      ? {
-          list: MOOD_TAGS[input.mood],
-          icon: MOOD_ICON[input.mood],
-          label: "your mood",
-          key: "mood",
-        }
+      ? presetNeedles(input.mood, input.library)
       : null;
 
   return input.library

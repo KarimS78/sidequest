@@ -18,7 +18,7 @@ the header.
   the game you never launched.
 - **Saves** — every draw logged, grouped by game, with your own note of where you stopped and a one-line read-back when you come back weeks later.
 - **The shelf** — your library, searchable by name or by a plain-language ask ("something short I don't have to think about").
-- **Roast mode** — a playful read of your backlog, built from your real numbers.
+- **Roast mode** — a playful read of your backlog, built from your real numbers and naming your actual games: the one you gave twenty minutes, the hundred-hour RPG still sealed, the co-op you bought for friends who never showed.
 - **Profile** — a portrait of what your shelf says about you, favourite genres, games it should never suggest, and the AI gauge in dollars.
 - **Installable PWA** — works offline, installs to your phone or desktop.
 - **Desktop overlay** *(in progress)* — a lightweight Electron overlay that runs alongside your games.
@@ -38,8 +38,10 @@ the browser:
 | Taste | 0–10 | Your profile's favourite genres |
 | Anti-repetition | −25 | Recommended to you recently |
 
-The top five then go into a weighted draw, so a clear winner usually wins but the
-spin stays a spin. The badges on the verdict are generated from the components
+A tag is not worth 1: it is weighted by its rank on the game (SteamSpy orders by
+votes) and by how rare it is on your shelf ("Singleplayer" on 34 of 41 games says
+nothing). The top five then go into a weighted draw, so a clear winner usually
+wins but the spin stays a spin. The badges on the verdict are generated from the components
 that actually scored — the explanation can't drift from the maths.
 
 A typed mood is read by a hand-written bilingual lexicon (`lib/mood-words.ts`):
@@ -54,10 +56,11 @@ storefront's genres and categories. Both are keyless public endpoints.
 ## The AI layer (optional, bounded)
 
 With an `OPENAI_API_KEY`, `gpt-5-nano` sits on top of the local engine at seven
-points: the pick sentence, the roast, the session note, the plain-language shelf
-search, the shelf portrait, the note read-back, and the typed mood when the
-lexicon doesn't recognise the words. Without the key, every feature still works
-from the local engine and templates.
+points: the pick sentence, the session note, the plain-language shelf search,
+the shelf portrait, the note read-back, the typed mood when the lexicon doesn't
+recognise the words — and the roast, which is wired but switched off: measured
+against the templates, the model's jokes were worse. Without the key, every
+feature still works from the local engine and templates.
 
 Every call goes through `lib/ai-guard.ts`: at most 12 candidates in a prompt,
 free text clamped, output tokens capped per call type, daily quotas per device

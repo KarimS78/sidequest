@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getAiPortrait } from "@/app/profile/actions";
 import { deviceId } from "@/lib/device";
 import { announceAiCall } from "@/lib/ai-events";
-import type { BacklogStats, StoredGame } from "@/lib/library";
+import { isGenericTag, type BacklogStats, type StoredGame } from "@/lib/library";
 import { useI18n } from "@/i18n/context";
 import type { AiFailCode } from "@/lib/ai-fail";
 
@@ -50,7 +50,9 @@ export function ShelfPortrait({
     for (const g of library) {
       for (const raw of g.tags ?? []) {
         const tag = raw.trim();
-        if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        // "Singleplayer: 34, Indie: 22, Action: 20" is not a shelf, it is
+        // Steam. The twelve slots go to tags that tell the two shelves apart.
+        if (tag && !isGenericTag(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
     }
     return [...counts.entries()]
