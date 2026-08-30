@@ -754,11 +754,7 @@ export function recommendGame(input: RecommendInput): RecommendResult {
     };
   }
 
-  // Drop rejected games — but never empty the pool. If the player rejected
-  // everything, fall back to the full library rather than dead-ending.
-  const exclude = new Set(input.excludeAppids ?? []);
-  const filtered = input.library.filter((g) => !exclude.has(g.appid));
-  const pool = filtered.length ? filtered : input.library;
+  const pool = drawPool(input);
 
   // Free text wins over the preset mood, but only if any of its words actually
   // land on a tag somewhere in the library — otherwise it's noise, and saying so
@@ -867,15 +863,31 @@ export function shortlist(
  * inspect and tune the engine.
  */
 export function explain(input: RecommendInput) {
+  // The same pool rule as recommendGame. This used to score the whole
+  // library, so "not this one" removed the game from the draw but not from
+  // the shortlist the model was shown — and the model, told to take the
+  // first entry, handed the rejected game straight back.
+  const pool = drawPool(input);
   const recent = new Set(input.recentAppids ?? []);
   const custom = input.customMood?.trim();
   const needles: NeedleSet | null = custom
-    ? customNeedles(custom, input, input.library)
+    ? customNeedles(custom, input, pool)
     : input.mood
-      ? presetNeedles(input.mood, input.library)
+      ? presetNeedles(input.mood, pool)
       : null;
 
-  return input.library
+  return pool
     .map((g) => scoreGame(g, input, needles, recent))
     .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * The games a draw may pick from: the library minus the rejected ones — but
+ * never empty. A player who rejected everything gets the full shelf back
+ * rather than a dead end.
+ */
+function drawPool(input: RecommendInput): PickerGame[] {
+  const exclude = new Set(input.excludeAppids ?? []);
+  const filtered = input.library.filter((g) => !exclude.has(g.appid));
+  return filtered.length ? filtered : input.library;
 }

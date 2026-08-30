@@ -232,15 +232,20 @@ export type AiCandidate = {
 export type AiPick = { appid: number; reason: string };
 
 // Strict mode: every property listed in `required`, no extras allowed.
-const PICK_SCHEMA = {
+//
+// The language is on the field itself, not only in the prose rules. A field
+// description is the one instruction this model never seems to lose, and a
+// French player was still getting the odd English sentence with the rule in
+// the prompt alone.
+const pickSchema = (locale: AiLocale | undefined) => ({
   type: "object",
   properties: {
     appid: { type: "integer" },
-    reason: { type: "string" },
+    reason: { type: "string", description: `One sentence, written in ${langName(locale)}.` },
   },
   required: ["appid", "reason"],
   additionalProperties: false,
-};
+});
 
 export async function aiPick(input: {
   deviceId?: string;
@@ -295,7 +300,7 @@ export async function aiPick(input: {
     kind: "pick",
     deviceId: input.deviceId,
     prompt,
-    schema: PICK_SCHEMA,
+    schema: pickSchema(input.locale),
     // Same shortlist + same ask = same answer, free.
     cacheOn: {
       c: candidates.map((c) => c.appid),
@@ -591,16 +596,16 @@ export type AiMood = {
  * and a reading that loses all its tags falls back to the local lexicon —
  * which is the degradation this whole layer is designed around.
  */
-const MOOD_SCHEMA = {
+const moodSchema = (locale: AiLocale | undefined) => ({
   type: "object",
   properties: {
     tags: { type: "array", items: { type: "string" } },
     avoid: { type: "array", items: { type: "string" } },
-    say: { type: "string" },
+    say: { type: "string", description: `One short line, written in ${langName(locale)}.` },
   },
   required: ["tags", "avoid", "say"],
   additionalProperties: false,
-};
+});
 
 export async function aiMood(input: {
   deviceId?: string;
@@ -665,7 +670,7 @@ export async function aiMood(input: {
     prompt,
     // Same words over the same shelf is the same reading, free.
     cacheOn: { m: mood.toLowerCase(), v: vocab, l: input.locale ?? "en" },
-    schema: MOOD_SCHEMA,
+    schema: moodSchema(input.locale),
   });
 }
 
