@@ -277,7 +277,16 @@ export function Landing({ caps }: { caps: Capabilities }) {
                   )}
 
                   <div className="mt-auto pt-1">
-                    {plan.featured && state.on ? (
+                    {i === 2 && !state.on ? (
+                      // Nothing to open yet: a label, not a link to the Draw.
+                      <span
+                        role="link"
+                        aria-disabled="true"
+                        className="btn btn-ghost w-full cursor-default opacity-60"
+                      >
+                        {plan.cta}
+                      </span>
+                    ) : plan.featured && state.on ? (
                       <Link href="/play" className="btn btn-primary w-full">
                         {plan.cta} <span className="arrow">→</span>
                       </Link>
@@ -303,7 +312,24 @@ export function Landing({ caps }: { caps: Capabilities }) {
         <div className="wrap flex flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Mark size={26} />
-            <span className="text-sm text-muted">{l.footer.line}</span>
+            <p className="flex flex-col text-sm text-muted">
+              <a
+                href="https://karimsehil.com"
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-fg"
+              >
+                {l.footer.line}
+              </a>
+              <a
+                href="https://karimsehil.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[13px] text-subtle transition-colors hover:text-fg"
+              >
+                {l.footer.portfolio}
+              </a>
+            </p>
           </div>
           <a
             href="https://github.com/KarimS78/sidequest"

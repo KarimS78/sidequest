@@ -42,14 +42,14 @@ const geistMono = Geist_Mono({
 
 const META = {
   en: {
-    title: "SideQuest — Never forget where you left off",
+    title: "SideQuest · Tonight, you play this",
     description:
-      "You own 150 games and have one free hour. SideQuest reads your library and your mood, picks the one game to play tonight, and tells you why.",
+      "SideQuest reads the Steam games you already own, the hour you actually have and the mood you are in, then comes back with one game for tonight. Not a shortlist. One.",
   },
   fr: {
-    title: "SideQuest — Ne perds plus jamais le fil",
+    title: "SideQuest · Ce soir, tu joues à ça",
     description:
-      "Tu as 150 jeux et une heure devant toi. SideQuest lit ta bibliothèque et ton humeur, choisit le jeu de ce soir, et te dit pourquoi.",
+      "SideQuest lit les jeux Steam que tu possèdes déjà, l'heure que tu as vraiment devant toi et ton humeur, puis revient avec un jeu pour ce soir. Pas une liste. Un.",
   },
 } as const;
 
@@ -57,6 +57,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   return {
     ...META[locale],
+    openGraph: {
+      ...META[locale],
+      siteName: "SideQuest",
+      type: "website",
+    },
     applicationName: "SideQuest",
     icons: {
       icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],

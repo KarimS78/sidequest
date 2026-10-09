@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Mark } from "@/components/logo";
 import { useI18n } from "@/i18n/context";
+import { HISTORY_EVENT, loadHistory } from "@/lib/history";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -16,10 +17,14 @@ type BeforeInstallPromptEvent = Event & {
  * It parks at the bottom — above the phone tab bar, in the corner on a desktop.
  * Never at the top: the one thing a visitor is looking for in the first second
  * is the headline, and a bar over the header hides the product to advertise it.
+ *
+ * And not before a first draw: offered on arrival, the bar sat over the landing
+ * before the visitor knew what was being installed.
  */
 export function InstallPrompt() {
   const { d } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const [drawn, setDrawn] = useState(false);
   const t = d.common.install;
 
   useEffect(() => {
@@ -30,16 +35,26 @@ export function InstallPrompt() {
       setDeferred(event as BeforeInstallPromptEvent);
     };
     const onInstalled = () => setDeferred(null);
+    const checkDrawn = () => {
+      try {
+        if (loadHistory().length > 0) setDrawn(true);
+      } catch {
+        // Storage blocked: no history, so no prompt.
+      }
+    };
 
+    checkDrawn();
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener(HISTORY_EVENT, checkDrawn);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener(HISTORY_EVENT, checkDrawn);
     };
   }, []);
 
-  if (!deferred) return null;
+  if (!deferred || !drawn) return null;
 
   return (
     <div

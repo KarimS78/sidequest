@@ -18,7 +18,7 @@ import { join } from "node:path";
  * first thing a stranger sees.
  */
 
-export const alt = "SideQuest — Never forget where you left off";
+export const alt = "SideQuest · Tonight, you play this";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

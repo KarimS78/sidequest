@@ -31,7 +31,7 @@ const en = {
   how: {
     eyebrow: "How it picks",
     title: "Six things it weighs, and it shows you all six.",
-    lede: "No model, no black box, nothing hidden behind a spinner. Every pick is a sum of named components, and the badges on the verdict are printed from the numbers that actually scored.",
+    lede: "The ranking is pure math: a sum of named components, and the badges on the verdict are printed from the numbers that actually scored. With the AI layer on, the model writes the sentence, can read a mood you typed in your own words, and may pick another game from the engine's shortlist — never one from outside it.",
     items: [
       { name: "MOOD", line: "The tags behind what you asked for, matched against everything you own." },
       { name: "SESSION", line: "Half an hour is not an evening. Some games know the difference." },
@@ -46,7 +46,7 @@ const en = {
 
   pricing: {
     eyebrow: "What it would cost",
-    title: "Three boards.",
+    title: "Three ways to run it.",
     plans: [
       {
         name: "Local",
@@ -97,6 +97,7 @@ const en = {
 
   footer: {
     line: "Built by Karim.",
+    portfolio: "A portfolio project by Karim Sehil.",
     code: "Source on GitHub",
   },
 };
@@ -128,7 +129,7 @@ const fr: typeof en = {
   how: {
     eyebrow: "Comment il choisit",
     title: "Six choses pesées, et les six sont affichées.",
-    lede: "Pas de modèle, pas de boîte noire, rien caché derrière un spinner. Chaque choix est une somme de composantes nommées, et les badges du verdict sont imprimés à partir des chiffres qui ont réellement compté.",
+    lede: "Le classement est un pur calcul : une somme de composantes nommées, et les badges du verdict sont imprimés à partir des chiffres qui ont réellement compté. Avec la couche IA, le modèle écrit la phrase, peut lire une humeur tapée avec tes mots, et peut retenir un autre jeu de la shortlist du moteur — jamais un jeu hors de cette liste.",
     items: [
       { name: "HUMEUR", line: "Les tags derrière ce que tu demandes, croisés avec tout ce que tu possèdes." },
       { name: "SESSION", line: "Une demi-heure n'est pas une soirée. Certains jeux font la différence." },
@@ -143,7 +144,7 @@ const fr: typeof en = {
 
   pricing: {
     eyebrow: "Ce que ça coûterait",
-    title: "Trois formules.",
+    title: "Trois façons de le faire tourner.",
     plans: [
       {
         name: "Local",
@@ -189,6 +190,7 @@ const fr: typeof en = {
 
   footer: {
     line: "Fait par Karim.",
+    portfolio: "Un projet portfolio de Karim Sehil.",
     code: "Le code sur GitHub",
   },
 };

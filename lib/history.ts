@@ -31,6 +31,8 @@ export type HistoryEntry = {
 
 const HISTORY_KEY = "sidequest:history";
 const MAX_ENTRIES = 100;
+/** Fired on this window whenever the history is written. */
+export const HISTORY_EVENT = "sidequest:history-changed";
 
 export function loadHistory(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
@@ -47,6 +49,8 @@ export function loadHistory(): HistoryEntry[] {
 function persist(entries: HistoryEntry[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+  // Same-tab listeners (the install prompt waits for a first draw).
+  window.dispatchEvent(new Event(HISTORY_EVENT));
 }
 
 // Prepend a new recommendation; returns the created entry (with its id).
