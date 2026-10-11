@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 /** One place to ask, so no component has to remember the media query. */
 export function prefersReducedMotion() {
@@ -94,17 +94,35 @@ export function Letters({
   className?: string;
   step?: number;
 }) {
+  // Letters are inline-blocks, and a line may break between any two of them:
+  // "Cyberpunk 2077" came out as "Cyberpu / nk 2077" on a phone. Each word is
+  // therefore its own unbreakable group; lines only break at the spaces.
+  let i = 0;
+  const words = text.split(" ");
   return (
     <span className={className}>
       <span className="sr-only">{text}</span>
       <span className="letters" aria-hidden>
-        {Array.from(text).map((ch, i) => (
-          <span
-            key={`${ch}-${i}`}
-            style={{ ["--i" as string]: i, animationDelay: `${i * step}ms` }}
-          >
-            {ch}
-          </span>
+        {words.map((word, w) => (
+          <Fragment key={w}>
+            {w > 0 && (i++, " ")}
+            <span className="letters-word">
+              {Array.from(word).map((ch) => {
+                const n = i++;
+                return (
+                  <span
+                    key={`${ch}-${n}`}
+                    style={{
+                      ["--i" as string]: n,
+                      animationDelay: `${n * step}ms`,
+                    }}
+                  >
+                    {ch}
+                  </span>
+                );
+              })}
+            </span>
+          </Fragment>
         ))}
       </span>
     </span>
