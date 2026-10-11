@@ -10,6 +10,15 @@
 // the MARK ALONE, and the full lockup appears in exactly one place — the social
 // card, which is the one wide rectangle with room to read it.
 //
+// THE COLOUR IS NOT THE MASTER'S. The master is blue/violet; the site is acid
+// green on near-black (2026-10-11). Karim asked for the logo "aux couleurs du
+// site" and validated the green version that day. So the master stays untouched
+// as the source of the DRAWING, and `recolor()` below remaps every pixel's hue
+// to the acid green while keeping its lightness and saturation: same shapes,
+// same gradients, same glow, other colour. The near-black ground loses its
+// saturation on the way, so it lands on the site's neutral #0A0B0D instead of
+// a green-black.
+//
 // Uses `sharp`, which ships inside Next. Deliberately not declared as a
 // dependency: it is a build tool run by hand, not something the app imports.
 
@@ -19,7 +28,66 @@ import sharp from "sharp";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const MASTER = path.join(ROOT, "brand/logo-master.png");
-const GROUND = { r: 8, g: 10, b: 18 };
+// The site's ground (#0A0B0D), so a tile edge never shows against the page.
+const GROUND = { r: 10, g: 11, b: 13 };
+// Hue of the site's acid green, #C6FF3D.
+const ACID_HUE = 78 / 360;
+
+const smoothstep = (a, b, x) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h / 6, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  if (!s) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const f = (t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+}
+
+/**
+ * The master, in the site's colours. Hue only: lightness and saturation are
+ * kept, so the drawing (the S, the needle, the ring, the glow) is untouched.
+ * Dark pixels are desaturated on a ramp, so the ground and the outer halo go
+ * neutral instead of olive.
+ */
+async function recolor() {
+  const { data, info } = await sharp(MASTER)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 4) {
+    const [, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    const [r, g, b] = hslToRgb(ACID_HUE, s * smoothstep(0.08, 0.3, l), l);
+    data[i] = r;
+    data[i + 1] = g;
+    data[i + 2] = b;
+  }
+  return sharp(data, { raw: info }).png().toBuffer();
+}
+
+// Filled in by main(): the recoloured master every output is cut from.
+let SOURCE;
 
 /**
  * Where the mark is inside the master — measured, never estimated.
@@ -110,7 +178,7 @@ async function measureMark() {
  */
 async function markPng(box, size, pad = 0.06) {
   const inner = Math.round(size * (1 - pad * 2));
-  const mark = await sharp(MASTER)
+  const mark = await sharp(SOURCE)
     .extract({ left: box.left, top: box.top, width: box.size, height: box.size })
     .resize(inner, inner, { fit: "cover" })
     .toBuffer();
@@ -163,6 +231,7 @@ const out = (rel, buf) => {
 
 async function main() {
   console.log("Deriving the brand from brand/logo-master.png:\n");
+  SOURCE = await recolor();
   const box = await measureMark();
   console.log("");
 
@@ -185,7 +254,7 @@ async function main() {
   out("app/favicon.ico", ico(frames));
 
   // ---- the full lockup, for the one place it fits: the social card ----
-  const lockup = await sharp(MASTER).trim({ threshold: 12 }).resize({ width: 760 }).png().toBuffer();
+  const lockup = await sharp(SOURCE).trim({ threshold: 12 }).resize({ width: 760 }).png().toBuffer();
   out("public/brand/logo-full.png", lockup);
   out("assets/og-lockup.png", lockup);
 

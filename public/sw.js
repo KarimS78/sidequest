@@ -16,7 +16,9 @@
 // before would keep serving the previous ones until this string changes.
 // v9 (2026-10-11): the whole app moved to the landing's acid DA — the
 // precached "/" and /offline would otherwise keep the old violet shell.
-const CACHE = "sidequest-v9";
+// v10 (2026-10-11): the logo itself went acid green — every precached icon
+// changed, same file names, so only a new cache name gets them to old visitors.
+const CACHE = "sidequest-v10";
 
 const PRECACHE = [
   "/",
