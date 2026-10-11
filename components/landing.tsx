@@ -7,6 +7,7 @@ import { Mark } from "@/components/logo";
 import { useI18n } from "@/i18n/context";
 import { LOCALE_LABEL } from "@/i18n/locale";
 import { heroFor } from "@/lib/library";
+import type { PickerMood, PickerTime } from "@/lib/recommend";
 import "./landing.css";
 
 /**
@@ -39,42 +40,62 @@ export type Capabilities = {
 
 const GITHUB = "https://github.com/KarimS78/sidequest";
 
-/** [name, appid, [main mood, second mood], ideal minutes, momentum 0–1, rediscovery 0–1] */
-type DemoGame = [string, number, [number, number], number, number, number];
-
-const GAMES: DemoGame[] = [
-  ["Hades", 1145360, [0, 1], 40, 0.7, 0.1],
-  ["Hollow Knight", 367520, [1, 4], 90, 0.2, 0.3],
-  ["Stardew Valley", 413150, [2, 5], 60, 0.4, 0.2],
-  ["Celeste", 504230, [0, 3], 30, 0.1, 0.6],
-  ["Slay the Spire", 646570, [1, 3], 45, 0.5, 0.2],
-  ["Outer Wilds", 753640, [4, 2], 120, 0, 0.9],
-  ["Dead Cells", 588650, [0, 1], 35, 0.8, 0],
-  ["Portal 2", 620, [3, 5], 75, 0, 0.7],
+/**
+ * [name, appid, [main mood, second mood], session fit, momentum 0–1, backlog state]
+ *
+ * Moods and times are the app's own four presets and three lengths, so the
+ * dial on this page is the same set of choices the Draw offers one click away.
+ * Session fit: "short" games are built for bursts, "long" ones for a sitting.
+ * Backlog: "never" = never launched, "stale" = barely touched and left aside.
+ */
+type DemoGame = [
+  string,
+  number,
+  [PickerMood, PickerMood],
+  "short" | "long" | "any",
+  number,
+  "never" | "stale" | null,
 ];
 
-/** Same order and ceilings as the engine: mood, session, momentum, rediscovery, taste, no repeats. */
-const MAXES = [40, 20, 15, 10, 10, 5];
-const COMPONENT_KEYS = ["mood", "session", "momentum", "rediscovery", "taste", "repeat"] as const;
+const GAMES: DemoGame[] = [
+  ["Hades", 1145360, ["challenge", "quick"], "short", 0.7, null],
+  ["Hollow Knight", 367520, ["challenge", "story"], "long", 0.2, null],
+  ["Stardew Valley", 413150, ["chill", "story"], "any", 0.4, null],
+  ["Celeste", 504230, ["challenge", "quick"], "short", 0, "stale"],
+  ["Slay the Spire", 646570, ["quick", "challenge"], "short", 0.5, null],
+  ["Outer Wilds", 753640, ["story", "chill"], "long", 0, "never"],
+  ["Dead Cells", 588650, ["quick", "challenge"], "short", 0.8, null],
+  ["Portal 2", 620, ["story", "chill"], "any", 0, "stale"],
+];
 
-function scoreDemo(g: DemoGame, mood: number, time: number, seed: number, idx: number) {
-  const [, , moods, ideal, momentum, rediscovery] = g;
+const MOODS: PickerMood[] = ["chill", "story", "challenge", "quick"];
+const TIMES: PickerTime[] = ["short", "medium", "long"];
+
+/**
+ * Same order and ceilings as the engine (lib/recommend.ts): mood /40, session
+ * /20, momentum /15, rediscovery /15, taste /10 — 100 between them — and the
+ * anti-repetition component, which is never a bonus: −25 on a game proposed
+ * recently.
+ */
+const MAXES = [40, 20, 15, 15, 10];
+const COMPONENT_KEYS = ["mood", "session", "momentum", "rediscovery", "taste", "repeat"] as const;
+const REPEAT_PENALTY = -25;
+
+function scoreDemo(g: DemoGame, mood: PickerMood, time: PickerTime, seed: number, idx: number) {
+  const [, , moods, fit, momentum, backlog] = g;
   const moodS =
     moods[0] === mood
-      ? 36 + ((seed + idx) % 5)
+      ? 34 + ((seed + idx) % 6)
       : moods[1] === mood
-        ? 22 + ((seed + idx) % 6)
-        : 6 + ((seed * 3 + idx) % 8);
-  const sessionS = Math.max(2, Math.round(20 - Math.abs(time - ideal) / 10));
-  const tasteS = 4 + ((seed + idx * 2) % 6);
-  const repeatS = (seed + idx) % 2 ? 5 : 2;
-  return [moodS, sessionS, Math.round(momentum * 15), Math.round(rediscovery * 10), tasteS, repeatS];
-}
-
-function timeLabel(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h ? `${h} h${m ? ` ${String(m).padStart(2, "0")}` : ""}` : `${m} min`;
+        ? 20 + ((seed + idx) % 6)
+        : 4 + ((seed * 3 + idx) % 8);
+  // The engine's rule: 10 by default (an hour or two fits almost anything), up
+  // for a game built for the length asked, down for one built for the other.
+  const sessionS = time === "medium" || fit === "any" ? 10 : fit === time ? 20 : 4;
+  // Rediscovery only for what is not being played right now, as in the engine.
+  const rediscoveryS = backlog === "never" ? 15 : backlog === "stale" && momentum === 0 ? 8 : 0;
+  const tasteS = 3 + ((seed + idx * 2) % 6);
+  return [moodS, sessionS, Math.round(momentum * 15), rediscoveryS, tasteS];
 }
 
 /** The art, or — if Steam's CDN says no — the card's own ground and the name. */
@@ -137,13 +158,13 @@ function useReveal(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
-export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClass?: string }) {
+export function Landing({ caps }: { caps: Capabilities }) {
   const { d, locale, setLocale } = useI18n();
   const l = d.landing;
   const other = locale === "fr" ? "en" : "fr";
 
-  const [mood, setMood] = useState(0);
-  const [time, setTime] = useState(60);
+  const [mood, setMood] = useState<PickerMood>("challenge");
+  const [time, setTime] = useState<PickerTime>("medium");
   const [seed, setSeed] = useState(0);
   const [hoverComp, setHoverComp] = useState(-1);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -168,17 +189,24 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
     return () => removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  // Rank the whole demo shelf; Reroll alternates between first and second.
+  // Rank the whole demo shelf. Reroll does what the engine does to a game it
+  // just proposed: the current winner takes the −25 anti-repetition penalty,
+  // so the next one up gets its turn.
   const pick = useMemo(() => {
-    const ranked = GAMES.map((g, i) => {
-      const s = scoreDemo(g, mood, time, seed, i);
-      return { g, s, total: s.reduce((a, b) => a + b, 0) };
-    }).sort((a, b) => b.total - a.total);
-    return ranked[seed % 2 === 0 ? 0 : 1];
+    const rank = (penalised: number | null) =>
+      GAMES.map((g, i) => {
+        const s = scoreDemo(g, mood, time, seed, i);
+        const repeat = g[1] === penalised ? REPEAT_PENALTY : 0;
+        return { g, s, repeat, total: s.reduce((a, b) => a + b, 0) + repeat };
+      }).sort((a, b) => b.total - a.total);
+    const first = rank(null)[0];
+    return seed % 2 === 0 ? first : rank(first.g[1])[0];
   }, [mood, time, seed]);
 
   const [name, appid] = pick.g;
-  const pct = (i: number) => `${Math.round((pick.s[i] / MAXES[i]) * 100)}%`;
+  const pct = (i: number) => `${Math.max(0, Math.round((pick.s[i] / MAXES[i]) * 100))}%`;
+  // What /play opens on: the mood and time the visitor just set here.
+  const playHref = `/play?mood=${mood}&time=${time}`;
 
   /** Per plan, in the order they are written: live, off, or not out yet. */
   const planState = [
@@ -195,9 +223,8 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
   ];
 
   return (
-    <div ref={rootRef} className={`lp ${fontClass}`}>
+    <div ref={rootRef} className="lp">
       <div ref={cursorRef} className="lp-cursor" aria-hidden />
-      <div className="lp-scanlines" aria-hidden />
 
       {/* ============ nav ============ */}
       <header className={`lp-nav ${scrolled ? "is-scrolled" : ""}`}>
@@ -273,37 +300,38 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
                 {l.hero.moodLabel}
               </div>
               <div className="lp-chips" role="group" aria-labelledby="lp-mood-label">
-                {l.hero.moods.map((m, i) => (
+                {MOODS.map((m) => (
                   <button
                     key={m}
                     type="button"
                     className="lp-chip"
-                    aria-pressed={mood === i}
-                    onClick={() => setMood(i)}
+                    aria-pressed={mood === m}
+                    onClick={() => setMood(m)}
                   >
-                    {m}
+                    {d.common.mood[m].label}
                   </button>
                 ))}
               </div>
 
-              <label className="lp-label" htmlFor="lp-time">
-                <span>{l.hero.timeLabel}</span>
-                <b>{timeLabel(time)}</b>
-              </label>
-              <input
-                id="lp-time"
-                className="lp-range"
-                type="range"
-                min={15}
-                max={240}
-                step={15}
-                value={time}
-                aria-valuetext={timeLabel(time)}
-                onChange={(e) => setTime(Number(e.target.value))}
-              />
+              <div className="lp-label" id="lp-time-label">
+                {l.hero.timeLabel}
+              </div>
+              <div className="lp-chips" role="group" aria-labelledby="lp-time-label">
+                {TIMES.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="lp-chip"
+                    aria-pressed={time === t}
+                    onClick={() => setTime(t)}
+                  >
+                    {d.common.time[t].label}
+                  </button>
+                ))}
+              </div>
 
               <div className="lp-actions">
-                <Link href="/play" className="lp-btn lp-btn-acid lp-btn-big">
+                <Link href={playHref} className="lp-btn lp-btn-acid lp-btn-big">
                   {l.hero.primary} →
                 </Link>
                 <button
@@ -337,17 +365,27 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
               <div className="lp-verdict-body">
                 <p className="lp-sentence">{l.verdicts[name]}</p>
                 <div className="lp-scores">
-                  {COMPONENT_KEYS.map((k, i) => (
-                    <div key={k} className="lp-score">
-                      <span className="lp-score-name">{d.common.components[k]}</span>
-                      <span className="lp-track">
-                        <i style={{ width: pct(i) }} />
-                      </span>
-                      <span className="lp-score-val">
-                        {pick.s[i]}/{MAXES[i]}
-                      </span>
-                    </div>
-                  ))}
+                  {COMPONENT_KEYS.map((k, i) =>
+                    k === "repeat" ? (
+                      // A penalty, never a bonus: shown as what it is.
+                      <div key={k} className="lp-score">
+                        <span className="lp-score-name">{d.common.components[k]}</span>
+                        <span className="lp-score-note">
+                          {pick.repeat ? `${REPEAT_PENALTY}` : l.hero.penalty}
+                        </span>
+                      </div>
+                    ) : (
+                      <div key={k} className="lp-score">
+                        <span className="lp-score-name">{d.common.components[k]}</span>
+                        <span className="lp-track">
+                          <i style={{ width: pct(i) }} />
+                        </span>
+                        <span className="lp-score-val">
+                          {pick.s[i]}/{MAXES[i]}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
                 <div className="lp-total">
                   <span>{l.hero.score}</span>
@@ -355,6 +393,7 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
                 </div>
               </div>
             </article>
+            <p className="lp-demo-note">{l.hero.demoNote}</p>
             <div className="lp-sticker">{l.hero.notShortlist}</div>
           </div>
         </section>
@@ -403,11 +442,11 @@ export function Landing({ caps, fontClass = "" }: { caps: Capabilities; fontClas
                 <article key={COMPONENT_KEYS[i]} className="lp-cell" onMouseEnter={() => setHoverComp(i)}>
                   <div className="lp-cell-head">
                     <span className="lp-cell-name">{d.common.components[COMPONENT_KEYS[i]]}</span>
-                    <span className="lp-cell-max">/ {item.max}</span>
+                    <span className="lp-cell-max">{item.max}</span>
                   </div>
                   <p>{item.line}</p>
                   <span className="lp-track" aria-hidden>
-                    <i style={{ width: hoverComp === i ? "100%" : pct(i) }} />
+                    <i style={{ width: hoverComp === i ? "100%" : i < MAXES.length ? pct(i) : "0%" }} />
                   </span>
                 </article>
               ))}

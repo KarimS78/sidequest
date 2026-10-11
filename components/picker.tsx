@@ -309,6 +309,14 @@ export function Picker() {
     setBlacklist(loadBlacklist());
     const history = loadHistory();
     setRecentAppids([...new Set(history.slice(0, 8).map((e) => e.pick.appid))]);
+    // The landing's dial hands over what the visitor set there
+    // (/play?mood=…&time=…), so the demo opens on the same choice instead of
+    // asking again. Read once on mount; unknown values are ignored.
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get("mood") as PickerMood | null;
+    const t = params.get("time") as PickerTime | null;
+    if (m && MOODS.includes(m)) setMood(m);
+    if (t && TIMES.includes(t)) setTime(t);
     return () => timers.current.forEach(clearTimeout);
   }, []);
 
@@ -588,7 +596,7 @@ export function Picker() {
 
           {/* ---- time ---- */}
           <div className="flex flex-col gap-2.5">
-            <label className="mono text-[11px] uppercase tracking-[0.12em] text-subtle">
+            <label className="label text-[13px] text-subtle">
               {d.draw.setup.time}
             </label>
             <div
@@ -613,7 +621,7 @@ export function Picker() {
 
           {/* ---- mood ---- */}
           <div className="flex flex-col gap-2.5">
-            <label className="mono text-[11px] uppercase tracking-[0.12em] text-subtle">
+            <label className="label text-[13px] text-subtle">
               {d.draw.setup.mood}
             </label>
 
@@ -706,7 +714,7 @@ export function Picker() {
           )}
 
           {isSample && (
-            <p className="mono border-t border-line pt-4 text-[10.5px] uppercase tracking-[0.1em] text-subtle">
+            <p className="label border-t border-line pt-4 text-[12.5px] text-subtle">
               {d.draw.sample}
             </p>
           )}
@@ -839,7 +847,7 @@ export function Picker() {
 
                   {moodRead && (
                     <p className="mt-4 flex max-w-xl items-baseline gap-2 text-[13px] text-subtle">
-                      <span className="mono shrink-0 text-[10px] uppercase tracking-[0.12em]">
+                      <span className="label shrink-0 text-[12.5px]">
                         {d.draw.moodReadLabel}
                       </span>
                       <span className="text-muted">{moodRead}</span>
@@ -874,7 +882,7 @@ export function Picker() {
                       {d.common.actions.never}
                     </button>
                     {played && (
-                      <span className="mono text-[11px] uppercase tracking-[0.12em] text-accent-soft">
+                      <span className="label text-[13px] text-accent-soft">
                         {d.common.actions.played} ✓
                       </span>
                     )}
@@ -887,7 +895,7 @@ export function Picker() {
           {/* --- where you left off --- */}
           {pick && lastNote && (
             <div className="card p-5">
-              <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+              <span className="label text-[12.5px] text-subtle">
                 {d.draw.lastNote.title}
               </span>
               <p className="mt-2 text-[15px]">{lastNote.lastTime}</p>
@@ -910,7 +918,7 @@ export function Picker() {
             />
           )}
           {noteSaved && (
-            <p className="mono text-[10.5px] uppercase tracking-[0.12em] text-accent-soft">
+            <p className="label text-[12.5px] text-accent-soft">
               {d.draw.note.saved} ✓
             </p>
           )}
@@ -918,7 +926,7 @@ export function Picker() {
           {/* --- runners-up --- */}
           {pick && result!.alternatives.length > 0 && (
             <div className="flex flex-col gap-3">
-              <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+              <span className="label text-[12.5px] text-subtle">
                 {d.draw.alternatives.title}
               </span>
               <ul className="grid gap-3 sm:grid-cols-2">
@@ -946,7 +954,7 @@ export function Picker() {
           )}
 
           {payRespects && (
-            <p className="mono text-center text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+            <p className="label text-center text-[12.5px] text-subtle">
               {d.draw.pressF}
             </p>
           )}
@@ -974,7 +982,7 @@ function NoteBox({
   const [text, setText] = useState("");
   return (
     <div className="card flex flex-col gap-3 p-5">
-      <label className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+      <label className="label text-[12.5px] text-subtle">
         {prompt}
       </label>
       <textarea

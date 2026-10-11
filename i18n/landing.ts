@@ -17,7 +17,8 @@ const en = {
     lede: "It reads the games you already own, the hour you actually have and the mood you are actually in, then comes back with one game. Not a shortlist. One.",
     moodLabel: "Mood",
     timeLabel: "Time you have",
-    moods: ["Twitchy", "Demanding", "Calm", "Short", "Exploring", "Cosy"],
+    demoNote: "Demo shelf of eight games, scored in this page. The app scores your own.",
+    penalty: "Not proposed lately",
     primary: "Start the demo",
     reroll: "Reroll",
     reassure: "No account · No install · Demo already loaded",
@@ -29,14 +30,14 @@ const en = {
 
   /** One line per demo game, keyed by its name. */
   verdicts: {
-    Hades: "“Roguelike” is the mood you asked for. Twenty minutes in the last two weeks — you are mid-run.",
-    "Hollow Knight": "A real evening ahead, and a map half uncovered. Time to dive back in.",
-    "Stardew Valley": "You asked for calm. The farm is waiting exactly where you left it.",
-    Celeste: "Half an hour, no more. One chapter, a few deaths, one summit.",
+    Hades: "Something that fights back, in short runs. Three hours in the last two weeks — you are mid-run.",
+    "Hollow Knight": "A map half uncovered and bosses that answer back. Time to dive back in.",
+    "Stardew Valley": "Calm, and a farm waiting exactly where you left it.",
+    Celeste: "One chapter, a few deaths, one summit. Barely touched so far.",
     "Slay the Spire": "One run fits your slot. And you left a promising deck behind.",
     "Outer Wilds": "Still in its wrapper after months. That is what a backlog is for.",
-    "Dead Cells": "Nine hours in a fortnight. You are already in it — keep going.",
-    "Portal 2": "Never finished. Two hours, a rested brain, and portals.",
+    "Dead Cells": "Four hours in a fortnight. You are already in it — keep going.",
+    "Portal 2": "Barely started, then left aside. A rested brain, and portals.",
   } as Record<string, string>,
 
   marquee: [
@@ -46,7 +47,7 @@ const en = {
     "Session history",
     "Installable",
     "No account",
-    "Open source",
+    "Public source code",
     "Weighted draw",
   ],
 
@@ -61,19 +62,19 @@ const en = {
   },
 
   how: {
-    title: "Six things it weighs, and it shows you all six.",
-    lede: "The ranking is pure math: a sum of named components, and the badges on the verdict are printed from the numbers that actually scored.",
+    title: "Six things it weighs, each one named.",
+    lede: "The ranking is plain arithmetic: a sum of named components. The badges on the verdict are printed from the points that actually counted, out of their ceiling.",
     // In engine order, so index i matches the i-th score of the verdict.
     items: [
-      { max: 40, line: "The tags behind what you asked for, matched against everything you own." },
-      { max: 20, line: "Half an hour is not an evening. Some games know the difference." },
-      { max: 15, line: "Nine hours in the last fortnight means you are already in it." },
-      { max: 10, line: "The one still in its wrapper gets a push. That is what a backlog is for." },
-      { max: 10, line: "The genres you said you like, weighted well under the mood you just picked." },
-      { max: 5, line: "It stops offering the same three games. That was the whole complaint." },
+      { max: "/ 40", line: "The tags behind what you asked for, matched against everything you own. Tags you ruled out count against." },
+      { max: "/ 20", line: "Half an hour is not an evening. Games built for short bursts or long sittings move up or down." },
+      { max: "/ 15", line: "Hours played in the last two weeks mean you are already in it." },
+      { max: "/ 15", line: "Never launched: 15. Barely touched and left aside: 8. That is what a backlog is for." },
+      { max: "/ 10", line: "The genres you ticked on your profile, weighted well under the mood you just picked." },
+      { max: "−25", line: "A game it proposed recently drops 25 points. Not banned, just stops coming back every night." },
     ],
     closing:
-      "The five best then go into a weighted draw, so a clear winner usually wins and a close call stays a genuine toss-up. With the AI layer on, the model writes the sentence, can read a mood you typed in your own words, and may pick another game from the engine's shortlist — never one from outside it.",
+      "The five best then go into a weighted draw, so a clear winner usually wins and a close call stays a genuine toss-up. A mood typed in your own words is read by a bilingual word list, in your browser. With the AI layer on, the model writes the sentence, reads the moods that list does not recognise, and may pick another game from the engine's shortlist — never one from outside it.",
   },
 
   pricing: {
@@ -94,7 +95,7 @@ const en = {
         per: "a month",
         line: "The AI layer over the top: the sentence on the verdict, the shelf portrait, session notes, and search in plain language.",
         features: ["Everything in Local", "Written verdicts", "Session read-back", "Plain-language shelf search"],
-        cta: "Turn it on",
+        cta: "Try it",
         featured: true,
       },
       {
@@ -151,7 +152,8 @@ const fr: typeof en = {
     lede: "Il lit les jeux que tu possèdes déjà, l'heure que tu as vraiment devant toi et l'humeur dans laquelle tu es vraiment, puis il revient avec un jeu. Pas une liste. Un.",
     moodLabel: "Humeur",
     timeLabel: "Temps disponible",
-    moods: ["Nerveux", "Exigeant", "Calme", "Court", "Exploration", "Cosy"],
+    demoNote: "Étagère de démo de huit jeux, calculée dans la page. L'app calcule la tienne.",
+    penalty: "Pas proposé récemment",
     primary: "Lancer la démo",
     reroll: "Relancer",
     reassure: "Sans compte · Sans installation · Démo déjà chargée",
@@ -161,14 +163,14 @@ const fr: typeof en = {
   },
 
   verdicts: {
-    Hades: "« Roguelike », exactement l'humeur demandée. Vingt minutes ces deux dernières semaines : tu es en pleine run.",
-    "Hollow Knight": "Une vraie soirée devant toi, et une carte à moitié dévoilée. C'est le moment de replonger.",
-    "Stardew Valley": "Tu voulais du calme. La ferme t'attend exactement là où tu l'as laissée.",
-    Celeste: "Une demi-heure, pas plus. Un chapitre, quelques morts, un sommet.",
+    Hades: "Un truc qui répond, en runs courtes. Trois heures ces deux dernières semaines : tu es en pleine run.",
+    "Hollow Knight": "Une carte à moitié dévoilée et des boss qui répondent. C'est le moment de replonger.",
+    "Stardew Valley": "Du calme, et une ferme qui t'attend exactement là où tu l'as laissée.",
+    Celeste: "Un chapitre, quelques morts, un sommet. À peine entamé jusqu'ici.",
     "Slay the Spire": "Une run tient dans ton créneau. Et tu avais laissé un deck prometteur.",
     "Outer Wilds": "Encore sous blister depuis des mois. C'est à ça que sert un backlog.",
-    "Dead Cells": "Neuf heures en quinze jours. Tu es déjà dedans, autant continuer.",
-    "Portal 2": "Jamais fini. Deux heures, un cerveau reposé, et des portails.",
+    "Dead Cells": "Quatre heures en quinze jours. Tu es déjà dedans, autant continuer.",
+    "Portal 2": "À peine commencé, puis laissé de côté. Un cerveau reposé, et des portails.",
   },
 
   marquee: [
@@ -178,7 +180,7 @@ const fr: typeof en = {
     "Historique de sessions",
     "Installable",
     "Sans compte",
-    "Open source",
+    "Code public",
     "Tirage pondéré",
   ],
 
@@ -193,18 +195,18 @@ const fr: typeof en = {
   },
 
   how: {
-    title: "Six choses pesées, et les six sont affichées.",
-    lede: "Le classement est un pur calcul : une somme de composantes nommées, et les badges du verdict sont imprimés à partir des chiffres qui ont réellement compté.",
+    title: "Six choses pesées, chacune nommée.",
+    lede: "Le classement est un simple calcul : une somme de composantes nommées. Les badges du verdict affichent les points qui ont réellement compté, sur leur plafond.",
     items: [
-      { max: 40, line: "Les tags derrière ce que tu demandes, croisés avec tout ce que tu possèdes." },
-      { max: 20, line: "Une demi-heure n'est pas une soirée. Certains jeux font la différence." },
-      { max: 15, line: "Neuf heures ces quinze derniers jours, c'est que tu es déjà dedans." },
-      { max: 10, line: "Celui encore sous blister remonte. C'est à ça que sert un backlog." },
-      { max: 10, line: "Les genres que tu as cochés, loin derrière l'humeur du moment." },
-      { max: 5, line: "Il arrête de proposer les trois mêmes jeux. C'était toute la plainte." },
+      { max: "/ 40", line: "Les tags derrière ce que tu demandes, croisés avec tout ce que tu possèdes. Les tags que tu écartes comptent contre." },
+      { max: "/ 20", line: "Une demi-heure n'est pas une soirée. Les jeux faits pour les sessions courtes ou longues montent ou descendent." },
+      { max: "/ 15", line: "Des heures jouées ces deux dernières semaines, c'est que tu es déjà dedans." },
+      { max: "/ 15", line: "Jamais lancé : 15. À peine touché puis laissé de côté : 8. C'est à ça que sert un backlog." },
+      { max: "/ 10", line: "Les genres cochés sur ton profil, loin derrière l'humeur du moment." },
+      { max: "−25", line: "Un jeu proposé récemment perd 25 points. Pas banni, il arrête juste de revenir tous les soirs." },
     ],
     closing:
-      "Les cinq meilleurs passent ensuite dans un tirage pondéré : un vainqueur net gagne le plus souvent, et un quasi-ex æquo reste un vrai pile ou face. Avec la couche IA, le modèle écrit la phrase, peut lire une humeur tapée avec tes mots, et peut retenir un autre jeu de la shortlist du moteur — jamais un jeu hors de cette liste.",
+      "Les cinq meilleurs passent ensuite dans un tirage pondéré : un vainqueur net gagne le plus souvent, et un quasi-ex æquo reste un vrai pile ou face. Une humeur tapée avec tes mots est lue par un lexique bilingue, dans ton navigateur. Avec la couche IA, le modèle écrit la phrase, lit les humeurs que ce lexique ne reconnaît pas, et peut retenir un autre jeu de la shortlist du moteur — jamais un jeu hors de cette liste.",
   },
 
   pricing: {
@@ -225,7 +227,7 @@ const fr: typeof en = {
         per: "par mois",
         line: "La couche IA par-dessus : la phrase du verdict, le portrait de l'étagère, les notes de session, et la recherche en langage courant.",
         features: ["Tout Local", "Verdicts rédigés", "Relecture de session", "Recherche en langage courant"],
-        cta: "L'activer",
+        cta: "L'essayer",
         featured: true,
       },
       {

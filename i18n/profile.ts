@@ -14,7 +14,7 @@ import type { Genre } from "@/lib/library";
 const en = {
   eyebrow: "Profile",
   title: "Your shelf, read back",
-  lede: "Everything here comes from the games you own and the hours already on them. Nothing is sent anywhere.",
+  lede: "Everything here comes from the games you own and the hours already on them, and stays in this browser. Only the AI reading, if you run it, sends a short summary of those numbers to the model.",
 
   demoShelf: "Demo shelf",
   gamesCount: (n: number) => `${n} games`,
@@ -127,7 +127,7 @@ const en = {
 const fr: typeof en = {
   eyebrow: "Profil",
   title: "Ton étagère, relue",
-  lede: "Tout ce qui suit sort des jeux que tu possèdes et des heures déjà dessus. Rien n'est envoyé nulle part.",
+  lede: "Tout ce qui suit sort des jeux que tu possèdes et des heures déjà dessus, et reste dans ce navigateur. Seule la lecture IA, si tu la lances, envoie un court résumé de ces chiffres au modèle.",
 
   demoShelf: "Étagère de démo",
   gamesCount: (n: number) => `${n} jeux`,

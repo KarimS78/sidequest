@@ -13,7 +13,7 @@
   --lp-fg: #f2f3ee;
   --lp-fg-2: #c9cbc2;
   --lp-fg-3: #9a9d93;
-  --lp-fg-4: #5f625a;
+  --lp-fg-4: #858880; /* was #5F625A (3.2:1, under AA for 13px text) */
   --lp-acid: #c6ff3d;
   --lp-acid-halo: #c6ff3d22;
   --lp-acid-line: #c6ff3d55;
@@ -23,9 +23,8 @@
   --lp-line-4: #f2f3ee30;
   --lp-gutter: clamp(20px, 4vw, 64px);
   --lp-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --lp-display: var(--font-unbounded), var(--font-clash), sans-serif;
+  --lp-display: var(--font-unbounded), ui-sans-serif, sans-serif;
   --lp-text: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --lp-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   position: relative;
   min-height: 100vh;
@@ -42,15 +41,9 @@
 .lp h1, .lp h2, .lp h3, .lp p { margin: 0; }
 .lp ul { list-style: none; margin: 0; padding: 0; }
 
-.lp-scanlines {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: repeating-linear-gradient(0deg, #f2f3ee04 0 1px, transparent 1px 4px);
-  opacity: 0.6;
-}
-.lp > :not(.lp-scanlines):not(.lp-cursor) { position: relative; z-index: 2; }
+/* The scanlines are global since the app wears the same skin (globals.css,
+   body::after). */
+.lp > :not(.lp-cursor) { position: relative; z-index: 2; }
 
 .lp-cursor {
   pointer-events: none;
@@ -70,12 +63,12 @@
 .lp-cursor.is-on { opacity: 1; }
 .lp-cursor.is-over { width: 40px; height: 40px; opacity: 0.5; }
 
-.lp-mono { font-family: var(--lp-mono); }
+.lp-mono { font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums; }
 .lp-eyebrow {
-  font-family: var(--lp-mono);
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--lp-acid);
 }
 .lp-h2 {
@@ -168,9 +161,9 @@
   padding: 6px 12px;
   min-height: 32px;
   cursor: pointer;
-  font-family: var(--lp-mono);
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  letter-spacing: 0.08em;
 }
 .lp-play { padding: 9px 16px; font-size: 13px; min-height: 0; }
 .lp-play:hover { transform: translateY(-1px); }
@@ -245,10 +238,9 @@
 .lp-label {
   display: flex;
   justify-content: space-between;
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   color: var(--lp-fg-3);
   margin-bottom: 10px;
 }
@@ -270,33 +262,8 @@
 .lp-chip:hover { border-color: var(--lp-fg-3); }
 .lp-chip[aria-pressed="true"] { background: var(--lp-acid); border-color: var(--lp-acid); color: var(--lp-bg); }
 
-.lp-range {
-  -webkit-appearance: none;
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: 28px;
-  margin: 0 0 26px;
-  background: transparent;
-  cursor: grab;
-}
-.lp-range::-webkit-slider-runnable-track { height: 2px; background: var(--lp-line-3); }
-.lp-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 28px;
-  height: 28px;
-  margin-top: -13px;
-  border-radius: 50%;
-  background: var(--lp-acid);
-  box-shadow: 0 0 0 6px var(--lp-acid-halo);
-}
-.lp-range::-moz-range-track { height: 2px; background: var(--lp-line-3); }
-.lp-range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--lp-acid); box-shadow: 0 0 0 6px var(--lp-acid-halo); }
-@media (pointer: coarse) {
-  .lp-range { height: 44px; }
-}
 .lp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.lp-proof { margin-top: 28px !important; font-family: var(--lp-mono); font-size: 12px; color: var(--lp-fg-4); }
+.lp-proof { margin-top: 28px !important; font-size: 13px; color: var(--lp-fg-3); }
 
 /* ---------- verdict ---------- */
 .lp-verdict-wrap { position: relative; animation: lpRise 1s 0.3s both; }
@@ -338,10 +305,9 @@
   border: 1px solid var(--lp-acid-line);
   background: #0a0b0dcc;
   color: var(--lp-acid);
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
 .lp-tonight .lp-dot { animation-duration: 1.2s; }
 .lp-game {
@@ -364,15 +330,18 @@
   grid-template-columns: 110px 1fr 56px;
   gap: 12px;
   align-items: center;
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
-.lp-score-name { color: var(--lp-fg-3); text-transform: uppercase; }
+.lp-score-name { color: var(--lp-fg-3); }
 .lp-track { height: 6px; background: var(--lp-line); border-radius: 999px; overflow: hidden; }
 .lp-track i { display: block; height: 100%; border-radius: 999px; background: var(--lp-fg); transition: width 0.8s var(--lp-ease); }
 .lp-score:first-child .lp-track i { background: var(--lp-acid); }
 .lp-score-val { text-align: right; }
+/* The anti-repetition row: a penalty, so a sentence instead of a bar. */
+.lp-score-note { grid-column: 2 / 4; color: var(--lp-fg-3); }
+.lp-demo-note { margin-top: 14px !important; font-size: 13px; color: var(--lp-fg-3); text-align: center; }
 .lp-total {
   margin-top: 18px;
   padding-top: 14px;
@@ -380,10 +349,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   color: var(--lp-fg-4);
 }
 .lp-total b { font-weight: 400; color: var(--lp-acid); font-size: 14px; }
@@ -396,9 +364,9 @@
   border-radius: 999px;
   background: var(--lp-fg);
   color: var(--lp-bg);
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   transform: rotate(3deg);
 }
 
@@ -410,9 +378,9 @@
   border-bottom: 1px solid var(--lp-line);
   font-family: var(--lp-display);
   font-weight: 400;
-  font-size: clamp(13px, 1.3vw, 17px);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: clamp(14px, 1.4vw, 18px);
+  /* Sentence case, no tracking: no spaced capitals (Karim's rule). */
+  letter-spacing: -0.01em;
   white-space: nowrap;
   color: var(--lp-fg-3);
 }
@@ -463,9 +431,15 @@
   transition: background-color 0.4s;
 }
 .lp-cell:hover { background: var(--lp-card); }
+/* On a phone the cells stack: no fixed height, so the line sits under the name
+   instead of floating in a 240px box. */
+@media (max-width: 640px) {
+  .lp-cell { min-height: 0; gap: 16px; padding: 24px 22px; }
+}
 .lp-cell-head { display: flex; justify-content: space-between; align-items: center; }
-.lp-cell-name { font-family: var(--lp-display); font-weight: 500; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lp-acid); }
-.lp-cell-max { font-family: var(--lp-mono); font-size: 12px; color: var(--lp-fg-3); }
+.lp-cell-name { font-family: var(--lp-display); font-weight: 500; font-size: 16px; letter-spacing: -0.01em; color: var(--lp-acid); }
+.lp-cell-max { font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums; font-size: 12px; color: var(--lp-fg-3); }
 .lp-cell p { font-size: 15px; line-height: 1.55; color: var(--lp-fg-2); text-wrap: pretty; }
 .lp-cell .lp-track { height: 4px; }
 .lp-cell .lp-track i { background: var(--lp-acid); transition-duration: 0.9s; }
@@ -498,10 +472,9 @@
   border-radius: 999px;
   border: 1px solid currentColor;
   color: var(--lp-fg-3);
-  font-family: var(--lp-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   white-space: nowrap;
 }
 .lp-tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
@@ -552,7 +525,8 @@
 .lp-cta p { max-width: 44ch; margin: 0 auto 40px; font-size: 18px; text-wrap: pretty; }
 .lp .lp-cta .lp-btn { padding: 20px 34px; font-size: 17px; background: var(--lp-bg); color: var(--lp-acid); border: 0; }
 .lp .lp-cta a.lp-btn:hover { color: var(--lp-acid); transform: scale(1.04); }
-.lp-cta .lp-cta-proof { margin-top: 24px; font-family: var(--lp-mono); font-size: 12px; letter-spacing: 0.06em; }
+.lp-cta .lp-cta-proof { margin-top: 24px; font-family: var(--lp-text);
+  font-variant-numeric: tabular-nums; font-size: 13px; }
 .lp-cta :focus-visible { outline-color: var(--lp-bg); }
 
 /* ---------- footer ---------- */
@@ -600,7 +574,7 @@
 /* Reduced motion: the global rule already zeroes durations; this removes
    the ambient pieces outright and keeps the verdict swap blur-free. */
 @media (prefers-reduced-motion: reduce) {
-  .lp-glow, .lp-scanlines, .lp-cta::before { display: none; }
+  .lp-glow, .lp-cta::before { display: none; }
   .lp-marquee-track { animation: none; flex-wrap: wrap; white-space: normal; justify-content: center; padding: 0 var(--lp-gutter); }
   .lp-marquee-track > span[aria-hidden] { display: none; }
   .lp-verdict { animation: none; }

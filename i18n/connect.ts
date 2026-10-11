@@ -10,7 +10,7 @@ const en = {
 
   demoMode: {
     title: "Demo mode",
-    line: "No STEAM_API_KEY is configured, so this shows a sample shelf — not your real Steam account. Add a key to import your actual games.",
+    line: "This deployment has no Steam key, so the preview loads a sample shelf, not your real Steam account. The rest of the app works the same on it.",
   },
 
   form: {
@@ -68,7 +68,7 @@ const fr: typeof en = {
 
   demoMode: {
     title: "Mode démo",
-    line: "Aucune STEAM_API_KEY n'est configurée, donc ceci affiche une étagère d'exemple — pas ton vrai compte Steam. Ajoute une clé pour importer tes jeux.",
+    line: "Ce déploiement n'a pas de clé Steam : l'aperçu charge une étagère d'exemple, pas ton vrai compte Steam. Le reste de l'app marche pareil dessus.",
   },
 
   form: {
