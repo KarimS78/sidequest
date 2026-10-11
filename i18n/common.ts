@@ -13,12 +13,12 @@ const en = {
   brand: "SideQuest",
   tagline: "Never forget where you left off",
 
-  // Session lengths. The mono label is what sits inside the segmented control,
+  // Session lengths. The short label is what sits inside the segmented control,
   // so it stays short enough not to wrap at 360px.
   time: {
-    short: { label: "30 MIN", full: "half an hour" },
-    medium: { label: "1–2 H", full: "an hour or two" },
-    long: { label: "EVENING", full: "a whole evening" },
+    short: { label: "30 min", full: "half an hour" },
+    medium: { label: "1–2 h", full: "an hour or two" },
+    long: { label: "Evening", full: "a whole evening" },
   },
 
   mood: {
@@ -31,8 +31,8 @@ const en = {
   moodPlaceholder: "…or type it: “cosy but not boring”",
 
   actions: {
-    draw: "PULL",
-    drawAgain: "PULL AGAIN",
+    draw: "Pull",
+    drawAgain: "Pull again",
     dice: "Or let the clock decide",
     launch: "Launch on Steam",
     reroll: "Not this one",
@@ -49,18 +49,18 @@ const en = {
   // Score component names. The landing explains them; the verdict badges use
   // the same six words, so a badge is never a term the visitor has not met.
   components: {
-    mood: "MOOD",
-    session: "SESSION",
-    momentum: "MOMENTUM",
-    rediscovery: "REDISCOVERY",
-    taste: "TASTE",
-    repeat: "NO REPEATS",
+    mood: "Mood",
+    session: "Session",
+    momentum: "Momentum",
+    rediscovery: "Rediscovery",
+    taste: "Taste",
+    repeat: "No repeats",
   },
 
   units: {
-    hours: (h: number) => `${h} H`,
+    hours: (h: number) => `${h} h`,
     games: (n: number) => (n === 1 ? "1 game" : `${n} games`),
-    onTheClock: (h: number) => `${h} H ON THE CLOCK`,
+    onTheClock: (h: number) => `${h} h on the clock`,
   },
 
   empty: {
@@ -112,6 +112,18 @@ const en = {
     },
   },
 
+  // The 404 and the crash screen. Both offer a way out, never a dead end.
+  notFound: {
+    title: "Nothing on this shelf.",
+    line: "This page does not exist, or no longer does. Tonight's game is still one click away.",
+    play: "Back to tonight",
+    home: "Home page",
+  },
+  crash: {
+    title: "Something broke on our side.",
+    line: "Your shelf and your notes live in this browser and are untouched. Try again, or go back to the draw.",
+  },
+
   langSwitch: "Language",
 };
 
@@ -120,9 +132,9 @@ const fr: typeof en = {
   tagline: "Ne perds plus jamais le fil",
 
   time: {
-    short: { label: "30 MIN", full: "une demi-heure" },
-    medium: { label: "1–2 H", full: "une heure ou deux" },
-    long: { label: "SOIRÉE", full: "toute une soirée" },
+    short: { label: "30 min", full: "une demi-heure" },
+    medium: { label: "1–2 h", full: "une heure ou deux" },
+    long: { label: "Soirée", full: "toute une soirée" },
   },
 
   mood: {
@@ -135,8 +147,8 @@ const fr: typeof en = {
   moodPlaceholder: "…ou écris-le : « cosy mais pas mou »",
 
   actions: {
-    draw: "TIRER",
-    drawAgain: "RELANCER",
+    draw: "Tirer",
+    drawAgain: "Relancer",
     dice: "Ou laisse l'heure qu'il est décider",
     launch: "Lancer sur Steam",
     reroll: "Pas celui-là",
@@ -151,18 +163,18 @@ const fr: typeof en = {
   },
 
   components: {
-    mood: "HUMEUR",
-    session: "SESSION",
-    momentum: "ÉLAN",
-    rediscovery: "REDÉCOUVERTE",
-    taste: "GOÛTS",
-    repeat: "SANS REDITE",
+    mood: "Humeur",
+    session: "Session",
+    momentum: "Élan",
+    rediscovery: "Redécouverte",
+    taste: "Goûts",
+    repeat: "Sans redite",
   },
 
   units: {
-    hours: (h: number) => `${h} H`,
+    hours: (h: number) => `${h} h`,
     games: (n: number) => (n === 1 ? "1 jeu" : `${n} jeux`),
-    onTheClock: (h: number) => `${h} H AU COMPTEUR`,
+    onTheClock: (h: number) => `${h} h au compteur`,
   },
 
   empty: {
@@ -205,6 +217,17 @@ const fr: typeof en = {
       desktop: "Le verdict, les réglages et l'étagère sur un écran",
       phone: "Le tirage de ce soir sur un téléphone",
     },
+  },
+
+  notFound: {
+    title: "Rien sur cette étagère.",
+    line: "Cette page n'existe pas, ou plus. Le jeu de ce soir est toujours à un clic.",
+    play: "Retour à ce soir",
+    home: "Page d'accueil",
+  },
+  crash: {
+    title: "Quelque chose a cassé de notre côté.",
+    line: "Ton étagère et tes notes vivent dans ce navigateur, elles n'ont rien. Réessaie, ou reviens au tirage.",
   },
 
   langSwitch: "Langue",
