@@ -22,11 +22,16 @@ export const alt = "SideQuest · Tonight, you play this";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const GROUND = "#0d1114";
+// The landing's tokens (handoff of 2026-10-11).
+const GROUND = "#0A0B0D";
+const FG = "#F2F3EE";
+const FG2 = "#C9CBC2";
+const ACID = "#C6FF3D";
 
 export default async function Image() {
-  const [clash, lockup] = await Promise.all([
-    readFile(join(process.cwd(), "assets/ClashDisplay-Semibold.ttf")),
+  const [unbounded, geist, lockup] = await Promise.all([
+    readFile(join(process.cwd(), "assets/Unbounded-SemiBold.ttf")),
+    readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
     readFile(join(process.cwd(), "assets/og-lockup.png")),
   ]);
 
@@ -42,21 +47,19 @@ export default async function Image() {
           alignItems: "center",
           background: GROUND,
           position: "relative",
+          fontFamily: "Geist",
         }}
       >
-        {/* The violet wash.
-
-            A linear gradient, not a radial pool: the image renderer draws
-            `radial-gradient(closest-side, …)` with a dark hole punched through
-            the middle of it, whether the stops end on `transparent` or on a
-            transparent violet. A diagonal wash reads the same at this size and
-            cannot go wrong. */}
+        {/* A thin acid rule along the bottom: the one green of the card is
+            the second line of the title, this only signs it. */}
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(115deg, rgba(124,92,255,0) 42%, rgba(124,92,255,0.14) 74%, rgba(124,92,255,0.26) 100%)",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 10,
+            background: ACID,
           }}
         />
 
@@ -65,41 +68,42 @@ export default async function Image() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            padding: "0 0 0 88px",
-            width: 700,
+            padding: "0 0 0 80px",
+            width: 720,
           }}
         >
           <div
             style={{
               display: "flex",
-              fontFamily: "Clash",
-              fontSize: 84,
-              lineHeight: 1.04,
-              letterSpacing: "0.01em",
-              color: "#e8ecf4",
+              flexDirection: "column",
+              fontFamily: "Unbounded",
+              fontSize: 76,
+              lineHeight: 1.05,
+              letterSpacing: "-0.03em",
+              color: FG,
             }}
           >
-            TONIGHT, YOU PLAY THIS.
+            <span>Tonight,</span>
+            <span style={{ color: ACID }}>you play this.</span>
           </div>
 
           <div
             style={{
               display: "flex",
               fontSize: 28,
-              color: "#99a3b3",
-              marginTop: 28,
+              lineHeight: 1.4,
+              color: FG2,
+              marginTop: 30,
             }}
           >
-            Your Steam library, the hour you have and the mood you are in — one
+            Your Steam library, the hour you have and the mood you are in. One
             game, and the reasons it scored.
           </div>
         </div>
 
-        {/* The lockup keeps its own tile rather than being knocked out onto
-            the card. The master is painted on pure black with a halo around
-            it: floated on the card's #0d1114 that ground reads as a dark
-            smudge with a square edge. Given a plate of its own black, the
-            same pixels read as deliberate. */}
+        {/* The lockup keeps its own black plate: the master is painted on pure
+            black with a halo, and floated on the card it would read as a
+            square smudge. */}
         <div
           style={{
             display: "flex",
@@ -108,17 +112,20 @@ export default async function Image() {
             padding: 8,
             borderRadius: 28,
             background: "#000",
-            border: "1px solid rgba(124,92,255,0.22)",
+            border: "1px solid rgba(242,243,238,0.12)",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lockupSrc} alt="" width={404} height={404} style={{ objectFit: "contain" }} />
+          <img src={lockupSrc} alt="" width={380} height={380} style={{ objectFit: "contain" }} />
         </div>
       </div>
     ),
     {
       ...size,
-      fonts: [{ name: "Clash", data: clash, style: "normal", weight: 600 }],
+      fonts: [
+        { name: "Unbounded", data: unbounded, style: "normal", weight: 600 },
+        { name: "Geist", data: geist, style: "normal", weight: 400 },
+      ],
     }
   );
 }

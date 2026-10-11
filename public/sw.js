@@ -14,7 +14,9 @@
 // v6: Studio Nuit held to its own rules, the real logo, both languages. "/" used to be a redirect to /play and the
 // icons were the old drawn mark — both are precached here, so anyone who visited
 // before would keep serving the previous ones until this string changes.
-const CACHE = "sidequest-v8";
+// v9 (2026-10-11): the whole app moved to the landing's acid DA — the
+// precached "/" and /offline would otherwise keep the old violet shell.
+const CACHE = "sidequest-v9";
 
 const PRECACHE = [
   "/",

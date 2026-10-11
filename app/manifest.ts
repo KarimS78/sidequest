@@ -36,8 +36,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     categories: ["games", "entertainment", "productivity"],
     // The same --background the app paints and the same value layout.tsx
     // gives the viewport, so the install splash matches the first paint.
-    background_color: "#0d1114",
-    theme_color: "#0d1114",
+    background_color: "#0a0b0d",
+    theme_color: "#0a0b0d",
     icons: [
       {
         src: "/icon-192.png",
