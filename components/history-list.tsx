@@ -155,7 +155,7 @@ export function HistoryList() {
         <p className="max-w-2xl text-[15.5px] leading-relaxed text-muted">{t.lede}</p>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+          <span className="label text-[12.5px] text-subtle">
             {t.counts(groups.length, entries.length)}
           </span>
 
@@ -163,7 +163,7 @@ export function HistoryList() {
               screen — the one thing on this page nothing else can rebuild. */}
           {confirmClear ? (
             <span className="flex items-center gap-2">
-              <span className="mono text-[10.5px] uppercase tracking-[0.1em] text-fg">
+              <span className="label text-[12.5px] text-fg">
                 {t.clearConfirm}
               </span>
               <button
@@ -174,14 +174,14 @@ export function HistoryList() {
                   setResumes({});
                   setConfirmClear(false);
                 }}
-                className="btn btn-ghost !min-h-8 !px-2.5 text-[12px]"
+                className="btn btn-ghost !min-h-10 !px-3 text-[12.5px]"
               >
                 {t.clearYes}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmClear(false)}
-                className="btn btn-quiet !min-h-8 !px-1 text-[12px]"
+                className="btn btn-quiet !min-h-10 !px-2 text-[12.5px]"
               >
                 {t.clearNo}
               </button>
@@ -190,7 +190,7 @@ export function HistoryList() {
             <button
               type="button"
               onClick={() => setConfirmClear(true)}
-              className="mono ml-auto text-[10px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+              className="label ml-auto text-[12.5px] text-subtle transition-colors hover:text-fg"
             >
               {t.clear}
             </button>
@@ -218,14 +218,14 @@ export function HistoryList() {
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 py-4 pr-4">
                   <h2 className="poster truncate text-[1.15rem]">{g.name}</h2>
-                  <p className="mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+                  <p className="label text-[12.5px] text-subtle">
                     {t.lastDrawn(ago(g.latest.at))} · {t.drawCount(g.entries.length)}
                   </p>
                   <button
                     type="button"
                     onClick={() => setEntries(markPlayed(g.latest.id, !g.latest.played))}
                     aria-pressed={g.latest.played}
-                    className="mono flex items-center gap-2 self-start text-[10px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+                    className="label flex items-center gap-2 self-start text-[12.5px] text-subtle transition-colors hover:text-fg"
                   >
                     <span
                       aria-hidden
@@ -240,7 +240,7 @@ export function HistoryList() {
 
               {/* --- the note, which is the whole point of the screen --- */}
               <div className="border-t border-line px-4 py-4">
-                <span className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                <span className="label text-[12.5px] text-subtle">
                   {t.noteTitle}
                 </span>
                 {g.lastNote ? (
@@ -258,14 +258,14 @@ export function HistoryList() {
                     className="btn btn-ghost mt-3.5"
                   >
                     {t.readBack.cta} <span className="arrow">→</span>
-                    <span className="mono ml-1 text-[10px] tracking-[0.1em] text-subtle">
+                    <span className="mono ml-1 text-[12px] text-subtle">
                       {t.readBack.notes(g.notes.length)}
                     </span>
                   </button>
                 )}
 
                 {resume?.state === "reading" && (
-                  <p className="mono mt-3.5 animate-pulse text-[10.5px] uppercase tracking-[0.12em] text-accent-soft">
+                  <p className="label mt-3.5 animate-pulse text-[12.5px] text-accent-soft">
                     {t.readBack.reading}
                   </p>
                 )}
@@ -303,7 +303,7 @@ export function HistoryList() {
                         return next;
                       })
                     }
-                    className="mono text-[10px] uppercase tracking-[0.12em] text-subtle transition-colors hover:text-fg"
+                    className="label text-[12.5px] text-subtle transition-colors hover:text-fg"
                   >
                     {open ? t.history.hide : t.history.show}
                   </button>
@@ -313,7 +313,7 @@ export function HistoryList() {
                       {g.entries.map((e) => (
                         <li
                           key={e.id}
-                          className="mono flex flex-wrap items-center gap-x-2 text-[10.5px] uppercase tracking-[0.08em] text-subtle"
+                          className="label flex flex-wrap items-center gap-x-2 text-[12.5px] text-subtle"
                         >
                           <span className="text-muted">{ago(e.at)}</span>
                           <span aria-hidden>·</span>

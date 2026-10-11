@@ -64,7 +64,7 @@ export function InstallPrompt() {
     >
       <div className="card flex items-center gap-3 px-3 py-2.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)]">
         <Mark size={26} />
-        <span className="mono text-[10.5px] uppercase tracking-[0.1em] text-muted">
+        <span className="label text-[12.5px] text-muted">
           {t.pitch}
         </span>
         <button

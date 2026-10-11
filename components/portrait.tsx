@@ -111,14 +111,14 @@ export function ShelfPortrait({
           >
             {t.cta} <span className="arrow">→</span>
           </button>
-          <span className="mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+          <span className="label text-[12.5px] text-subtle">
             {tags.length > 0 ? t.cost(tags.length) : t.noTags}
           </span>
         </>
       )}
 
       {state.s === "reading" && (
-        <p className="mono animate-pulse text-[10.5px] uppercase tracking-[0.12em] text-accent-soft">
+        <p className="label animate-pulse text-[12.5px] text-accent-soft">
           {t.reading}
         </p>
       )}
@@ -131,7 +131,7 @@ export function ShelfPortrait({
           <p className="text-[14.5px] leading-relaxed text-muted">{state.reading}</p>
           {state.blindSpot && (
             <p className="border-l-2 border-accent pl-3 text-[14px] leading-relaxed">
-              <span className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              <span className="label text-[12.5px] text-subtle">
                 {t.blindSpot} ·{" "}
               </span>
               {state.blindSpot}

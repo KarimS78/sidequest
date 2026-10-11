@@ -42,16 +42,16 @@ export function Mark({
 }
 
 /**
- * SIDEQUEST, with QUEST carrying the accent. Two words in one, which is the
- * joke the name is already making.
+ * SIDEQUEST, set like the landing's bar: Unbounded 600, capitals, open
+ * tracking, one colour.
  */
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`poster text-[17px] leading-none tracking-[0.02em] ${className}`}
+      className={`font-display text-[15px] leading-none uppercase tracking-[0.06em] ${className}`}
       style={{ fontWeight: 600 }}
     >
-      SIDE<span className="text-accent-soft">QUEST</span>
+      SideQuest
     </span>
   );
 }

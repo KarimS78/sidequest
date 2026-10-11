@@ -171,7 +171,7 @@ export function TrophyCase() {
     <section className="card p-5 lg:p-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h3 className="poster text-[1.05rem]">{t.title}</h3>
-        <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+        <span className="label text-[12.5px] text-subtle">
           {t.found(found.length, EGGS.length)}
         </span>
         <button
@@ -216,7 +216,7 @@ export function TrophyCase() {
               );
             })}
           </ul>
-          <p className="mono mt-3 text-[10px] uppercase tracking-[0.1em] text-subtle">
+          <p className="label mt-3 text-[12.5px] text-subtle">
             {t.privacy}
           </p>
         </>

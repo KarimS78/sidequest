@@ -31,9 +31,9 @@ const enLines: Record<ReasonKey, Liner> = {
   custom: (r) => `${q.en(r.data?.tag ?? "")} lands on what you typed.`,
   shortFit: () => `Built for short bursts, so it fits the window you have.`,
   longFit: () => `It rewards a long sitting, and you have the evening.`,
-  momentum: (r) => `${r.data?.hours ?? 0} H in the last two weeks — you are mid-run.`,
+  momentum: (r) => `${r.data?.hours ?? 0} h in the last two weeks — you are mid-run.`,
   never: () => `Never launched. It is still in its wrapper.`,
-  stale: (r) => `Only ${r.data?.hours ?? 0} H in. You never really gave it a shot.`,
+  stale: (r) => `Only ${r.data?.hours ?? 0} h in. You never really gave it a shot.`,
   taste: (r) => `${q.en(r.data?.tag ?? "")} is one of your favourite genres.`,
 };
 
@@ -42,9 +42,9 @@ const frLines: Record<ReasonKey, Liner> = {
   custom: (r) => `${q.fr(r.data?.tag ?? "")} colle à ce que tu as écrit.`,
   shortFit: () => `Fait pour les sessions courtes, pile le créneau que tu as.`,
   longFit: () => `Il se donne sur la longueur, et tu as la soirée devant toi.`,
-  momentum: (r) => `${r.data?.hours ?? 0} H dessus ces deux dernières semaines — tu es lancé.`,
+  momentum: (r) => `${r.data?.hours ?? 0} h dessus ces deux dernières semaines — tu es lancé.`,
   never: () => `Jamais lancé. Encore sous blister.`,
-  stale: (r) => `${r.data?.hours ?? 0} H au compteur. Tu ne lui as jamais laissé sa chance.`,
+  stale: (r) => `${r.data?.hours ?? 0} h au compteur. Tu ne lui as jamais laissé sa chance.`,
   taste: (r) => `${q.fr(r.data?.tag ?? "")}, un de tes genres préférés.`,
 };
 

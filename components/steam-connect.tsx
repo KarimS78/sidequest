@@ -44,7 +44,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
       <form action={action} className="card flex flex-col gap-3 p-5">
         <label
           htmlFor="steam"
-          className="mono text-[10px] uppercase tracking-[0.14em] text-subtle"
+          className="label text-[12.5px] text-subtle"
         >
           {t.form.label}
         </label>
@@ -65,7 +65,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
           </button>
         </div>
 
-        <p className="mono text-[10px] uppercase tracking-[0.08em] text-subtle">
+        <p className="label text-[12.5px] text-subtle">
           {t.form.hint}
         </p>
       </form>
@@ -79,7 +79,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
       {state && state.ok && (
         <div className="flex flex-col gap-5">
           {state.isMock && (
-            <p className="mono card-quiet p-3 text-[10.5px] uppercase leading-relaxed tracking-[0.08em] text-subtle">
+            <p className="label card-quiet p-3 text-[12.5px] leading-relaxed text-subtle">
               {t.imported.mock}
             </p>
           )}
@@ -101,17 +101,17 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="poster truncate text-[17px]">{state.profile.name}</p>
-              <p className="mono mt-1 text-[10px] uppercase tracking-[0.1em] text-subtle">
+              <p className="label mt-1 text-[12.5px] text-subtle">
                 {t.imported.games(state.games.length)}
               </p>
             </div>
-            <span className="mono shrink-0 text-[10px] uppercase tracking-[0.12em] text-accent-soft">
+            <span className="label shrink-0 text-[12.5px] text-accent-soft">
               {t.imported.connected}
             </span>
           </div>
 
           <div className="flex flex-col gap-3">
-            <span className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+            <span className="label text-[12.5px] text-subtle">
               {t.imported.top}
             </span>
             <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
@@ -127,7 +127,7 @@ export function SteamConnect({ demoMode = false }: { demoMode?: boolean }) {
               ))}
             </ul>
             {state.games.length > 12 && (
-              <p className="mono text-[10px] uppercase tracking-[0.08em] text-subtle">
+              <p className="label text-[12.5px] text-subtle">
                 {t.imported.more(state.games.length - 12)}
               </p>
             )}

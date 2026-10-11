@@ -1,56 +1,55 @@
 @import "tailwindcss";
 
 /* ============================================================
-   SideQuest — STUDIO NUIT
+   SideQuest — VERT ACIDE (since 2026-10-11)
    ------------------------------------------------------------
-   A dark board, dense but calm, with poster typography and one
-   cinematic verdict laid over the game's own key art.
+   The app wears the landing's skin (handoff Claude Design): an
+   almost-black ground, cards one step up, warm off-white type and
+   one acid green. Unbounded sets the posters, Geist everything else —
+   numbers included, in tabular figures. No mono, no spaced capitals.
 
-   Two rules hold the whole thing together:
+   The two old rules still hold, re-coloured:
 
-   1. ONE VIOLET, AND IT MEANS "THIS IS THE ANSWER". The glow is
-      spent on exactly two things — the primary call to action and
-      the mark. Everywhere else the interface is steel and type. A
-      glow on every card is wallpaper; a glow on one thing is a
-      pointer.
-   2. NOTHING IS FLAT. A page of pure #0d1114 reads as an unpainted
-      div, so the ground carries 3% grain and every surface sits one
-      step out of it. No glass, no page-wide gradients: a single
-      violet pool behind the hero and nothing else.
-
-   Type is three families and no more. Clash Display carries the
-   posters, Instrument Sans carries the reading, Geist Mono carries
-   anything the engine computed — a score, an hour count, a session
-   length. Mono is how you can tell a number came from the maths.
+   1. ONE GREEN, AND IT MEANS "THIS IS THE ANSWER". The acid fill is
+      spent on the primary call to action, the active choice and the
+      verdict's mood bar. Everywhere else it is off-white on near-black.
+   2. NOTHING IS FLAT. The ground carries the landing's fixed scanlines
+      instead of a flat fill, and every surface sits one step out of it.
    ============================================================ */
 
 :root {
-  /* ---- ground and surfaces ---- */
-  --background: #0d1114;
-  --surface: #141922;
-  --surface-2: #0b0e13;
+  /* ---- ground and surfaces (landing: #0A0B0D / #121418 / #0E1013) ---- */
+  --background: #0a0b0d;
+  --surface: #121418;
+  --surface-2: #0e1013;
 
-  --border: #242c3a;
-  --border-strong: #2c3442;
+  /* Hairlines are off-white at low alpha, like the landing's filets. */
+  --border: rgba(242, 243, 238, 0.09);
+  --border-strong: rgba(242, 243, 238, 0.16);
 
-  --foreground: #e8ecf4;
-  --muted: #99a3b3;
-  --subtle: #6d7686;
+  --foreground: #f2f3ee;
+  --muted: #c9cbc2;
+  /* The landing's #9A9D93, the faintest grey that still reads as text. */
+  --subtle: #9a9d93;
 
   /* ---- the one accent ---- */
-  --accent: #7c5cff;
-  --accent-soft: #a794ff;
-  --accent-dim: rgba(124, 92, 255, 0.14);
-  --accent-line: rgba(124, 92, 255, 0.38);
+  --accent: #c6ff3d;
+  /* Accent used AS TEXT on the dark ground. Same green: it passes 15:1. */
+  --accent-soft: #c6ff3d;
+  --accent-dim: rgba(198, 255, 61, 0.1);
+  --accent-line: rgba(198, 255, 61, 0.36);
+  /* Text sitting ON the acid fill. */
+  --on-accent: #0a0b0d;
 
-  /* The signature glow. Primary CTA and the mark. Nowhere else. */
-  --glow: 0 0 24px rgba(124, 92, 255, 0.35);
-  --glow-strong: 0 0 34px rgba(124, 92, 255, 0.5);
+  /* The glow. Hover on the primary CTA, the hovered tile. Nowhere else. */
+  --glow: 0 0 0 rgba(198, 255, 61, 0);
+  --glow-strong: 0 0 40px rgba(198, 255, 61, 0.33);
 
-  /* ---- fixed radii, no in-between values ---- */
-  --r-btn: 8px;
-  --r-input: 10px;
-  --r-card: 16px;
+  /* ---- radii: pills for anything you press, 20px cards ---- */
+  --r-pill: 999px;
+  --r-btn: 10px;
+  --r-input: 12px;
+  --r-card: 20px;
 
   /* ---- motion ---- */
   --ease-out-quest: cubic-bezier(0.22, 1, 0.36, 1);
@@ -84,9 +83,12 @@
   --radius-input: var(--r-input);
   --radius-card: var(--r-card);
 
-  --font-display: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
-  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-on-accent: var(--on-accent);
+  --radius-pill: var(--r-pill);
+
+  --font-display: var(--font-unbounded), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* ============================================================
@@ -101,45 +103,43 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* The grain. Three percent of noise is the difference between a dark
-   interface and a dark rectangle: it is what stops a large flat fill from
-   reading as an unpainted div. Fixed, so it does not travel with scroll. */
+/* The landing's scanlines, fixed, so they do not travel with scroll. They are
+   what stops a large near-black fill from reading as an unpainted div. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 90;
   pointer-events: none;
-  opacity: 0.032;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.6;
+  background: repeating-linear-gradient(0deg, rgba(242, 243, 238, 0.016) 0 1px, transparent 1px 4px);
 }
 
 ::selection {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Every interactive thing, one ring, no exceptions. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent-soft);
-  outline-offset: 2px;
-  border-radius: var(--r-btn);
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-family: var(--font-unbounded), ui-sans-serif, sans-serif;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.06;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 /* ============================================================
@@ -182,37 +182,44 @@ h3 {
    TYPE ROLES
    ============================================================ */
 
-/* Anything the engine computed. Mono is the tell. */
+/* Anything the engine computed: a score, an hour count, a session length.
+   Since the acid DA (2026-10-11) there is no monospace in the app — Karim's
+   rule — so the tell is tabular figures in the reading face, not a mono. The
+   class name stays because forty call sites use it. */
 .mono {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
-/* The small violet line above a headline. */
+/* The small acid line above a headline. Sentence case, reading face: no
+   mono, no spaced capitals. */
 .eyebrow {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 11px;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent-soft);
+  color: var(--accent);
 }
 
 .eyebrow-quiet {
   color: var(--subtle);
 }
 
-/* Poster type. Capitals, tight leading, barely-there tracking. */
+/* An interface label: sentence case, in the reading face. */
+.label {
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Poster type. Unbounded, sentence case, tight tracking — the landing's H1.
+   Unbounded is wide and its accented capitals are tall, so the leading sits
+   at 1.08 rather than the old 1.03 poster figure. */
 .poster {
-  font-family: var(--font-clash), "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-family: var(--font-unbounded), ui-sans-serif, sans-serif;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  /* 1.03 is the poster figure and it is right for English capitals. French
-     capitals carry accents — È, À, Ç — and at 1.03 the first line's accents
-     collide with whatever sits above. 1.06 buys the two pixels they need and
-     is still tighter than any default. */
-  line-height: 1.06;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
   text-wrap: balance;
 }
 
@@ -242,8 +249,8 @@ h3 {
   justify-content: center;
   gap: 0.5rem;
   min-height: 44px;
-  padding: 0 1.15rem;
-  border-radius: var(--r-btn);
+  padding: 0 1.3rem;
+  border-radius: var(--r-pill);
   border: 1px solid transparent;
   font-size: 14px;
   font-weight: 500;
@@ -265,12 +272,8 @@ h3 {
 /* The one thing on the screen wearing the glow. */
 .btn-primary {
   background: var(--accent);
-  color: #fff;
-  box-shadow: var(--glow);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -298,8 +301,7 @@ h3 {
 }
 
 .btn-ghost:hover:not(:disabled) {
-  border-color: var(--accent-line);
-  background: var(--accent-dim);
+  border-color: var(--foreground);
 }
 
 .btn-quiet {
@@ -351,7 +353,7 @@ textarea:focus {
   padding: 4px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--r-input);
+  border-radius: var(--r-pill);
 }
 
 .seg::before {
@@ -359,9 +361,8 @@ textarea:focus {
   position: absolute;
   inset: 4px auto 4px 4px;
   width: calc((100% - 8px) / var(--seg-n, 3));
-  border-radius: var(--r-btn);
-  background: var(--accent-dim);
-  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  background: var(--accent);
   transform: translateX(calc(var(--seg-i, 0) * 100%));
   transition: transform var(--t-base) var(--ease-out-quest);
 }
@@ -370,18 +371,17 @@ textarea:focus {
   position: relative;
   z-index: 1;
   min-height: 40px;
-  border-radius: var(--r-btn);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  border-radius: var(--r-pill);
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
   transition: color var(--t-base) var(--ease-out-quest);
 }
 
 .seg > button[aria-pressed="true"] {
-  color: var(--foreground);
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 /* ---------- chips: the fill wipes in, it does not blink on ---------- */
@@ -390,11 +390,11 @@ textarea:focus {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  min-height: 40px;
-  padding: 0 0.9rem;
-  border-radius: var(--r-btn);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: transparent;
   color: var(--muted);
   font-size: 13.5px;
   cursor: pointer;
@@ -408,7 +408,7 @@ textarea:focus {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--accent-dim);
+  background: var(--accent);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--t-base) var(--ease-out-quest);
@@ -419,8 +419,9 @@ textarea:focus {
 }
 
 .chip[aria-pressed="true"] {
-  color: var(--foreground);
-  border-color: var(--accent-line);
+  color: var(--on-accent);
+  font-weight: 600;
+  border-color: var(--accent);
 }
 
 .chip[aria-pressed="true"]::before {
@@ -433,14 +434,12 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: var(--r-btn);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--r-pill);
   border: 1px solid var(--border-strong);
-  background: rgba(11, 14, 19, 0.62);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  background: rgba(10, 11, 13, 0.66);
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -487,9 +486,9 @@ textarea:focus {
   background: linear-gradient(
     to top,
     var(--background) 4%,
-    rgba(13, 17, 20, 0.94) 26%,
-    rgba(13, 17, 20, 0.55) 52%,
-    rgba(13, 17, 20, 0.22) 100%
+    rgba(10, 11, 13, 0.94) 26%,
+    rgba(10, 11, 13, 0.55) 52%,
+    rgba(10, 11, 13, 0.22) 100%
   );
 }
 
@@ -498,22 +497,22 @@ textarea:focus {
   z-index: 2;
 }
 
-/* The seat: one flash of violet around the frame when the winner lands. */
+/* The seat: one flash of acid around the frame when the winner lands. */
 .verdict.is-seating {
   animation: seat-flash 400ms var(--ease-out-quest) 1;
 }
 
 @keyframes seat-flash {
   0% {
-    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0);
+    box-shadow: 0 0 0 0 rgba(198, 255, 61, 0);
     border-color: var(--border);
   }
   35% {
-    box-shadow: 0 0 34px 2px rgba(124, 92, 255, 0.45);
+    box-shadow: 0 0 34px 2px rgba(198, 255, 61, 0.4);
     border-color: var(--accent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0);
+    box-shadow: 0 0 0 0 rgba(198, 255, 61, 0);
     border-color: var(--border);
   }
 }
@@ -601,8 +600,12 @@ textarea:focus {
   }
 }
 
-/* The winner's title, letter by letter. */
-.letters > span {
+/* The winner's title, letter by letter. Words never split. */
+.letters-word {
+  white-space: nowrap;
+}
+
+.letters-word > span {
   display: inline-block;
   white-space: pre;
   animation: rise 380ms var(--ease-out-quest) both;
@@ -630,7 +633,7 @@ textarea:focus {
   .tile:hover {
     transform: scale(1.03);
     border-color: var(--accent-line);
-    box-shadow: var(--glow);
+    box-shadow: var(--glow-strong);
     z-index: 2;
   }
 }

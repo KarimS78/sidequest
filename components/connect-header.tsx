@@ -16,7 +16,7 @@ export function ConnectHeader({ demoMode }: { demoMode: boolean }) {
     <header className="flex flex-col gap-4">
       <Link
         href="/dashboard"
-        className="mono text-[10px] uppercase tracking-[0.12em] text-subtle transition-colors hover:text-fg"
+        className="label text-[12.5px] text-subtle transition-colors hover:text-fg"
       >
         ← {t.back}
       </Link>
@@ -29,7 +29,7 @@ export function ConnectHeader({ demoMode }: { demoMode: boolean }) {
 
       {demoMode && (
         <div className="card-quiet border-accent-line p-4">
-          <p className="mono text-[10px] uppercase tracking-[0.14em] text-accent-soft">
+          <p className="label text-[12.5px] text-accent-soft">
             {t.demoMode.title}
           </p>
           <p className="mt-2 text-[14px] leading-relaxed text-muted">

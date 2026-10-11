@@ -114,7 +114,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
           type="button"
           onClick={run}
           disabled={pending}
-          className="mono shrink-0 text-[10px] uppercase tracking-[0.12em] opacity-60 transition-opacity hover:opacity-100 disabled:opacity-40"
+          className="label shrink-0 text-[12.5px] opacity-60 transition-opacity hover:opacity-100 disabled:opacity-40"
         >
           {pending ? t.pending : roast ? t.again : t.cta}
         </button>
@@ -141,7 +141,7 @@ export function BacklogRoast({ stats: given }: { stats?: BacklogStats }) {
           </ul>
           {roast.redemption && (
             <p
-              className="mono mt-4 border-t pt-3 text-[11px] uppercase leading-relaxed tracking-[0.08em] opacity-60"
+              className="label mt-4 border-t pt-3 text-[13px] leading-relaxed opacity-60"
               style={{ borderColor: "rgba(13,17,20,0.2)" }}
             >
               {roast.redemption}

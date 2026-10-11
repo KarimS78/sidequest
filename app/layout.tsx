@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ViewTransition } from "react";
-import { Geist_Mono, Instrument_Sans } from "next/font/google";
-import localFont from "next/font/local";
+import { Geist, Unbounded } from "next/font/google";
 import "./globals.css";
 import { AppNav } from "@/components/nav";
 import { EggHost } from "@/components/eggs";
@@ -12,31 +11,18 @@ import { getLocale } from "@/i18n/server";
 import { dictionary } from "@/i18n";
 
 /**
- * Three families, three jobs.
- *
- * Clash Display is self-hosted rather than pulled from Fontshare at runtime:
- * it sets the first headline a visitor ever sees, and a display face that
- * arrives late is a layout that jumps. Three static weights, 45KB total, is
- * cheaper than the variable file and covers 500/600/700.
+ * Two families — the landing's (handoff of 2026-10-11), now worn by the whole
+ * app: Unbounded for the posters, Geist for everything else, numbers included
+ * (tabular figures). No monospace anywhere: Karim's rule.
  */
-const clash = localFont({
-  variable: "--font-clash",
-  display: "swap",
-  src: [
-    { path: "../public/fonts/ClashDisplay-Medium.woff2", weight: "500", style: "normal" },
-    { path: "../public/fonts/ClashDisplay-Semibold.woff2", weight: "600", style: "normal" },
-    { path: "../public/fonts/ClashDisplay-Bold.woff2", weight: "700", style: "normal" },
-  ],
-});
-
-const instrument = Instrument_Sans({
-  variable: "--font-instrument",
+const unbounded = Unbounded({
+  variable: "--font-unbounded",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-// Everything the engine computed: scores, hours, session lengths.
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
 });
 
@@ -78,7 +64,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   // The same ground the app paints, so the phone's status bar belongs to the
   // page rather than floating above it.
-  themeColor: "#0d1114",
+  themeColor: "#0a0b0d",
   colorScheme: "dark",
   viewportFit: "cover",
 };
@@ -94,7 +80,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${clash.variable} ${instrument.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${unbounded.variable} ${geist.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <I18nProvider initial={locale}>

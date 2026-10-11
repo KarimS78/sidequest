@@ -70,11 +70,11 @@ export function AiStatusPanel() {
           }`}
         />
         <h3 className="poster text-[1.05rem]">{t.title}</h3>
-        <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+        <span className="label text-[12.5px] text-subtle">
           {status.on ? t.live : t.off}
         </span>
         {status.on && (
-          <span className="mono ml-auto text-[10.5px] uppercase tracking-[0.1em] text-subtle">
+          <span className="label ml-auto text-[12.5px] text-subtle">
             {t.calls(status.calls, status.callsLimit)}
           </span>
         )}
@@ -90,7 +90,7 @@ export function AiStatusPanel() {
               Tokens are what the bill is in; cents are what a decision is in. */}
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="card-quiet p-3.5">
-              <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              <dt className="label text-[12.5px] text-subtle">
                 {t.spent}
               </dt>
               <dd className="mono mt-1.5 text-[1.5rem] leading-none text-accent-soft">
@@ -98,7 +98,7 @@ export function AiStatusPanel() {
               </dd>
             </div>
             <div className="card-quiet p-3.5">
-              <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              <dt className="label text-[12.5px] text-subtle">
                 {t.ceiling}
               </dt>
               <dd className="mono mt-1.5 text-[1.5rem] leading-none">
@@ -121,13 +121,13 @@ export function AiStatusPanel() {
                 style={{ transform: `scaleX(${pct / 100})` }}
               />
             </div>
-            <p className="mono mt-2 text-[10px] uppercase tracking-[0.1em] text-subtle">
+            <p className="label mt-2 text-[12.5px] text-subtle">
               {t.budget} · {Math.round(pct)}%
             </p>
           </div>
 
           <details className="mt-4 border-t border-line pt-3">
-            <summary className="mono cursor-pointer list-none text-[10px] uppercase tracking-[0.12em] text-subtle transition-colors hover:text-fg">
+            <summary className="label cursor-pointer list-none text-[12.5px] text-subtle transition-colors hover:text-fg">
               {t.detail}
             </summary>
             <p className="mono mt-2 text-[11px] leading-relaxed text-subtle">

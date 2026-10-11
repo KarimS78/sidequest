@@ -82,7 +82,7 @@ export function ProfileEditor() {
         </dl>
 
         {isSample && (
-          <p className="mono text-[10.5px] uppercase tracking-[0.1em] text-subtle">
+          <p className="label text-[12.5px] text-subtle">
             {t.sampleNote}{" "}
             <Link href="/connect" className="text-accent-soft hover:text-fg">
               {t.sampleCta} →
@@ -110,7 +110,7 @@ export function ProfileEditor() {
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h3 className="poster text-[1.05rem]">{t.taste.title}</h3>
             <span
-              className={`mono text-[10px] uppercase tracking-[0.12em] text-accent-soft transition-opacity duration-[var(--t-base)] ${
+              className={`label text-[12.5px] text-accent-soft transition-opacity duration-[var(--t-base)] ${
                 savedFlash ? "opacity-100" : "opacity-0"
               }`}
             >
@@ -132,7 +132,7 @@ export function ProfileEditor() {
                   onClick={() =>
                     persist(active ? genres.filter((x) => x !== g) : [...genres, g])
                   }
-                  className="chip !min-h-9 text-[13px]"
+                  className="chip !min-h-10 text-[13px]"
                 >
                   {t.taste.genres[g]}
                 </button>
@@ -164,7 +164,7 @@ export function ProfileEditor() {
                   <button
                     type="button"
                     onClick={() => setBlacklist(removeFromBlacklist(g.appid))}
-                    className="mono shrink-0 text-[10px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+                    className="label shrink-0 text-[12.5px] text-subtle transition-colors hover:text-fg"
                   >
                     {t.hidden.restore}
                   </button>
@@ -196,7 +196,7 @@ function SectionHead({ title, lede }: { title: string; lede: string }) {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="card-quiet p-4">
-      <dt className="mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+      <dt className="label text-[12.5px] text-subtle">
         {label}
       </dt>
       <dd className="mono mt-1.5 text-[2rem] leading-none">{value}</dd>

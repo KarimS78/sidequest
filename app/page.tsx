@@ -1,4 +1,3 @@
-import { Geist, Unbounded } from "next/font/google";
 import { Landing } from "@/components/landing";
 import { aiStatus } from "@/lib/ai";
 
@@ -12,23 +11,12 @@ import { aiStatus } from "@/lib/ai";
  * the page admitted it. Capability is read here instead, so the grid corrects
  * itself the moment a key is added rather than waiting for someone to notice.
  */
-// The landing wears its own two faces (handoff of 2026-10-11): Unbounded for
-// the poster lines, Geist for reading. Loaded here so the app never pays for
-// them; Geist Mono already comes from the layout.
-const unbounded = Unbounded({
-  variable: "--font-unbounded",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-const geist = Geist({
-  variable: "--font-geist",
-  subsets: ["latin"],
-});
+// The fonts (Unbounded, Geist, Geist Mono) come from the layout: since the
+// app adopted the landing's skin, the whole site shares them.
 
 export default function LandingPage() {
   return (
     <Landing
-      fontClass={`${unbounded.variable} ${geist.variable}`}
       caps={{
         steam: Boolean(process.env.STEAM_API_KEY?.trim()),
         // The same check the app itself runs, so the grid and the profile's

@@ -202,17 +202,17 @@ export function LibraryView() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="poster text-[clamp(2.2rem,6vw,3.6rem)]">{t.title}</h1>
-            <p className="mono mt-2 text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+            <p className="label mt-2 text-[12.5px] text-subtle">
               {t.count(library.length)}
               {untagged > 0 && ` · ${t.untagged(untagged)}`}
               {isSample && ` · ${t.demo}`}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Link href="/connect" className="btn btn-ghost !min-h-9 text-[12.5px]">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/connect" className="btn btn-ghost whitespace-nowrap text-[13px]">
               {t.resync}
             </Link>
-            <Link href="/connect" className="btn btn-quiet !min-h-9 text-[12.5px]">
+            <Link href="/connect" className="btn btn-quiet !min-h-11 whitespace-nowrap text-[13px]">
               {t.add}
             </Link>
           </div>
@@ -257,7 +257,7 @@ export function LibraryView() {
         {filter && (
           <div className="flex flex-col gap-2 border-t border-line pt-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mono text-[10px] uppercase tracking-[0.12em] text-accent-soft">
+              <span className="label text-[12.5px] text-accent-soft">
                 {t.filter.title}
               </span>
               <button
@@ -267,7 +267,7 @@ export function LibraryView() {
                   setAskNote(null);
                   setQuery("");
                 }}
-                className="mono ml-auto text-[10px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+                className="label ml-auto text-[12.5px] text-subtle transition-colors hover:text-fg"
               >
                 {t.filter.clear}
               </button>
@@ -297,14 +297,14 @@ export function LibraryView() {
       {/* ================= the shelf ================= */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="mono text-[10.5px] uppercase tracking-[0.12em] text-subtle">
+          <span className="label text-[12.5px] text-subtle">
             {t.results.count(games.length)}
           </span>
           {!filter && (
             <button
               type="button"
               onClick={() => setSort(sort === "playtime" ? "name" : "playtime")}
-              className="mono text-[10.5px] uppercase tracking-[0.1em] text-subtle transition-colors hover:text-fg"
+              className="label text-[12.5px] text-subtle transition-colors hover:text-fg"
             >
               {t.sort.label} · {sort === "playtime" ? t.sort.playtime : t.sort.name}
             </button>
@@ -329,7 +329,7 @@ export function LibraryView() {
                   </span>
                   <span className="flex items-baseline justify-between gap-2 px-2.5 py-2">
                     <span className="truncate text-[12.5px] text-muted">{g.name}</span>
-                    <span className="mono shrink-0 text-[10px] text-subtle">
+                    <span className="mono shrink-0 text-[12px] text-subtle">
                       {hours > 0 ? t.hours(hours) : "—"}
                     </span>
                   </span>

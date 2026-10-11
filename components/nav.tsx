@@ -157,10 +157,10 @@ export function AppNav() {
                     <Link
                       href={tab.href}
                       aria-current={active ? "page" : undefined}
-                      className={`mono flex h-9 items-center gap-2 rounded-btn px-3 text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--t-base)] ${
+                      className={`label flex h-9 items-center gap-2 rounded-pill border px-3.5 text-[13.5px] transition-colors duration-[var(--t-base)] ${
                         active
-                          ? "bg-accent-dim text-fg"
-                          : "text-subtle hover:text-fg"
+                          ? "border-line-strong bg-surface text-fg"
+                          : "border-transparent text-subtle hover:text-fg"
                       }`}
                     >
                       <TabIcon path={tab.path} />
@@ -190,8 +190,8 @@ export function AppNav() {
                 <Link
                   href={tab.href}
                   aria-current={active ? "page" : undefined}
-                  className={`relative flex h-[66px] min-h-11 flex-col items-center justify-center gap-1.5 text-[10px] transition-colors duration-[var(--t-base)] ${
-                    active ? "text-fg" : "text-subtle"
+                  className={`relative flex h-[66px] min-h-11 flex-col items-center justify-center gap-1.5 text-[11px] font-medium transition-colors duration-[var(--t-base)] ${
+                    active ? "text-accent" : "text-subtle"
                   }`}
                 >
                   {active && (

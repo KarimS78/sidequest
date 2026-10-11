@@ -66,7 +66,7 @@ export function TagEnricher({
 
   if (finished && !missing.length) {
     return (
-      <p className="mono rounded-card border border-accent-line bg-accent-dim p-3 text-[10.5px] uppercase leading-relaxed tracking-[0.08em] text-accent-soft">
+      <p className="label rounded-card border border-accent-line bg-accent-dim p-3 text-[12.5px] leading-relaxed text-accent-soft">
         {t.done}
       </p>
     );
@@ -91,7 +91,7 @@ export function TagEnricher({
               style={{ transform: `scaleX(${pct / 100})` }}
             />
           </div>
-          <p className="mono mt-2 text-[10px] uppercase tracking-[0.08em] text-subtle">
+          <p className="label mt-2 text-[12.5px] text-subtle">
             {done} / {missing.length} · {t.progress}
           </p>
         </div>

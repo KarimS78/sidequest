@@ -47,7 +47,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
         />
 
         {searching && (
-          <p className="mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+          <p className="label text-[12.5px] text-subtle">
             {t.searching}
           </p>
         )}
@@ -71,7 +71,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
                     type="button"
                     onClick={() => setLibrary(addGameToLibrary(g))}
                     disabled={added}
-                    className={`mono shrink-0 rounded-btn border px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                    className={`label shrink-0 rounded-btn border px-2.5 py-1.5 text-[12.5px] transition-colors ${
                       added
                         ? "cursor-default border-accent-line text-accent-soft"
                         : "border-line text-subtle hover:border-line-strong hover:text-fg"
@@ -87,7 +87,7 @@ export function AddGames({ seed }: { seed: StoredGame[] }) {
       </div>
 
       <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
-        <p className="mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+        <p className="label text-[12.5px] text-subtle">
           {t.count(library.length)}
           {addedCount > 0 && ` · ${t.countAdded(addedCount)}`}
         </p>
