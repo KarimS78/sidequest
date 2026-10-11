@@ -131,13 +131,16 @@ export function AppNav() {
   const tap = useTripleTap();
   const isLanding = pathname === "/";
 
+  // The landing draws its own bar (components/landing.tsx).
+  if (isLanding) return null;
+
   return (
     <>
       {/* ---------------- the top bar ---------------- */}
       <header className="sticky top-0 z-40 border-b border-line bg-base">
         <div className="wrap flex h-16 items-center justify-between gap-6">
           <Link
-            href={isLanding ? "/" : "/play"}
+            href="/play"
             aria-label={d.common.brand}
             className={LOGO_WRAPPER}
             onClick={tap}
@@ -145,67 +148,63 @@ export function AppNav() {
             <LogoContent />
           </Link>
 
-          {!isLanding && (
-            <nav aria-label={d.nav.aria} className="hidden lg:block">
-              <ul className="flex items-center gap-1">
-                {TABS.map((tab) => {
-                  const active = tab.href === activeHref;
-                  return (
-                    <li key={tab.href}>
-                      <Link
-                        href={tab.href}
-                        aria-current={active ? "page" : undefined}
-                        className={`mono flex h-9 items-center gap-2 rounded-btn px-3 text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--t-base)] ${
-                          active
-                            ? "bg-accent-dim text-fg"
-                            : "text-subtle hover:text-fg"
-                        }`}
-                      >
-                        <TabIcon path={tab.path} />
-                        {d.nav.tabs[tab.key]}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          )}
+          <nav aria-label={d.nav.aria} className="hidden lg:block">
+            <ul className="flex items-center gap-1">
+              {TABS.map((tab) => {
+                const active = tab.href === activeHref;
+                return (
+                  <li key={tab.href}>
+                    <Link
+                      href={tab.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`mono flex h-9 items-center gap-2 rounded-btn px-3 text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--t-base)] ${
+                        active
+                          ? "bg-accent-dim text-fg"
+                          : "text-subtle hover:text-fg"
+                      }`}
+                    >
+                      <TabIcon path={tab.path} />
+                      {d.nav.tabs[tab.key]}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
           <LanguageSwitch />
         </div>
       </header>
 
       {/* ---------------- the phone tab bar ---------------- */}
-      {!isLanding && (
-        <nav
-          aria-label={d.nav.aria}
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base lg:hidden"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        >
-          <ul className="mx-auto grid max-w-md grid-cols-4">
-            {TABS.map((tab) => {
-              const active = tab.href === activeHref;
-              return (
-                <li key={tab.href}>
-                  <Link
-                    href={tab.href}
-                    aria-current={active ? "page" : undefined}
-                    className={`relative flex h-[66px] min-h-11 flex-col items-center justify-center gap-1.5 text-[10px] transition-colors duration-[var(--t-base)] ${
-                      active ? "text-fg" : "text-subtle"
-                    }`}
-                  >
-                    {active && (
-                      <span className="absolute top-0 h-[2px] w-9 rounded-full bg-accent" />
-                    )}
-                    <TabIcon path={tab.path} />
-                    {d.nav.tabs[tab.key]}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      )}
+      <nav
+        aria-label={d.nav.aria}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <ul className="mx-auto grid max-w-md grid-cols-4">
+          {TABS.map((tab) => {
+            const active = tab.href === activeHref;
+            return (
+              <li key={tab.href}>
+                <Link
+                  href={tab.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`relative flex h-[66px] min-h-11 flex-col items-center justify-center gap-1.5 text-[10px] transition-colors duration-[var(--t-base)] ${
+                    active ? "text-fg" : "text-subtle"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute top-0 h-[2px] w-9 rounded-full bg-accent" />
+                  )}
+                  <TabIcon path={tab.path} />
+                  {d.nav.tabs[tab.key]}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     </>
   );
 }
